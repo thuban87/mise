@@ -1105,7 +1105,7 @@ var require_react_development = __commonJS({
           var dispatcher = resolveDispatcher();
           return dispatcher.useRef(initialValue);
         }
-        function useEffect2(create, deps) {
+        function useEffect3(create, deps) {
           var dispatcher = resolveDispatcher();
           return dispatcher.useEffect(create, deps);
         }
@@ -1117,7 +1117,7 @@ var require_react_development = __commonJS({
           var dispatcher = resolveDispatcher();
           return dispatcher.useLayoutEffect(create, deps);
         }
-        function useCallback(callback, deps) {
+        function useCallback3(callback, deps) {
           var dispatcher = resolveDispatcher();
           return dispatcher.useCallback(callback, deps);
         }
@@ -1884,11 +1884,11 @@ var require_react_development = __commonJS({
         exports.memo = memo;
         exports.startTransition = startTransition;
         exports.unstable_act = act;
-        exports.useCallback = useCallback;
+        exports.useCallback = useCallback3;
         exports.useContext = useContext2;
         exports.useDebugValue = useDebugValue;
         exports.useDeferredValue = useDeferredValue;
-        exports.useEffect = useEffect2;
+        exports.useEffect = useEffect3;
         exports.useId = useId;
         exports.useImperativeHandle = useImperativeHandle;
         exports.useInsertionEffect = useInsertionEffect;
@@ -2443,7 +2443,7 @@ var require_react_dom_development = __commonJS({
         var HostPortal = 4;
         var HostComponent = 5;
         var HostText = 6;
-        var Fragment = 7;
+        var Fragment2 = 7;
         var Mode = 8;
         var ContextConsumer = 9;
         var ContextProvider = 10;
@@ -3600,7 +3600,7 @@ var require_react_dom_development = __commonJS({
               return "DehydratedFragment";
             case ForwardRef:
               return getWrappedName$1(type, type.render, "ForwardRef");
-            case Fragment:
+            case Fragment2:
               return "Fragment";
             case HostComponent:
               return type;
@@ -12029,7 +12029,7 @@ var require_react_dom_development = __commonJS({
             }
           }
           function updateFragment2(returnFiber, current2, fragment, lanes, key) {
-            if (current2 === null || current2.tag !== Fragment) {
+            if (current2 === null || current2.tag !== Fragment2) {
               var created = createFiberFromFragment(fragment, returnFiber.mode, lanes, key);
               created.return = returnFiber;
               return created;
@@ -12432,7 +12432,7 @@ var require_react_dom_development = __commonJS({
               if (child.key === key) {
                 var elementType = element.type;
                 if (elementType === REACT_FRAGMENT_TYPE) {
-                  if (child.tag === Fragment) {
+                  if (child.tag === Fragment2) {
                     deleteRemainingChildren(returnFiber, child.sibling);
                     var existing = useFiber(child, element.props.children);
                     existing.return = returnFiber;
@@ -17908,7 +17908,7 @@ var require_react_dom_development = __commonJS({
               var _resolvedProps2 = workInProgress2.elementType === type ? _unresolvedProps2 : resolveDefaultProps(type, _unresolvedProps2);
               return updateForwardRef(current2, workInProgress2, type, _resolvedProps2, renderLanes2);
             }
-            case Fragment:
+            case Fragment2:
               return updateFragment(current2, workInProgress2, renderLanes2);
             case Mode:
               return updateMode(current2, workInProgress2, renderLanes2);
@@ -18180,7 +18180,7 @@ var require_react_dom_development = __commonJS({
             case SimpleMemoComponent:
             case FunctionComponent:
             case ForwardRef:
-            case Fragment:
+            case Fragment2:
             case Mode:
             case Profiler:
             case ContextConsumer:
@@ -22441,7 +22441,7 @@ var require_react_dom_development = __commonJS({
           return fiber;
         }
         function createFiberFromFragment(elements, mode, lanes, key) {
-          var fiber = createFiber(Fragment, elements, key, mode);
+          var fiber = createFiber(Fragment2, elements, key, mode);
           fiber.lanes = lanes;
           return fiber;
         }
@@ -24473,11 +24473,11 @@ var require_react_jsx_runtime_development = __commonJS({
             return jsxWithValidation(type, props, key, false);
           }
         }
-        var jsx8 = jsxWithValidationDynamic;
-        var jsxs4 = jsxWithValidationStatic;
+        var jsx9 = jsxWithValidationDynamic;
+        var jsxs5 = jsxWithValidationStatic;
         exports.Fragment = REACT_FRAGMENT_TYPE;
-        exports.jsx = jsx8;
-        exports.jsxs = jsxs4;
+        exports.jsx = jsx9;
+        exports.jsxs = jsxs5;
       })();
     }
   }
@@ -25353,6 +25353,8 @@ var RecipeContext = (0, import_react.createContext)(null);
 function RecipeProvider({ app, indexer, children }) {
   const [recipes, setRecipes] = (0, import_react.useState)([]);
   const [isLoading, setIsLoading] = (0, import_react.useState)(true);
+  const [selectedRecipe, setSelectedRecipe] = (0, import_react.useState)(null);
+  const [checkedIngredients, setCheckedIngredients] = (0, import_react.useState)(/* @__PURE__ */ new Map());
   (0, import_react.useEffect)(() => {
     const loadRecipes = () => {
       setRecipes(indexer.getRecipes());
@@ -25391,7 +25393,43 @@ function RecipeProvider({ app, indexer, children }) {
     }
     return app.vault.adapter.getResourcePath(imagePath);
   };
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RecipeContext.Provider, { value: { app, recipes, isLoading, openRecipe, getImageUrl }, children });
+  const openModal = (0, import_react.useCallback)((recipe) => {
+    setSelectedRecipe(recipe);
+  }, []);
+  const closeModal = (0, import_react.useCallback)(() => {
+    setSelectedRecipe(null);
+  }, []);
+  const isIngredientChecked = (0, import_react.useCallback)((recipePath, ingredientIndex) => {
+    var _a;
+    const recipeChecked = checkedIngredients.get(recipePath);
+    return (_a = recipeChecked == null ? void 0 : recipeChecked.has(ingredientIndex)) != null ? _a : false;
+  }, [checkedIngredients]);
+  const toggleIngredient = (0, import_react.useCallback)((recipePath, ingredientIndex) => {
+    setCheckedIngredients((prev) => {
+      var _a;
+      const newMap = new Map(prev);
+      const recipeSet = new Set((_a = newMap.get(recipePath)) != null ? _a : []);
+      if (recipeSet.has(ingredientIndex)) {
+        recipeSet.delete(ingredientIndex);
+      } else {
+        recipeSet.add(ingredientIndex);
+      }
+      newMap.set(recipePath, recipeSet);
+      return newMap;
+    });
+  }, []);
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RecipeContext.Provider, { value: {
+    app,
+    recipes,
+    isLoading,
+    openRecipe,
+    getImageUrl,
+    selectedRecipe,
+    openModal,
+    closeModal,
+    isIngredientChecked,
+    toggleIngredient
+  }, children });
 }
 function useRecipes() {
   const context = (0, import_react.useContext)(RecipeContext);
@@ -25404,12 +25442,12 @@ function useRecipes() {
 // src/ui/components/RecipeCard.tsx
 var import_jsx_runtime2 = __toESM(require_jsx_runtime());
 function RecipeCard({ recipe }) {
-  const { openRecipe, getImageUrl } = useRecipes();
+  const { openModal, getImageUrl } = useRecipes();
   const imageUrl = getImageUrl(recipe.image);
   const totalTime = formatTotalTime(recipe.prepTime, recipe.cookTime);
   const categoryEmoji = getCategoryEmoji(recipe.category);
   const handleClick = () => {
-    openRecipe(recipe.path);
+    openModal(recipe);
   };
   return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "mise-card", onClick: handleClick, children: [
     /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "mise-card-image", children: [
@@ -25456,12 +25494,12 @@ function RecipeGrid({ recipes }) {
 // src/ui/components/RecipeCardMini.tsx
 var import_jsx_runtime4 = __toESM(require_jsx_runtime());
 function RecipeCardMini({ recipe }) {
-  const { openRecipe, getImageUrl } = useRecipes();
+  const { openModal, getImageUrl } = useRecipes();
   const imageUrl = getImageUrl(recipe.image);
   const totalTime = formatTotalTime(recipe.prepTime, recipe.cookTime);
   const categoryEmoji = getCategoryEmoji(recipe.category);
   const handleClick = () => {
-    openRecipe(recipe.path);
+    openModal(recipe);
   };
   return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "mise-card-mini", onClick: handleClick, children: [
     /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "mise-mini-image", children: imageUrl ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("img", { src: imageUrl, alt: recipe.title, loading: "lazy" }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "mise-mini-placeholder", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: categoryEmoji }) }) }),
@@ -25478,46 +25516,160 @@ function RecipeCardMini({ recipe }) {
   ] });
 }
 
-// src/ui/components/CookbookApp.tsx
+// src/ui/components/RecipeModal.tsx
+var import_react2 = __toESM(require_react());
 var import_jsx_runtime5 = __toESM(require_jsx_runtime());
+function RecipeModal() {
+  const {
+    selectedRecipe,
+    closeModal,
+    openRecipe,
+    getImageUrl,
+    isIngredientChecked,
+    toggleIngredient
+  } = useRecipes();
+  (0, import_react2.useEffect)(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        closeModal();
+      }
+    };
+    if (selectedRecipe) {
+      document.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [selectedRecipe, closeModal]);
+  const handleBackdropClick = (0, import_react2.useCallback)((e) => {
+    if (e.target === e.currentTarget) {
+      closeModal();
+    }
+  }, [closeModal]);
+  if (!selectedRecipe) {
+    return null;
+  }
+  const recipe = selectedRecipe;
+  const imageUrl = getImageUrl(recipe.image);
+  const totalTime = formatTotalTime(recipe.prepTime, recipe.cookTime);
+  const categoryEmoji = getCategoryEmoji(recipe.category);
+  return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mise-modal-backdrop", onClick: handleBackdropClick, children: /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mise-modal", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mise-modal-header", children: [
+      imageUrl ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("img", { src: imageUrl, alt: recipe.title, className: "mise-modal-image" }) : /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mise-modal-placeholder", children: /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { children: categoryEmoji }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("button", { className: "mise-modal-close", onClick: closeModal, "aria-label": "Close", children: "\u2715" })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mise-modal-content", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("h2", { className: "mise-modal-title", children: recipe.title }),
+      recipe.rating && /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mise-modal-rating", children: [
+        "\u2605".repeat(recipe.rating),
+        "\u2606".repeat(5 - recipe.rating)
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mise-modal-badges", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("span", { className: "mise-badge mise-badge-category", children: [
+          categoryEmoji,
+          " ",
+          recipe.category
+        ] }),
+        totalTime && /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("span", { className: "mise-badge mise-badge-time", children: [
+          "\u23F1\uFE0F ",
+          totalTime
+        ] }),
+        recipe.servings && /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("span", { className: "mise-badge mise-badge-servings", children: [
+          "\u{1F37D}\uFE0F ",
+          recipe.servings
+        ] })
+      ] }),
+      recipe.dietaryFlags.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mise-modal-dietary", children: recipe.dietaryFlags.map((flag) => /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "mise-dietary-pill", children: flag }, flag)) }),
+      recipe.ingredients.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mise-modal-section", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("h3", { children: "Ingredients" }),
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("ul", { className: "mise-ingredient-list", children: recipe.ingredients.map((ingredient, index) => {
+          const isChecked = isIngredientChecked(recipe.path, index);
+          return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+            "li",
+            {
+              className: `mise-ingredient-item ${isChecked ? "mise-ingredient-checked" : ""}`,
+              onClick: () => toggleIngredient(recipe.path, index),
+              children: [
+                /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "mise-ingredient-checkbox", children: isChecked ? "\u2611" : "\u2610" }),
+                /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "mise-ingredient-text", children: ingredient })
+              ]
+            },
+            index
+          );
+        }) })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mise-modal-actions", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+          "button",
+          {
+            className: "mise-btn mise-btn-primary",
+            onClick: () => {
+              openRecipe(recipe.path);
+              closeModal();
+            },
+            children: "\u{1F4DD} Open Recipe"
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+          "button",
+          {
+            className: "mise-btn mise-btn-secondary",
+            disabled: true,
+            title: "Coming soon in Phase 11",
+            children: "\u{1F4C5} Add to Meal Plan"
+          }
+        )
+      ] })
+    ] })
+  ] }) });
+}
+
+// src/ui/components/CookbookApp.tsx
+var import_jsx_runtime6 = __toESM(require_jsx_runtime());
 function CookbookApp({ compact = false }) {
   const { recipes, isLoading } = useRecipes();
   if (isLoading) {
-    return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mise-cookbook mise-loading", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mise-loading-spinner" }),
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("p", { children: "Loading recipes..." })
+    return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mise-cookbook mise-loading", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mise-loading-spinner" }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("p", { children: "Loading recipes..." })
     ] });
   }
   if (recipes.length === 0) {
-    return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mise-cookbook mise-empty", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mise-empty-icon", children: "\u{1F4DA}" }),
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("h3", { children: "No recipes found" }),
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("p", { children: "Add recipes to your configured recipe folder to get started." })
+    return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mise-cookbook mise-empty", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mise-empty-icon", children: "\u{1F4DA}" }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h3", { children: "No recipes found" }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("p", { children: "Add recipes to your configured recipe folder to get started." })
     ] });
   }
   if (compact) {
-    return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mise-cookbook mise-compact", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("header", { className: "mise-header", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("h2", { children: "\u{1F373} Recipes" }),
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "mise-recipe-count", children: recipes.length })
+    return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_jsx_runtime6.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mise-cookbook mise-compact", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("header", { className: "mise-header", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h2", { children: "\u{1F373} Recipes" }),
+          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "mise-recipe-count", children: recipes.length })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mise-mini-list", children: recipes.map((recipe) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(RecipeCardMini, { recipe }, recipe.path)) })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mise-mini-list", children: recipes.map((recipe) => /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(RecipeCardMini, { recipe }, recipe.path)) })
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(RecipeModal, {})
     ] });
   }
-  return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mise-cookbook", children: [
-    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("header", { className: "mise-header", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("h2", { children: "\u{1F373} Cookbook" }),
-      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("span", { className: "mise-recipe-count", children: [
-        recipes.length,
-        " recipes"
-      ] })
+  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_jsx_runtime6.Fragment, { children: [
+    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mise-cookbook", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("header", { className: "mise-header", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h2", { children: "\u{1F373} Cookbook" }),
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("span", { className: "mise-recipe-count", children: [
+          recipes.length,
+          " recipes"
+        ] })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(RecipeGrid, { recipes })
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(RecipeGrid, { recipes })
+    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(RecipeModal, {})
   ] });
 }
 
 // src/ui/views/CookbookView.tsx
-var import_jsx_runtime6 = __toESM(require_jsx_runtime());
+var import_jsx_runtime7 = __toESM(require_jsx_runtime());
 var CookbookView = class extends import_obsidian5.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
@@ -25539,7 +25691,7 @@ var CookbookView = class extends import_obsidian5.ItemView {
     container.addClass("mise-cookbook-container");
     this.root = (0, import_client.createRoot)(container);
     this.root.render(
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(RecipeProvider, { app: this.app, indexer: this.plugin.indexer, children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(CookbookApp, {}) })
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(RecipeProvider, { app: this.app, indexer: this.plugin.indexer, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(CookbookApp, {}) })
     );
   }
   async onClose() {
@@ -25553,7 +25705,7 @@ var CookbookView = class extends import_obsidian5.ItemView {
 // src/ui/views/CookbookSidebar.tsx
 var import_obsidian6 = require("obsidian");
 var import_client2 = __toESM(require_client());
-var import_jsx_runtime7 = __toESM(require_jsx_runtime());
+var import_jsx_runtime8 = __toESM(require_jsx_runtime());
 var CookbookSidebar = class extends import_obsidian6.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
@@ -25575,7 +25727,7 @@ var CookbookSidebar = class extends import_obsidian6.ItemView {
     container.addClass("mise-sidebar-container");
     this.root = (0, import_client2.createRoot)(container);
     this.root.render(
-      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(RecipeProvider, { app: this.app, indexer: this.plugin.indexer, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(CookbookApp, { compact: true }) })
+      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(RecipeProvider, { app: this.app, indexer: this.plugin.indexer, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(CookbookApp, { compact: true }) })
     );
   }
   async onClose() {

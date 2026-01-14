@@ -442,3 +442,249 @@
 	font-size: 0.9em;
 	margin-bottom: var(--mise-spacing-md);
 }
+
+/* ===========================
+   Recipe Modal (Phase 7)
+   =========================== */
+.mise-modal-backdrop {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.6);
+	backdrop-filter: blur(8px);
+	-webkit-backdrop-filter: blur(8px);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1000;
+	padding: var(--mise-spacing-md);
+}
+
+.mise-modal {
+	background: var(--background-primary);
+	border-radius: 12px;
+	box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+	max-width: 600px;
+	width: 100%;
+	max-height: 90vh;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+	animation: mise-modal-in 0.2s ease-out;
+}
+
+@keyframes mise-modal-in {
+	from {
+		opacity: 0;
+		transform: scale(0.95) translateY(10px);
+	}
+
+	to {
+		opacity: 1;
+		transform: scale(1) translateY(0);
+	}
+}
+
+.mise-modal-header {
+	position: relative;
+	width: 100%;
+	height: 200px;
+	overflow: hidden;
+	flex-shrink: 0;
+}
+
+.mise-modal-image {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.mise-modal-placeholder {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+	background: linear-gradient(135deg,
+			var(--interactive-accent) 0%,
+			var(--interactive-accent-hover) 100%);
+	font-size: 64px;
+}
+
+.mise-modal-close {
+	position: absolute;
+	top: var(--mise-spacing-sm);
+	right: var(--mise-spacing-sm);
+	width: 32px;
+	height: 32px;
+	border: none;
+	border-radius: 50%;
+	background: rgba(0, 0, 0, 0.5);
+	color: white;
+	font-size: 16px;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: background 0.15s ease;
+}
+
+.mise-modal-close:hover {
+	background: rgba(0, 0, 0, 0.7);
+}
+
+.mise-modal-content {
+	padding: var(--mise-spacing-lg);
+	overflow-y: auto;
+	flex: 1;
+}
+
+.mise-modal-title {
+	margin: 0 0 var(--mise-spacing-xs);
+	font-size: 1.5em;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.mise-modal-rating {
+	font-size: 1.1em;
+	color: #fbbf24;
+	letter-spacing: 2px;
+	margin-bottom: var(--mise-spacing-md);
+}
+
+.mise-modal-badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--mise-spacing-xs);
+	margin-bottom: var(--mise-spacing-md);
+}
+
+.mise-modal-dietary {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin-bottom: var(--mise-spacing-md);
+}
+
+.mise-modal-section {
+	margin-bottom: var(--mise-spacing-lg);
+}
+
+.mise-modal-section h3 {
+	margin: 0 0 var(--mise-spacing-sm);
+	font-size: 1em;
+	font-weight: 600;
+	color: var(--text-normal);
+	border-bottom: 1px solid var(--background-modifier-border);
+	padding-bottom: var(--mise-spacing-xs);
+}
+
+/* Ingredient List */
+.mise-ingredient-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+
+.mise-ingredient-item {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--mise-spacing-sm);
+	padding: var(--mise-spacing-sm) var(--mise-spacing-xs);
+	min-height: 44px;
+	cursor: pointer;
+	border-radius: 6px;
+	transition: background 0.15s ease;
+}
+
+.mise-ingredient-item:hover {
+	background: var(--background-secondary);
+}
+
+.mise-ingredient-checkbox {
+	flex-shrink: 0;
+	font-size: 1.2em;
+	line-height: 1;
+	color: var(--text-muted);
+}
+
+.mise-ingredient-text {
+	flex: 1;
+	color: var(--text-normal);
+	line-height: 1.4;
+}
+
+.mise-ingredient-checked .mise-ingredient-checkbox {
+	color: var(--interactive-accent);
+}
+
+.mise-ingredient-checked .mise-ingredient-text {
+	text-decoration: line-through;
+	color: var(--text-muted);
+}
+
+/* Modal Actions */
+.mise-modal-actions {
+	display: flex;
+	gap: var(--mise-spacing-sm);
+	padding-top: var(--mise-spacing-md);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.mise-btn {
+	flex: 1;
+	padding: var(--mise-spacing-sm) var(--mise-spacing-md);
+	border: none;
+	border-radius: 6px;
+	font-size: 0.9em;
+	font-weight: 500;
+	cursor: pointer;
+	transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.mise-btn:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.mise-btn-primary {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.mise-btn-primary:hover:not(:disabled) {
+	background: var(--interactive-accent-hover);
+}
+
+.mise-btn-secondary {
+	background: var(--background-secondary);
+	color: var(--text-normal);
+}
+
+.mise-btn-secondary:hover:not(:disabled) {
+	background: var(--background-secondary-alt);
+}
+
+/* Mobile adjustments for modal */
+@media (max-width: 600px) {
+	.mise-modal {
+		max-height: 95vh;
+		border-radius: 12px 12px 0 0;
+		margin-top: auto;
+	}
+
+	.mise-modal-header {
+		height: 150px;
+	}
+
+	.mise-modal-content {
+		padding: var(--mise-spacing-md);
+	}
+
+	.mise-modal-actions {
+		flex-direction: column;
+	}
+}
