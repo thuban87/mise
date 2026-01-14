@@ -8,7 +8,7 @@ import { ItemView, WorkspaceLeaf } from 'obsidian';
 import { createRoot, Root } from 'react-dom/client';
 import { MISE_COOKBOOK_VIEW_TYPE } from '../../utils/constants';
 import { CookbookApp, RecipeProvider } from '../components';
-import { RecipeIndexer } from '../../services';
+import { RecipeIndexer, MealPlanService } from '../../services';
 import type MisePlugin from '../../main';
 
 export class CookbookView extends ItemView {
@@ -40,7 +40,11 @@ export class CookbookView extends ItemView {
         // Create React root and render app
         this.root = createRoot(container);
         this.root.render(
-            <RecipeProvider app={this.app} indexer={this.plugin.indexer}>
+            <RecipeProvider
+                app={this.app}
+                indexer={this.plugin.indexer}
+                mealPlanService={this.plugin.mealPlanService}
+            >
                 <CookbookApp />
             </RecipeProvider>
         );

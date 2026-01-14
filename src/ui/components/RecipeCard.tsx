@@ -11,11 +11,12 @@ interface RecipeCardProps {
 }
 
 export function RecipeCard({ recipe }: RecipeCardProps) {
-    const { openModal, getImageUrl } = useRecipes();
+    const { openModal, getImageUrl, getPlannedDays } = useRecipes();
 
     const imageUrl = getImageUrl(recipe.image);
     const totalTime = formatTotalTime(recipe.prepTime, recipe.cookTime);
     const categoryEmoji = getCategoryEmoji(recipe.category);
+    const plannedDays = getPlannedDays(recipe.title);
 
     const handleClick = () => {
         openModal(recipe);
@@ -38,6 +39,13 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
                     <div className="mise-card-rating">
                         {'★'.repeat(recipe.rating)}
                         {'☆'.repeat(5 - recipe.rating)}
+                    </div>
+                )}
+
+                {/* Planned badge */}
+                {plannedDays && (
+                    <div className="mise-card-planned">
+                        📅 {plannedDays}
                     </div>
                 )}
             </div>

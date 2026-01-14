@@ -5,7 +5,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { App } from 'obsidian';
 import { Recipe, RecipeCategory, DietaryFlag } from '../../types';
-import { RecipeIndexer } from '../../services';
+import { RecipeIndexer, MealPlanService } from '../../services';
 
 export type SortOption = 'rating' | 'time' | 'alpha' | 'recent';
 
@@ -44,6 +44,8 @@ interface RecipeContextValue {
     hasActiveFilters: boolean;
     categories: RecipeCategory[];
     allDietaryFlags: DietaryFlag[];
+    // Meal plan
+    getPlannedDays: (recipeTitle: string) => string;
 }
 
 const RecipeContext = createContext<RecipeContextValue | null>(null);
@@ -51,10 +53,11 @@ const RecipeContext = createContext<RecipeContextValue | null>(null);
 interface RecipeProviderProps {
     app: App;
     indexer: RecipeIndexer;
+    mealPlanService?: MealPlanService;
     children: ReactNode;
 }
 
-export function RecipeProvider({ app, indexer, children }: RecipeProviderProps) {
+export function RecipeProvider({ app, indexer, mealPlanService, children }: RecipeProviderProps) {
     const [recipes, setRecipes] = useState<Recipe[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
@@ -250,6 +253,10 @@ export function RecipeProvider({ app, indexer, children }: RecipeProviderProps) 
             return newMap;
         });
     }, []);
+    const getPlannedDays = useCallback((recipeTitle: string): string => {
+        if (!mealPlanService) return '';
+        return mealPlanService.getPlannedDaysSummary(recipeTitle);
+    }, [mealPlanService]);
 
     return (
         <RecipeContext.Provider value={{
@@ -284,6 +291,7 @@ export function RecipeProvider({ app, indexer, children }: RecipeProviderProps) 
             hasActiveFilters,
             categories,
             allDietaryFlags,
+            getPlannedDays,
         }}>
             {children}
         </RecipeContext.Provider>

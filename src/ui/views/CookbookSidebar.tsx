@@ -39,7 +39,11 @@ export class CookbookSidebar extends ItemView {
         // Create React root and render app in compact mode
         this.root = createRoot(container);
         this.root.render(
-            <RecipeProvider app={this.app} indexer={this.plugin.indexer}>
+            <RecipeProvider
+                app={this.app}
+                indexer={this.plugin.indexer}
+                mealPlanService={this.plugin.mealPlanService}
+            >
                 <CookbookApp compact={true} />
             </RecipeProvider>
         );

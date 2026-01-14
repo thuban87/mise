@@ -12,7 +12,7 @@ tags:
 > This is a personal utility project with infinite runway. Features get done when they get done. Do not pressure the user with "we should do this after MVP" language.
 
 **Last Updated:** January 13, 2026
-**Current Phase:** Phase 9 - Favorites & Recently Viewed
+**Current Phase:** Phase 10 - Meal Plan Calendar UI
 
 ---
 
@@ -397,47 +397,39 @@ interface ShoppingItem {
 
 ### Phase 9: Meal Plan Reader
 - **Goal:** Parse existing meal plan files.
-- **Status:** `[ ]` Not Started
+- **Status:** `[x]` Completed
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Create `MealPlanService` | `[ ]` | Service class |
-| Create `MealPlanParser` | `[ ]` | Pure functions |
-| Locate meal plan files | `[ ]` | From settings path |
-| Parse month header structure | `[ ]` | `# January 2026` |
-| Parse day headers | `[ ]` | `## Monday, Jan 15` |
-| Parse meal sections | `[ ]` | Breakfast, Lunch, Dinner tables |
-| Extract recipe wikilinks | `[ ]` | `[[Recipe Name]]` |
-| Build MealPlan state object | `[ ]` | In-memory representation |
-| Watch for meal plan changes | `[ ]` | `vault.on('modify')` |
-| "Planned" indicator on cards | `[ ]` | Badge showing which days |
+| Create `MealPlanParser` | `[x]` | Parses tables with Day/Meal/Protein/Sides/Notes |
+| Create `MealPlanService` | `[x]` | Loads files, watches for changes |
+| Locate meal plan files | `[x]` | Files with "meal" or "plan" in name |
+| Parse meal sections | `[x]` | Breakfast, Lunch, Dinner headers |
+| Extract recipe wikilinks | `[x]` | `[[Recipe Name]]` in Meal column |
+| Watch for meal plan changes | `[x]` | `vault.on('modify')` |
+| "Planned" indicator on cards | `[x]` | Blue badge with days |
 
 **Meal Plan Markdown Format:**
 ```markdown
 # Meal Plan - January 2026
 
-## Week 1
+## Week 1 (Jan 1-7)
 
 ### 🍳 Breakfast
-| Mon | Tue | Wed | Thu | Fri | Sat | Sun |
-|-----|-----|-----|-----|-----|-----|-----|
-| [[Pancakes]] | - | [[Eggs]] | - | - | [[Waffles]] | - |
-
-### 🥗 Lunch
-| Mon | Tue | Wed | Thu | Fri | Sat | Sun |
-|-----|-----|-----|-----|-----|-----|-----|
-| Leftovers | [[Salad]] | - | - | - | - | - |
+| Day | Meal | Protein | Side 1 | Side 2 | Notes |
+|-----|------|---------|--------|--------|-------|
+| Sat | [[Pancakes]] | - | Syrup | - | |
 
 ### 🍽️ Dinner
-| Mon | Tue | Wed | Thu | Fri | Sat | Sun |
-|-----|-----|-----|-----|-----|-----|-----|
-| [[Pepper Steak]] | [[Tacos]] | [[Pasta]] | - | - | - | - |
+| Day | Meal | Protein | Side 1 | Side 2 | Notes |
+|-----|------|---------|--------|--------|-------|
+| Mon | [[Tacos]] | Ground Beef | Tortillas | - | |
 ```
 
 **Acceptance Criteria:**
-- [ ] Parser correctly extracts all planned meals
-- [ ] Recipe cards show "Planned: Mon, Wed" badges
-- [ ] Changes to meal plan file update UI
+- [x] Parser correctly extracts all planned meals
+- [x] Recipe cards show "Planned: Mon, Wed" badges
+- [x] Changes to meal plan file update UI
 
 ---
 

@@ -24501,7 +24501,7 @@ __export(main_exports, {
   default: () => MisePlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian7 = require("obsidian");
+var import_obsidian8 = require("obsidian");
 
 // src/types/index.ts
 var DEFAULT_SETTINGS = {
@@ -25017,24 +25017,229 @@ var RecipeIndexer = class extends import_obsidian.Events {
 };
 
 // src/services/MealPlanService.ts
-var MealPlanService = class {
-  constructor(app, settings, indexer) {
-    this.app = app;
-    this.settings = settings;
-    this.indexer = indexer;
+var import_obsidian2 = require("obsidian");
+
+// src/services/MealPlanParser.ts
+function parseMealPlan(content) {
+  const meals = [];
+  const recipeMap = /* @__PURE__ */ new Map();
+  const monthMatch = content.match(/^#\s+Meal Plan\s*[-–—]?\s*(.+)$/m);
+  const month = monthMatch ? monthMatch[1].trim() : "Unknown";
+  let currentMealType = null;
+  const lines = content.split("\n");
+  for (const line of lines) {
+    const mealHeader = parseMealHeader(line);
+    if (mealHeader) {
+      currentMealType = mealHeader;
+      continue;
+    }
+    if (currentMealType && line.trim().startsWith("|") && !line.includes("---")) {
+      const meal = parseTableRow(line, currentMealType);
+      if (meal && meal.recipeTitle && meal.recipeTitle !== "-") {
+        meals.push(meal);
+        const key = meal.recipeTitle.toLowerCase();
+        if (!recipeMap.has(key)) {
+          recipeMap.set(key, []);
+        }
+        recipeMap.get(key).push(meal);
+      }
+    }
   }
-  /**
-   * Get the current month's meal plan
-   */
-  async getCurrentPlan() {
-    console.log("MealPlanService: Not yet implemented");
+  return { month, meals, recipeMap };
+}
+function parseMealHeader(line) {
+  const trimmed = line.trim().toLowerCase();
+  if (trimmed.includes("breakfast")) return "breakfast";
+  if (trimmed.includes("lunch")) return "lunch";
+  if (trimmed.includes("dinner")) return "dinner";
+  return null;
+}
+function parseTableRow(line, mealType) {
+  const cells = line.split("|").map((c) => c.trim()).filter((c) => c.length > 0);
+  if (cells.length < 2 || cells[0].toLowerCase() === "day") {
     return null;
   }
+  const day = cells[0] || "";
+  const mealCell = cells[1] || "";
+  const protein = cells[2] || void 0;
+  const side1 = cells[3] || void 0;
+  const side2 = cells[4] || void 0;
+  const notes = cells[5] || void 0;
+  const { title, path } = extractWikilink(mealCell);
+  if (!title || title === "-" || title.toLowerCase() === "meal") {
+    return null;
+  }
+  return {
+    recipePath: path,
+    recipeTitle: title,
+    day: normalizeDay(day),
+    mealType,
+    protein: cleanCellValue(protein),
+    side1: cleanCellValue(side1),
+    side2: cleanCellValue(side2),
+    notes: cleanCellValue(notes)
+  };
+}
+function extractWikilink(text) {
+  var _a;
+  const cleaned = text.replace(/\*+/g, "").trim();
+  const match = cleaned.match(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/);
+  if (match) {
+    const linkTarget = match[1].trim();
+    const displayText = ((_a = match[2]) == null ? void 0 : _a.trim()) || linkTarget;
+    return {
+      title: displayText,
+      path: linkTarget.endsWith(".md") ? linkTarget : `${linkTarget}.md`
+    };
+  }
+  return { title: cleaned, path: null };
+}
+function normalizeDay(day) {
+  const cleaned = day.replace(/\*+/g, "").trim().toLowerCase();
+  const dayMap = {
+    "mon": "Mon",
+    "monday": "Mon",
+    "tue": "Tue",
+    "tuesday": "Tue",
+    "wed": "Wed",
+    "wednesday": "Wed",
+    "thu": "Thu",
+    "thursday": "Thu",
+    "fri": "Fri",
+    "friday": "Fri",
+    "sat": "Sat",
+    "saturday": "Sat",
+    "sun": "Sun",
+    "sunday": "Sun"
+  };
+  return dayMap[cleaned] || day;
+}
+function cleanCellValue(value) {
+  if (!value) return void 0;
+  const cleaned = value.replace(/\*+/g, "").trim();
+  if (cleaned === "-" || cleaned === "*None*" || cleaned === "None" || cleaned === "") {
+    return void 0;
+  }
+  return cleaned;
+}
+function getPlannedDaysForRecipe(recipeMap, recipeTitle) {
+  return recipeMap.get(recipeTitle.toLowerCase()) || [];
+}
+
+// src/services/MealPlanService.ts
+var MealPlanService = class extends import_obsidian2.Events {
+  constructor(app, settings) {
+    super();
+    this.mealPlan = null;
+    this.fileWatcher = null;
+    this.currentFilePath = null;
+    this.app = app;
+    this.settings = settings;
+  }
   /**
-   * Add a recipe to a specific day/meal
+   * Initialize the service - load meal plan and set up watcher
    */
-  async addMeal(date, meal, recipePath) {
-    console.log("MealPlanService.addMeal: Not yet implemented");
+  async initialize() {
+    await this.loadMealPlan();
+    this.setupWatcher();
+  }
+  /**
+   * Clean up when plugin unloads
+   */
+  destroy() {
+    if (this.fileWatcher) {
+      this.app.vault.offref(this.fileWatcher);
+      this.fileWatcher = null;
+    }
+  }
+  /**
+   * Load the meal plan file from settings folder
+   * Looks for any .md file in the meal plan folder with 'meal' or 'plan' in name
+   */
+  async loadMealPlan() {
+    const folder = this.settings.mealPlanFolder;
+    console.log(`MealPlanService: Looking for meal plans in folder: "${folder}"`);
+    if (!folder) {
+      console.log("MealPlanService: No mealPlanFolder configured");
+      this.mealPlan = null;
+      return;
+    }
+    const normalizedFolder = folder.replace(/\/$/, "");
+    const allFiles = this.app.vault.getFiles();
+    console.log(`MealPlanService: Total files in vault: ${allFiles.length}`);
+    const files = allFiles.filter((f) => {
+      const inFolder = f.path.startsWith(normalizedFolder + "/") || f.path.startsWith(normalizedFolder + "\\");
+      const isMd = f.extension === "md";
+      const hasMealOrPlan = f.name.toLowerCase().includes("meal") || f.name.toLowerCase().includes("plan");
+      return inFolder && isMd && hasMealOrPlan;
+    });
+    console.log(`MealPlanService: Found ${files.length} meal plan files`);
+    files.forEach((f) => console.log(`  - ${f.path}`));
+    if (files.length === 0) {
+      console.log(`MealPlanService: No meal plan files found in ${folder}`);
+      this.mealPlan = null;
+      return;
+    }
+    const file = files.sort((a, b) => b.stat.mtime - a.stat.mtime)[0];
+    this.currentFilePath = file.path;
+    try {
+      const content = await this.app.vault.read(file);
+      this.mealPlan = parseMealPlan(content);
+      console.log(`MealPlanService: Loaded ${this.mealPlan.meals.length} meals from ${file.path}`);
+      if (this.mealPlan.meals.length > 0) {
+        console.log(`MealPlanService: First few meals:`, this.mealPlan.meals.slice(0, 3));
+      }
+      this.trigger("meal-plan-updated");
+    } catch (error) {
+      console.error("MealPlanService: Error loading meal plan", error);
+      this.mealPlan = null;
+    }
+  }
+  /**
+   * Watch for changes to meal plan files
+   */
+  setupWatcher() {
+    this.fileWatcher = this.app.vault.on("modify", async (file) => {
+      if (file.path === this.currentFilePath) {
+        await this.loadMealPlan();
+      }
+    });
+  }
+  /**
+   * Check if the service is ready
+   */
+  isReady() {
+    return this.mealPlan !== null;
+  }
+  /**
+   * Get all planned meals
+   */
+  getAllMeals() {
+    var _a;
+    return ((_a = this.mealPlan) == null ? void 0 : _a.meals) || [];
+  }
+  /**
+   * Get planned days for a specific recipe by title
+   * Returns array of PlannedMeal objects with day/mealType info
+   */
+  getPlannedDays(recipeTitle) {
+    if (!this.mealPlan) return [];
+    return getPlannedDaysForRecipe(this.mealPlan.recipeMap, recipeTitle);
+  }
+  /**
+   * Check if a recipe is planned for any day
+   */
+  isPlanned(recipeTitle) {
+    return this.getPlannedDays(recipeTitle).length > 0;
+  }
+  /**
+   * Get a summary of planned days (e.g., "Mon, Wed, Fri")
+   */
+  getPlannedDaysSummary(recipeTitle) {
+    const meals = this.getPlannedDays(recipeTitle);
+    if (meals.length === 0) return "";
+    const days = [...new Set(meals.map((m) => m.day))];
+    return days.join(", ");
   }
 };
 
@@ -25067,7 +25272,7 @@ var ShoppingListService = class {
 };
 
 // src/services/TimeMigrationService.ts
-var import_obsidian2 = require("obsidian");
+var import_obsidian3 = require("obsidian");
 var TimeMigrationService = class {
   constructor(app, settings) {
     this.app = app;
@@ -25084,13 +25289,13 @@ var TimeMigrationService = class {
       errors: []
     };
     const folder = this.app.vault.getAbstractFileByPath(this.settings.recipesFolder);
-    if (!folder || !(folder instanceof import_obsidian2.TFolder)) {
-      new import_obsidian2.Notice(`${PLUGIN_NAME}: Recipes folder not found: ${this.settings.recipesFolder}`);
+    if (!folder || !(folder instanceof import_obsidian3.TFolder)) {
+      new import_obsidian3.Notice(`${PLUGIN_NAME}: Recipes folder not found: ${this.settings.recipesFolder}`);
       return result;
     }
     const files = this.getMarkdownFilesRecursive(folder);
     result.totalFiles = files.length;
-    new import_obsidian2.Notice(`${PLUGIN_NAME}: Migrating ${files.length} recipe files...`);
+    new import_obsidian3.Notice(`${PLUGIN_NAME}: Migrating ${files.length} recipe files...`);
     for (const file of files) {
       try {
         const migrated = await this.migrateFile(file);
@@ -25106,7 +25311,7 @@ var TimeMigrationService = class {
       }
     }
     const summary = `Migration complete: ${result.migratedFiles} updated, ${result.skippedFiles} unchanged, ${result.errors.length} errors`;
-    new import_obsidian2.Notice(`${PLUGIN_NAME}: ${summary}`);
+    new import_obsidian3.Notice(`${PLUGIN_NAME}: ${summary}`);
     console.log(`${PLUGIN_NAME}: ${summary}`);
     if (result.errors.length > 0) {
       console.log(`${PLUGIN_NAME}: Errors:`, result.errors);
@@ -25177,9 +25382,9 @@ ${newLines.join("\n")}---${body}`;
   getMarkdownFilesRecursive(folder) {
     const files = [];
     for (const child of folder.children) {
-      if (child instanceof import_obsidian2.TFile && child.extension === "md") {
+      if (child instanceof import_obsidian3.TFile && child.extension === "md") {
         files.push(child);
-      } else if (child instanceof import_obsidian2.TFolder) {
+      } else if (child instanceof import_obsidian3.TFolder) {
         files.push(...this.getMarkdownFilesRecursive(child));
       }
     }
@@ -25191,7 +25396,7 @@ ${newLines.join("\n")}---${body}`;
   async previewMigration() {
     const previews = [];
     const folder = this.app.vault.getAbstractFileByPath(this.settings.recipesFolder);
-    if (!folder || !(folder instanceof import_obsidian2.TFolder)) {
+    if (!folder || !(folder instanceof import_obsidian3.TFolder)) {
       return previews;
     }
     const files = this.getMarkdownFilesRecursive(folder);
@@ -25225,18 +25430,18 @@ ${newLines.join("\n")}---${body}`;
 };
 
 // src/ui/settings/MiseSettingsTab.ts
-var import_obsidian4 = require("obsidian");
+var import_obsidian5 = require("obsidian");
 
 // src/ui/components/FolderSuggest.ts
-var import_obsidian3 = require("obsidian");
-var FolderSuggest = class extends import_obsidian3.AbstractInputSuggest {
+var import_obsidian4 = require("obsidian");
+var FolderSuggest = class extends import_obsidian4.AbstractInputSuggest {
   constructor(app, inputEl) {
     super(app, inputEl);
     this.textInput = inputEl;
     this.folders = this.getFolders();
   }
   getFolders() {
-    return this.app.vault.getAllLoadedFiles().filter((f) => f instanceof import_obsidian3.TFolder).sort((a, b) => a.path.localeCompare(b.path));
+    return this.app.vault.getAllLoadedFiles().filter((f) => f instanceof import_obsidian4.TFolder).sort((a, b) => a.path.localeCompare(b.path));
   }
   getSuggestions(query) {
     const lowerQuery = query.toLowerCase();
@@ -25255,7 +25460,7 @@ var FolderSuggest = class extends import_obsidian3.AbstractInputSuggest {
 };
 
 // src/ui/settings/MiseSettingsTab.ts
-var MiseSettingsTab = class extends import_obsidian4.PluginSettingTab {
+var MiseSettingsTab = class extends import_obsidian5.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
@@ -25269,21 +25474,21 @@ var MiseSettingsTab = class extends import_obsidian4.PluginSettingTab {
       cls: "mise-settings-description"
     });
     containerEl.createEl("h2", { text: "\u{1F4C1} Folder Paths" });
-    new import_obsidian4.Setting(containerEl).setName("Recipes Folder").setDesc("The folder containing your recipe markdown files.").addText((text) => {
+    new import_obsidian5.Setting(containerEl).setName("Recipes Folder").setDesc("The folder containing your recipe markdown files.").addText((text) => {
       text.setPlaceholder("Type to search folders...").setValue(this.plugin.settings.recipesFolder).onChange(async (value) => {
         this.plugin.settings.recipesFolder = value;
         await this.plugin.saveSettings();
       });
       new FolderSuggest(this.app, text.inputEl);
     });
-    new import_obsidian4.Setting(containerEl).setName("Meal Plan Folder").setDesc("The folder where meal plan files are stored.").addText((text) => {
+    new import_obsidian5.Setting(containerEl).setName("Meal Plan Folder").setDesc("The folder where meal plan files are stored.").addText((text) => {
       text.setPlaceholder("Type to search folders...").setValue(this.plugin.settings.mealPlanFolder).onChange(async (value) => {
         this.plugin.settings.mealPlanFolder = value;
         await this.plugin.saveSettings();
       });
       new FolderSuggest(this.app, text.inputEl);
     });
-    new import_obsidian4.Setting(containerEl).setName("Shopping List Folder").setDesc("The folder where shopping lists are generated.").addText((text) => {
+    new import_obsidian5.Setting(containerEl).setName("Shopping List Folder").setDesc("The folder where shopping lists are generated.").addText((text) => {
       text.setPlaceholder("Type to search folders...").setValue(this.plugin.settings.shoppingListFolder).onChange(async (value) => {
         this.plugin.settings.shoppingListFolder = value;
         await this.plugin.saveSettings();
@@ -25291,7 +25496,7 @@ var MiseSettingsTab = class extends import_obsidian4.PluginSettingTab {
       new FolderSuggest(this.app, text.inputEl);
     });
     containerEl.createEl("h2", { text: "\u{1F6D2} Shopping Lists" });
-    new import_obsidian4.Setting(containerEl).setName("Auto-archive Shopping Lists").setDesc("What to do with old shopping lists when generating new ones.").addDropdown((dropdown) => dropdown.addOption("off", "Off - Keep all lists in place").addOption("on", "On - Automatically archive").addOption("ask", "Ask every time").setValue(this.plugin.settings.autoArchiveShoppingLists).onChange(async (value) => {
+    new import_obsidian5.Setting(containerEl).setName("Auto-archive Shopping Lists").setDesc("What to do with old shopping lists when generating new ones.").addDropdown((dropdown) => dropdown.addOption("off", "Off - Keep all lists in place").addOption("on", "On - Automatically archive").addOption("ask", "Ask every time").setValue(this.plugin.settings.autoArchiveShoppingLists).onChange(async (value) => {
       this.plugin.settings.autoArchiveShoppingLists = value;
       await this.plugin.saveSettings();
     }));
@@ -25301,23 +25506,23 @@ var MiseSettingsTab = class extends import_obsidian4.PluginSettingTab {
       cls: "mise-settings-description"
     });
     const insertOptions = this.plugin.settings.mealPlanInsertOptions;
-    new import_obsidian4.Setting(containerEl).setName("Include Servings").setDesc("Add servings info when inserting a recipe.").addToggle((toggle) => toggle.setValue(insertOptions.includeServings).onChange(async (value) => {
+    new import_obsidian5.Setting(containerEl).setName("Include Servings").setDesc("Add servings info when inserting a recipe.").addToggle((toggle) => toggle.setValue(insertOptions.includeServings).onChange(async (value) => {
       this.plugin.settings.mealPlanInsertOptions.includeServings = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian4.Setting(containerEl).setName("Include Prep/Cook Time").setDesc("Add time information when inserting a recipe.").addToggle((toggle) => toggle.setValue(insertOptions.includeTime).onChange(async (value) => {
+    new import_obsidian5.Setting(containerEl).setName("Include Prep/Cook Time").setDesc("Add time information when inserting a recipe.").addToggle((toggle) => toggle.setValue(insertOptions.includeTime).onChange(async (value) => {
       this.plugin.settings.mealPlanInsertOptions.includeTime = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian4.Setting(containerEl).setName("Include Ingredients (Inline)").setDesc("Add a comma-separated ingredient list.").addToggle((toggle) => toggle.setValue(insertOptions.includeIngredientsInline).onChange(async (value) => {
+    new import_obsidian5.Setting(containerEl).setName("Include Ingredients (Inline)").setDesc("Add a comma-separated ingredient list.").addToggle((toggle) => toggle.setValue(insertOptions.includeIngredientsInline).onChange(async (value) => {
       this.plugin.settings.mealPlanInsertOptions.includeIngredientsInline = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian4.Setting(containerEl).setName("Include Ingredients (Callout)").setDesc("Add ingredients in a collapsible callout block.").addToggle((toggle) => toggle.setValue(insertOptions.includeIngredientsCallout).onChange(async (value) => {
+    new import_obsidian5.Setting(containerEl).setName("Include Ingredients (Callout)").setDesc("Add ingredients in a collapsible callout block.").addToggle((toggle) => toggle.setValue(insertOptions.includeIngredientsCallout).onChange(async (value) => {
       this.plugin.settings.mealPlanInsertOptions.includeIngredientsCallout = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian4.Setting(containerEl).setName("Include Source Link").setDesc("Add the source URL if available.").addToggle((toggle) => toggle.setValue(insertOptions.includeSource).onChange(async (value) => {
+    new import_obsidian5.Setting(containerEl).setName("Include Source Link").setDesc("Add the source URL if available.").addToggle((toggle) => toggle.setValue(insertOptions.includeSource).onChange(async (value) => {
       this.plugin.settings.mealPlanInsertOptions.includeSource = value;
       await this.plugin.saveSettings();
     }));
@@ -25334,7 +25539,7 @@ var MiseSettingsTab = class extends import_obsidian4.PluginSettingTab {
       });
     }
     containerEl.createEl("h2", { text: "\u2699\uFE0F Advanced" });
-    new import_obsidian4.Setting(containerEl).setName("Reset to Defaults").setDesc("Reset all settings to their default values.").addButton((button) => button.setButtonText("Reset").setWarning().onClick(async () => {
+    new import_obsidian5.Setting(containerEl).setName("Reset to Defaults").setDesc("Reset all settings to their default values.").addButton((button) => button.setButtonText("Reset").setWarning().onClick(async () => {
       this.plugin.settings = { ...DEFAULT_SETTINGS };
       await this.plugin.saveSettings();
       this.display();
@@ -25343,14 +25548,14 @@ var MiseSettingsTab = class extends import_obsidian4.PluginSettingTab {
 };
 
 // src/ui/views/CookbookView.tsx
-var import_obsidian5 = require("obsidian");
+var import_obsidian6 = require("obsidian");
 var import_client = __toESM(require_client());
 
 // src/ui/components/RecipeContext.tsx
 var import_react = __toESM(require_react());
 var import_jsx_runtime = __toESM(require_jsx_runtime());
 var RecipeContext = (0, import_react.createContext)(null);
-function RecipeProvider({ app, indexer, children }) {
+function RecipeProvider({ app, indexer, mealPlanService, children }) {
   const [recipes, setRecipes] = (0, import_react.useState)([]);
   const [isLoading, setIsLoading] = (0, import_react.useState)(true);
   const [selectedRecipe, setSelectedRecipe] = (0, import_react.useState)(null);
@@ -25502,6 +25707,10 @@ function RecipeProvider({ app, indexer, children }) {
       return newMap;
     });
   }, []);
+  const getPlannedDays = (0, import_react.useCallback)((recipeTitle) => {
+    if (!mealPlanService) return "";
+    return mealPlanService.getPlannedDaysSummary(recipeTitle);
+  }, [mealPlanService]);
   return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RecipeContext.Provider, { value: {
     app,
     recipes,
@@ -25533,7 +25742,8 @@ function RecipeProvider({ app, indexer, children }) {
     clearFilters,
     hasActiveFilters,
     categories,
-    allDietaryFlags
+    allDietaryFlags,
+    getPlannedDays
   }, children });
 }
 function useRecipes() {
@@ -25547,10 +25757,11 @@ function useRecipes() {
 // src/ui/components/RecipeCard.tsx
 var import_jsx_runtime2 = __toESM(require_jsx_runtime());
 function RecipeCard({ recipe }) {
-  const { openModal, getImageUrl } = useRecipes();
+  const { openModal, getImageUrl, getPlannedDays } = useRecipes();
   const imageUrl = getImageUrl(recipe.image);
   const totalTime = formatTotalTime(recipe.prepTime, recipe.cookTime);
   const categoryEmoji = getCategoryEmoji(recipe.category);
+  const plannedDays = getPlannedDays(recipe.title);
   const handleClick = () => {
     openModal(recipe);
   };
@@ -25560,6 +25771,10 @@ function RecipeCard({ recipe }) {
       recipe.rating && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "mise-card-rating", children: [
         "\u2605".repeat(recipe.rating),
         "\u2606".repeat(5 - recipe.rating)
+      ] }),
+      plannedDays && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "mise-card-planned", children: [
+        "\u{1F4C5} ",
+        plannedDays
       ] })
     ] }),
     /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "mise-card-content", children: [
@@ -25978,7 +26193,7 @@ function CookbookApp({ compact = false }) {
 
 // src/ui/views/CookbookView.tsx
 var import_jsx_runtime9 = __toESM(require_jsx_runtime());
-var CookbookView = class extends import_obsidian5.ItemView {
+var CookbookView = class extends import_obsidian6.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.root = null;
@@ -25999,7 +26214,15 @@ var CookbookView = class extends import_obsidian5.ItemView {
     container.addClass("mise-cookbook-container");
     this.root = (0, import_client.createRoot)(container);
     this.root.render(
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(RecipeProvider, { app: this.app, indexer: this.plugin.indexer, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(CookbookApp, {}) })
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+        RecipeProvider,
+        {
+          app: this.app,
+          indexer: this.plugin.indexer,
+          mealPlanService: this.plugin.mealPlanService,
+          children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(CookbookApp, {})
+        }
+      )
     );
   }
   async onClose() {
@@ -26011,10 +26234,10 @@ var CookbookView = class extends import_obsidian5.ItemView {
 };
 
 // src/ui/views/CookbookSidebar.tsx
-var import_obsidian6 = require("obsidian");
+var import_obsidian7 = require("obsidian");
 var import_client2 = __toESM(require_client());
 var import_jsx_runtime10 = __toESM(require_jsx_runtime());
-var CookbookSidebar = class extends import_obsidian6.ItemView {
+var CookbookSidebar = class extends import_obsidian7.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.root = null;
@@ -26035,7 +26258,15 @@ var CookbookSidebar = class extends import_obsidian6.ItemView {
     container.addClass("mise-sidebar-container");
     this.root = (0, import_client2.createRoot)(container);
     this.root.render(
-      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(RecipeProvider, { app: this.app, indexer: this.plugin.indexer, children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(CookbookApp, { compact: true }) })
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+        RecipeProvider,
+        {
+          app: this.app,
+          indexer: this.plugin.indexer,
+          mealPlanService: this.plugin.mealPlanService,
+          children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(CookbookApp, { compact: true })
+        }
+      )
     );
   }
   async onClose() {
@@ -26047,14 +26278,18 @@ var CookbookSidebar = class extends import_obsidian6.ItemView {
 };
 
 // src/main.ts
-var MisePlugin = class extends import_obsidian7.Plugin {
+var MisePlugin = class extends import_obsidian8.Plugin {
   async onload() {
     console.log(`${PLUGIN_NAME}: Loading plugin...`);
     await this.loadSettings();
     this.indexer = new RecipeIndexer(this.app, this.settings);
-    this.mealPlanService = new MealPlanService(this.app, this.settings, this.indexer);
+    this.mealPlanService = new MealPlanService(this.app, this.settings);
     this.shoppingListService = new ShoppingListService(this.app, this.settings, this.indexer);
     this.timeMigration = new TimeMigrationService(this.app, this.settings);
+    this.indexer.initialize();
+    this.app.workspace.onLayoutReady(() => {
+      this.mealPlanService.initialize();
+    });
     this.registerView(
       MISE_COOKBOOK_VIEW_TYPE,
       (leaf) => new CookbookView(leaf, this)
