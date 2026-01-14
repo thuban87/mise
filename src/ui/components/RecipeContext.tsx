@@ -1,8 +1,8 @@
 /**
- * Recipe Context - Provides recipe data and app instance to React components
+ * Recipe Context - Provides recipe data, modal state, and ingredient tracking to React components
  */
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { App } from 'obsidian';
 import { Recipe } from '../../types';
 import { RecipeIndexer } from '../../services';
@@ -13,6 +13,13 @@ interface RecipeContextValue {
     isLoading: boolean;
     openRecipe: (path: string) => void;
     getImageUrl: (imagePath: string | null) => string | null;
+    // Modal state
+    selectedRecipe: Recipe | null;
+    openModal: (recipe: Recipe) => void;
+    closeModal: () => void;
+    // Ingredient checkbox state (session only)
+    isIngredientChecked: (recipePath: string, ingredientIndex: number) => boolean;
+    toggleIngredient: (recipePath: string, ingredientIndex: number) => void;
 }
 
 const RecipeContext = createContext<RecipeContextValue | null>(null);
@@ -26,6 +33,9 @@ interface RecipeProviderProps {
 export function RecipeProvider({ app, indexer, children }: RecipeProviderProps) {
     const [recipes, setRecipes] = useState<Recipe[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+    // Map of recipe path -> Set of checked ingredient indices
+    const [checkedIngredients, setCheckedIngredients] = useState<Map<string, Set<number>>>(new Map());
 
     useEffect(() => {
         // Initial load
@@ -82,8 +92,50 @@ export function RecipeProvider({ app, indexer, children }: RecipeProviderProps) 
         return app.vault.adapter.getResourcePath(imagePath);
     };
 
+    // Modal functions
+    const openModal = useCallback((recipe: Recipe) => {
+        setSelectedRecipe(recipe);
+    }, []);
+
+    const closeModal = useCallback(() => {
+        setSelectedRecipe(null);
+    }, []);
+
+    // Ingredient checkbox functions
+    const isIngredientChecked = useCallback((recipePath: string, ingredientIndex: number): boolean => {
+        const recipeChecked = checkedIngredients.get(recipePath);
+        return recipeChecked?.has(ingredientIndex) ?? false;
+    }, [checkedIngredients]);
+
+    const toggleIngredient = useCallback((recipePath: string, ingredientIndex: number) => {
+        setCheckedIngredients(prev => {
+            const newMap = new Map(prev);
+            const recipeSet = new Set(newMap.get(recipePath) ?? []);
+
+            if (recipeSet.has(ingredientIndex)) {
+                recipeSet.delete(ingredientIndex);
+            } else {
+                recipeSet.add(ingredientIndex);
+            }
+
+            newMap.set(recipePath, recipeSet);
+            return newMap;
+        });
+    }, []);
+
     return (
-        <RecipeContext.Provider value={{ app, recipes, isLoading, openRecipe, getImageUrl }}>
+        <RecipeContext.Provider value={{
+            app,
+            recipes,
+            isLoading,
+            openRecipe,
+            getImageUrl,
+            selectedRecipe,
+            openModal,
+            closeModal,
+            isIngredientChecked,
+            toggleIngredient,
+        }}>
             {children}
         </RecipeContext.Provider>
     );

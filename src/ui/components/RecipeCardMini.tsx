@@ -13,14 +13,14 @@ interface RecipeCardMiniProps {
 }
 
 export function RecipeCardMini({ recipe }: RecipeCardMiniProps) {
-    const { openRecipe, getImageUrl } = useRecipes();
+    const { openModal, getImageUrl } = useRecipes();
 
     const imageUrl = getImageUrl(recipe.image);
     const totalTime = formatTotalTime(recipe.prepTime, recipe.cookTime);
     const categoryEmoji = getCategoryEmoji(recipe.category);
 
     const handleClick = () => {
-        openRecipe(recipe.path);
+        openModal(recipe);
     };
 
     return (

@@ -12,7 +12,7 @@ tags:
 > This is a personal utility project with infinite runway. Features get done when they get done. Do not pressure the user with "we should do this after MVP" language.
 
 **Last Updated:** January 13, 2026
-**Current Phase:** Phase 7 - Recipe Quick Look Modal
+**Current Phase:** Phase 8 - Search & Filter Logic
 
 ---
 
@@ -336,30 +336,30 @@ interface ShoppingItem {
 
 ### Phase 7: Recipe Quick Look Modal
 - **Goal:** Preview recipes without leaving the cookbook.
-- **Status:** `[ ]` Not Started
+- **Status:** `[x]` Completed
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Create `RecipeModal` component | `[ ]` | React modal |
-| Hero image (large) | `[ ]` | Full-width on modal |
-| All metadata badges | `[ ]` | Rating, time, servings, category |
-| Interactive ingredient checkboxes | `[ ]` | **CRITICAL**: Check off while cooking, no source mode needed |
-| Collapsible ingredients list | `[ ]` | Default collapsed on mobile |
-| "Open Recipe" button | `[ ]` | Opens .md file |
-| "Add to Meal Plan" button | `[ ]` | Opens day picker |
-| Backdrop blur effect | `[ ]` | Glassmorphism |
-| Click-outside to close | `[ ]` | UX convenience |
-| Swipe-to-dismiss (mobile) | `[ ]` | Touch gesture |
-| Keyboard: Escape to close | `[ ]` | Accessibility |
+| Create `RecipeModal` component | `[x]` | React modal with glassmorphism |
+| Hero image (large) | `[x]` | Full-width, emoji fallback |
+| All metadata badges | `[x]` | Rating, time, servings, category |
+| Interactive ingredient checkboxes | `[x]` | **CRITICAL**: Session-only state |
+| Collapsible ingredients list | `[-]` | Skipped - always visible works well |
+| "Open Recipe" button | `[x]` | Opens .md file |
+| "Add to Meal Plan" button | `[x]` | Placeholder (Phase 11) |
+| Backdrop blur effect | `[x]` | Glassmorphism |
+| Click-outside to close | `[x]` | Works |
+| Swipe-to-dismiss (mobile) | `[-]` | Deferred - optional |
+| Keyboard: Escape to close | `[x]` | Accessibility |
 
 **User Workflow Note:** User checks off ingredients while cooking. Must work without entering source mode.
 
 **Acceptance Criteria:**
-- [ ] Modal opens on card click (or long-press on mobile)
-- [ ] All recipe info visible
-- [ ] Ingredient checkboxes work (session state, not persisted to file)
-- [ ] Works well on mobile (touch-friendly, scrollable)
-- [ ] Escape and click-outside close modal
+- [x] Modal opens on card click
+- [x] All recipe info visible
+- [x] Ingredient checkboxes work (session state, not persisted to file)
+- [x] Works well on mobile (touch-friendly, scrollable)
+- [x] Escape and click-outside close modal
 
 ---
 

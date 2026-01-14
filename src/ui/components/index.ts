@@ -7,3 +7,4 @@ export { RecipeProvider, useRecipes } from './RecipeContext';
 export { RecipeCard } from './RecipeCard';
 export { RecipeCardMini } from './RecipeCardMini';
 export { RecipeGrid } from './RecipeGrid';
+export { RecipeModal } from './RecipeModal';

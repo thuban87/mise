@@ -7,6 +7,7 @@
 import { useRecipes } from './RecipeContext';
 import { RecipeGrid } from './RecipeGrid';
 import { RecipeCardMini } from './RecipeCardMini';
+import { RecipeModal } from './RecipeModal';
 
 interface CookbookAppProps {
     compact?: boolean; // For sidebar layout
@@ -37,30 +38,36 @@ export function CookbookApp({ compact = false }: CookbookAppProps) {
     // Compact view for sidebar - use mini cards
     if (compact) {
         return (
-            <div className="mise-cookbook mise-compact">
-                <header className="mise-header">
-                    <h2>🍳 Recipes</h2>
-                    <span className="mise-recipe-count">{recipes.length}</span>
-                </header>
+            <>
+                <div className="mise-cookbook mise-compact">
+                    <header className="mise-header">
+                        <h2>🍳 Recipes</h2>
+                        <span className="mise-recipe-count">{recipes.length}</span>
+                    </header>
 
-                <div className="mise-mini-list">
-                    {recipes.map((recipe) => (
-                        <RecipeCardMini key={recipe.path} recipe={recipe} />
-                    ))}
+                    <div className="mise-mini-list">
+                        {recipes.map((recipe) => (
+                            <RecipeCardMini key={recipe.path} recipe={recipe} />
+                        ))}
+                    </div>
                 </div>
-            </div>
+                <RecipeModal />
+            </>
         );
     }
 
     // Full view - use card grid
     return (
-        <div className="mise-cookbook">
-            <header className="mise-header">
-                <h2>🍳 Cookbook</h2>
-                <span className="mise-recipe-count">{recipes.length} recipes</span>
-            </header>
+        <>
+            <div className="mise-cookbook">
+                <header className="mise-header">
+                    <h2>🍳 Cookbook</h2>
+                    <span className="mise-recipe-count">{recipes.length} recipes</span>
+                </header>
 
-            <RecipeGrid recipes={recipes} />
-        </div>
+                <RecipeGrid recipes={recipes} />
+            </div>
+            <RecipeModal />
+        </>
     );
 }
