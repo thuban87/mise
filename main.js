@@ -56,10 +56,131 @@ var DEFAULT_SETTINGS = {
 
 // src/services/RecipeIndexer.ts
 var import_obsidian = require("obsidian");
+
+// src/parsers/IngredientParser.ts
+function parseIngredients(content) {
+  const headerMatch = content.match(/##\s+(?:🥘\s*)?Ingredients?\s*\n/i);
+  if (!headerMatch) {
+    return [];
+  }
+  const startIndex = headerMatch.index + headerMatch[0].length;
+  const nextHeaderMatch = content.slice(startIndex).match(/\n##\s+/);
+  const endIndex = nextHeaderMatch ? startIndex + nextHeaderMatch.index : content.length;
+  const ingredientSection = content.slice(startIndex, endIndex);
+  const lines = ingredientSection.split("\n");
+  const ingredients = [];
+  for (const line of lines) {
+    let cleaned = line.trim();
+    if (!cleaned) continue;
+    if (cleaned.startsWith("**") && cleaned.endsWith("**")) continue;
+    cleaned = cleaned.replace(/^[-*]\s*\[.\]\s*/, "");
+    cleaned = cleaned.replace(/^[-*]\s*/, "");
+    cleaned = cleaned.replace(/^\d+\.\s*/, "");
+    cleaned = cleaned.trim();
+    if (cleaned) {
+      ingredients.push(cleaned);
+    }
+  }
+  return ingredients;
+}
+
+// src/parsers/FrontmatterParser.ts
+function parseTime(timeStr) {
+  if (timeStr === void 0 || timeStr === null || timeStr === "") {
+    return null;
+  }
+  if (typeof timeStr === "number") {
+    return timeStr;
+  }
+  const str = String(timeStr).toLowerCase().trim();
+  if (/^\d+$/.test(str)) {
+    return parseInt(str, 10);
+  }
+  let totalMinutes = 0;
+  const hourMatch = str.match(/(\d+)\s*(?:hours?|hrs?|h)/);
+  if (hourMatch) {
+    totalMinutes += parseInt(hourMatch[1], 10) * 60;
+  }
+  const minMatch = str.match(/(\d+)\s*(?:minutes?|mins?|m(?!o))/);
+  if (minMatch) {
+    totalMinutes += parseInt(minMatch[1], 10);
+  }
+  return totalMinutes > 0 ? totalMinutes : null;
+}
+function parseCategory(category) {
+  if (!category) {
+    return "Uncategorized";
+  }
+  const normalized = category.trim();
+  const validCategories = [
+    "Main",
+    "Breakfast",
+    "Appetizer",
+    "Side",
+    "Dessert",
+    "Beverage",
+    "Snack"
+  ];
+  if (validCategories.includes(normalized)) {
+    return normalized;
+  }
+  return "Uncategorized";
+}
+function parseRating(rating) {
+  if (rating === void 0 || rating === null || rating === "") {
+    return null;
+  }
+  const num = typeof rating === "number" ? rating : parseInt(String(rating), 10);
+  if (isNaN(num) || num < 1 || num > 5) {
+    return null;
+  }
+  return num;
+}
+function parseDietaryFlags(flags) {
+  if (!flags || !Array.isArray(flags)) {
+    return [];
+  }
+  const validFlags = [
+    "crohns-safe",
+    "low-fiber",
+    "high-fiber",
+    "high-protein",
+    "high-carb",
+    "low-carb",
+    "dairy-free",
+    "gluten-free",
+    "vegetarian",
+    "vegan",
+    "keto",
+    "paleo"
+  ];
+  return flags.map((f) => f.toLowerCase().trim()).filter((f) => validFlags.includes(f));
+}
+
+// src/utils/helpers.ts
+function debounce(func, wait) {
+  let timeout = null;
+  return function(...args) {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+    timeout = setTimeout(() => {
+      func.apply(this, args);
+    }, wait);
+  };
+}
+
+// src/utils/constants.ts
+var PLUGIN_NAME = "Mise";
+
+// src/services/RecipeIndexer.ts
+var DEBUG = false;
 var RecipeIndexer = class extends import_obsidian.Events {
   constructor(app, settings) {
     super();
     this.recipes = /* @__PURE__ */ new Map();
+    this.eventRefs = [];
+    this.isInitialized = false;
     this.app = app;
     this.settings = settings;
   }
@@ -67,7 +188,203 @@ var RecipeIndexer = class extends import_obsidian.Events {
    * Initialize the indexer and perform initial scan
    */
   async initialize() {
-    console.log("RecipeIndexer: Ready (not yet implemented)");
+    const startTime = performance.now();
+    await this.scanVault();
+    this.registerEventHandlers();
+    this.isInitialized = true;
+    const elapsed = (performance.now() - startTime).toFixed(0);
+    console.log(`${PLUGIN_NAME}: Indexed ${this.recipes.size} recipes in ${elapsed}ms`);
+    this.trigger("index-ready", { count: this.recipes.size });
+  }
+  /**
+   * Scan the vault for all recipe files
+   */
+  async scanVault() {
+    const recipesFolder = this.settings.recipesFolder;
+    const folder = this.app.vault.getAbstractFileByPath(recipesFolder);
+    if (!folder || !(folder instanceof import_obsidian.TFolder)) {
+      console.warn(`${PLUGIN_NAME}: Recipes folder not found: ${recipesFolder}`);
+      return;
+    }
+    const files = this.getMarkdownFilesRecursive(folder);
+    for (const file of files) {
+      const recipe = await this.buildRecipeFromFile(file);
+      if (recipe) {
+        this.recipes.set(file.path, recipe);
+      }
+    }
+  }
+  /**
+   * Recursively get all markdown files in a folder
+   */
+  getMarkdownFilesRecursive(folder) {
+    const files = [];
+    for (const child of folder.children) {
+      if (child instanceof import_obsidian.TFile && child.extension === "md") {
+        files.push(child);
+      } else if (child instanceof import_obsidian.TFolder) {
+        files.push(...this.getMarkdownFilesRecursive(child));
+      }
+    }
+    return files;
+  }
+  /**
+   * Build a Recipe object from a file
+   */
+  async buildRecipeFromFile(file) {
+    var _a;
+    try {
+      const cache = this.app.metadataCache.getFileCache(file);
+      const frontmatter = (cache == null ? void 0 : cache.frontmatter) || {};
+      const content = await this.app.vault.cachedRead(file);
+      const recipe = {
+        path: file.path,
+        title: this.extractTitle(file, frontmatter, content),
+        folder: ((_a = file.parent) == null ? void 0 : _a.name) || "",
+        category: parseCategory(frontmatter.category),
+        tags: Array.isArray(frontmatter.tags) ? frontmatter.tags : [],
+        rating: parseRating(frontmatter.rating),
+        servings: String(frontmatter.servings || ""),
+        prepTime: parseTime(frontmatter.prep_time),
+        cookTime: parseTime(frontmatter.cook_time),
+        source: frontmatter.source || null,
+        image: frontmatter.image || null,
+        dietaryFlags: parseDietaryFlags(frontmatter.dietary_flags || frontmatter.dietaryFlags),
+        ingredients: parseIngredients(content),
+        lastModified: file.stat.mtime
+      };
+      if (frontmatter.calories || frontmatter.protein || frontmatter.carbs || frontmatter.fat) {
+        recipe.nutrition = {
+          calories: frontmatter.calories,
+          protein: frontmatter.protein,
+          carbs: frontmatter.carbs,
+          fat: frontmatter.fat,
+          fiber: frontmatter.fiber
+        };
+      }
+      return recipe;
+    } catch (error) {
+      console.error(`${PLUGIN_NAME}: Error parsing recipe ${file.path}:`, error);
+      return null;
+    }
+  }
+  /**
+   * Extract title from file (prefer H1, fall back to frontmatter title, then filename)
+   */
+  extractTitle(file, frontmatter, content) {
+    if (frontmatter.title) {
+      return frontmatter.title;
+    }
+    const h1Match = content.match(/^#\s+(.+)$/m);
+    if (h1Match) {
+      return h1Match[1].trim();
+    }
+    return file.basename;
+  }
+  /**
+   * Register vault event handlers
+   */
+  registerEventHandlers() {
+    const debouncedModify = debounce((file) => {
+      this.handleFileModify(file);
+    }, 300);
+    const createRef = this.app.vault.on("create", (file) => {
+      if (file instanceof import_obsidian.TFile && this.isRecipeFile(file) && this.isInitialized) {
+        this.handleFileCreate(file);
+      }
+    });
+    this.eventRefs.push(createRef);
+    const modifyRef = this.app.vault.on("modify", (file) => {
+      if (file instanceof import_obsidian.TFile && this.isRecipeFile(file) && this.isInitialized) {
+        debouncedModify(file);
+      }
+    });
+    this.eventRefs.push(modifyRef);
+    const deleteRef = this.app.vault.on("delete", (file) => {
+      if (file instanceof import_obsidian.TFile && this.recipes.has(file.path)) {
+        this.handleFileDelete(file);
+      }
+    });
+    this.eventRefs.push(deleteRef);
+    const renameRef = this.app.vault.on("rename", (file, oldPath) => {
+      if (file instanceof import_obsidian.TFile && this.isInitialized) {
+        this.handleFileRename(file, oldPath);
+      }
+    });
+    this.eventRefs.push(renameRef);
+    const resolveRef = this.app.metadataCache.on("resolve", (file) => {
+      if (file instanceof import_obsidian.TFile && this.isRecipeFile(file) && this.isInitialized) {
+        if (this.recipes.has(file.path)) {
+          setTimeout(() => debouncedModify(file), 50);
+        }
+      }
+    });
+    this.eventRefs.push(resolveRef);
+  }
+  /**
+   * Check if a file is in the recipes folder
+   */
+  isRecipeFile(file) {
+    return file.path.startsWith(this.settings.recipesFolder) && file.extension === "md";
+  }
+  /**
+   * Handle file creation
+   */
+  async handleFileCreate(file) {
+    const recipe = await this.buildRecipeFromFile(file);
+    if (recipe) {
+      this.recipes.set(file.path, recipe);
+      this.trigger("recipe-added", recipe);
+      if (DEBUG) console.log(`${PLUGIN_NAME}: Added: ${recipe.title}`);
+    }
+  }
+  /**
+   * Handle file modification
+   */
+  async handleFileModify(file) {
+    const existingRecipe = this.recipes.get(file.path);
+    const recipe = await this.buildRecipeFromFile(file);
+    if (recipe) {
+      this.recipes.set(file.path, recipe);
+      if (existingRecipe) {
+        this.trigger("recipe-updated", recipe);
+        if (DEBUG) console.log(`${PLUGIN_NAME}: Updated: ${recipe.title}`);
+      } else {
+        this.trigger("recipe-added", recipe);
+        if (DEBUG) console.log(`${PLUGIN_NAME}: Added: ${recipe.title}`);
+      }
+    }
+  }
+  /**
+   * Handle file deletion
+   */
+  handleFileDelete(file) {
+    const recipe = this.recipes.get(file.path);
+    if (recipe) {
+      this.recipes.delete(file.path);
+      this.trigger("recipe-deleted", file.path);
+      if (DEBUG) console.log(`${PLUGIN_NAME}: Removed: ${recipe.title}`);
+    }
+  }
+  /**
+   * Handle file rename/move
+   */
+  async handleFileRename(file, oldPath) {
+    const wasRecipe = this.recipes.has(oldPath);
+    const isNowRecipe = this.isRecipeFile(file);
+    if (wasRecipe) {
+      this.recipes.delete(oldPath);
+      this.trigger("recipe-deleted", oldPath);
+      if (DEBUG) console.log(`${PLUGIN_NAME}: Removed old path: ${oldPath}`);
+    }
+    if (isNowRecipe) {
+      const recipe = await this.buildRecipeFromFile(file);
+      if (recipe) {
+        this.recipes.set(file.path, recipe);
+        this.trigger("recipe-added", recipe);
+        if (DEBUG) console.log(`${PLUGIN_NAME}: Added at new path: ${file.path}`);
+      }
+    }
   }
   /**
    * Get all indexed recipes
@@ -82,9 +399,53 @@ var RecipeIndexer = class extends import_obsidian.Events {
     return this.recipes.get(path);
   }
   /**
+   * Get recipe count
+   */
+  getCount() {
+    return this.recipes.size;
+  }
+  /**
+   * Search recipes by title or ingredient
+   */
+  search(query) {
+    const lowerQuery = query.toLowerCase();
+    return this.getRecipes().filter(
+      (recipe) => recipe.title.toLowerCase().includes(lowerQuery) || recipe.ingredients.some((ing) => ing.toLowerCase().includes(lowerQuery))
+    );
+  }
+  /**
+   * Filter recipes by category
+   */
+  filterByCategory(category) {
+    return this.getRecipes().filter((recipe) => recipe.category === category);
+  }
+  /**
+   * Filter recipes by dietary flag
+   */
+  filterByDietaryFlag(flag) {
+    return this.getRecipes().filter((recipe) => recipe.dietaryFlags.includes(flag));
+  }
+  /**
+   * Update settings reference (called when settings change)
+   */
+  updateSettings(settings) {
+    const oldFolder = this.settings.recipesFolder;
+    this.settings = settings;
+    if (oldFolder !== settings.recipesFolder) {
+      console.log(`${PLUGIN_NAME}: Recipes folder changed, rescanning...`);
+      this.recipes.clear();
+      this.scanVault();
+    }
+  }
+  /**
    * Clean up event listeners
    */
   destroy() {
+    for (const ref of this.eventRefs) {
+      this.app.vault.offref(ref);
+    }
+    this.eventRefs = [];
+    this.recipes.clear();
   }
 };
 
@@ -256,9 +617,6 @@ var MiseSettingsTab = class extends import_obsidian3.PluginSettingTab {
   }
 };
 
-// src/utils/constants.ts
-var PLUGIN_NAME = "Mise";
-
 // src/main.ts
 var MisePlugin = class extends import_obsidian4.Plugin {
   async onload() {
@@ -282,8 +640,10 @@ var MisePlugin = class extends import_obsidian4.Plugin {
         console.log(`${PLUGIN_NAME}: Generate Shopping List command (not yet implemented)`);
       }
     });
-    await this.indexer.initialize();
-    console.log(`${PLUGIN_NAME}: Plugin loaded successfully!`);
+    this.app.workspace.onLayoutReady(async () => {
+      await this.indexer.initialize();
+    });
+    console.log(`${PLUGIN_NAME}: Plugin loaded.`);
   }
   async onunload() {
     var _a;

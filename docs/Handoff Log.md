@@ -10,9 +10,9 @@ tags:
 **Purpose:** Session-by-session implementation notes. Each development session appends a new entry with details of what was done, what was tested, and what's next.
 
 **Last Updated:** January 13, 2026
-**Current Phase:** Phase 0 - Documentation & Planning
-**Current Branch:** (Repository Not Initialized)
-**Version:** 0.0.0
+**Current Phase:** Phase 3 - The Ingredient Parser
+**Current Branch:** feat/phase-2-silent-indexer (pending merge)
+**Version:** 0.1.0
 
 ---
 
@@ -81,56 +81,113 @@ Initial planning session for "Mise," a culinary operating system for Obsidian. C
 - `docs/Handoff Log.md` — Restructured
 - `docs/Implementation Planning.md` — Retained as reference (superseded by Feature Roadmap)
 
-### Suggested Commit Message
-```
-docs: Complete project documentation overhaul
+---
 
-- Create Feature Roadmap with 18 phases and detailed task breakdowns
-- Rewrite Project Summary with full vision and design principles
-- Update CLAUDE.md with mandatory development workflow
-- Restructure Handoff Log for session-by-session tracking
-- Add data structure definitions (Recipe, MealPlan, ShoppingList)
-- Document modular architecture pattern
-- Establish "No MVP pressure" philosophy
+## Session: January 13, 2026 - Foundation & Configuration
 
-Phase 0 documentation complete. Ready for Phase 1: Foundation.
-```
+### Phase
+Phase 1: Foundation & Configuration
+
+### Session Summary
+Scaffolded the entire plugin project structure including TypeScript configuration, esbuild build system, and modular architecture. Created comprehensive type definitions for all data structures (Recipe, MealPlan, ShoppingList, Settings). Implemented full settings tab with folder autocomplete using Obsidian's `AbstractInputSuggest`. Added auto-archive dropdown setting. Deployed and verified plugin loads correctly.
+
+### What Was Done
+
+| Task | Details |
+|------|---------|
+| npm project setup | TypeScript + esbuild, all dependencies configured |
+| Modular folder structure | `src/types/`, `services/`, `parsers/`, `ui/`, `utils/` |
+| Type definitions | Complete interfaces for Recipe, MealPlan, ShoppingList, MiseSettings |
+| Settings tab | `MiseSettingsTab` with folder autocomplete, auto-archive dropdown |
+| FolderSuggest component | Custom autocomplete using `AbstractInputSuggest` |
+| Placeholder services | RecipeIndexer, MealPlanService, ShoppingListService |
+| Parsers | IngredientParser, FrontmatterParser with time/rating/category helpers |
+| Build config | `esbuild.config.mjs`, `tsconfig.json`, `manifest.json` |
+
+### What Was Tested
+- [x] Plugin builds without errors
+- [x] Plugin loads in Obsidian
+- [x] Settings tab displays correctly
+- [x] Folder autocomplete works
+- [x] Auto-archive dropdown shows options
+- [x] Settings persist across restarts
+
+### Issues Discovered
+- Initial import paths for nested UI components needed fixing (`../types` → `../../types`)
+- `TFolder` import needed for folder autocomplete TypeScript compatibility
+
+### Files Created
+- `package.json`, `tsconfig.json`, `esbuild.config.mjs`, `manifest.json`, `styles.css`
+- `src/main.ts`, `src/types/index.ts`
+- `src/services/RecipeIndexer.ts`, `MealPlanService.ts`, `ShoppingListService.ts`, `index.ts`
+- `src/parsers/IngredientParser.ts`, `FrontmatterParser.ts`, `index.ts`
+- `src/ui/settings/MiseSettingsTab.ts`, `src/ui/components/FolderSuggest.ts`
+- `src/utils/constants.ts`, `helpers.ts`, `index.ts`
+
+---
+
+## Session: January 13, 2026 - The Silent Indexer
+
+### Phase
+Phase 2: The Silent Indexer
+
+### Session Summary
+Implemented real-time recipe indexing to replace the external Python script. Created `RecipeIndexer` service with vault scanning, event hooks for file changes, and metadataCache integration for fast frontmatter access. Fixed timing issues by using `workspace.onLayoutReady`. Added DEBUG flag to control console verbosity. All CRUD operations tested and verified working.
+
+### What Was Done
+
+| Task | Details |
+|------|---------|
+| RecipeIndexer core | Complete implementation with ~350 lines |
+| Vault scanning | Recursive folder scan with `getMarkdownFilesRecursive()` |
+| Event hooks | create, modify, delete, rename - all wired up |
+| Debouncing | 300ms debounce on modify events |
+| metadataCache | Uses cache for frontmatter parsing |
+| Recipe building | Extracts title, category, rating, times, ingredients, etc. |
+| Search/filter methods | `search()`, `filterByCategory()`, `filterByDietaryFlag()` |
+| Timing fix | Moved initialization to `workspace.onLayoutReady` |
+| Console cleanup | Added DEBUG flag, reduced verbosity |
+
+### What Was Tested
+- [x] Initial scan indexes all recipes in folder
+- [x] Create new file → triggers indexing
+- [x] Modify file → triggers update (debounced)
+- [x] Delete file → removes from index
+- [x] Rename file → updates path correctly
+- [x] Console output clean (only startup message)
+
+### Issues Discovered & Fixed
+- **Timing issue**: Indexer was running before vault was fully loaded, resulting in 0 recipes and then "Recipe created" spam as files loaded. Fixed by using `workspace.onLayoutReady`.
+- **Console spam**: "Recipe created" logged for every file on reload. Fixed by only emitting events after `isInitialized = true`.
+
+### Files Modified
+- `src/services/RecipeIndexer.ts` — Complete rewrite with full implementation
+- `src/main.ts` — Used `onLayoutReady` for indexer initialization
 
 ---
 
 ## Next Session Prompt
 
 ```
-Mise - v0.0.0 → Phase 1: Foundation & Configuration
+Mise - v0.1.0 → Phase 3: The Ingredient Parser
 
 **Project Goal:** Culinary OS for Obsidian (recipe discovery, meal planning, shopping lists)
-**Current Status:** Documentation complete. Ready to scaffold plugin.
+**Current Status:** Phases 0-2 complete. Indexer working. Ready to enhance ingredient parsing.
 
 **Key Docs to Review:**
-- docs/Feature Roadmap.md - (Phase breakdown and task checklists)
-- docs/CLAUDE.md - (Development workflow - MUST FOLLOW)
-- docs/Project Summary.md - (Vision and architecture overview)
+- docs/Feature Roadmap.md - (Phase 3 tasks)
+- docs/CLAUDE.md - (Development workflow)
 
-**PRIORITY: Phase 1 - Foundation & Configuration**
+**PRIORITY: Phase 3 - The Ingredient Parser**
 
 | Task | Status |
 |------|--------|
-| Initialize npm project (TypeScript + esbuild) | Pending |
-| Create `manifest.json` with correct metadata | Pending |
-| Create modular folder structure (services/, parsers/, ui/, etc.) | Pending |
-| Implement thin `MisePlugin` class in main.ts | Pending |
-| Implement `MiseSettingsTab` with path pickers | Pending |
-| Settings: Recipe Folder, Meal Plan Folder, Shopping List Folder | Pending |
-| Settings: Auto-archive toggle, Aisle configuration | Pending |
+| Detect `## 🥘 Ingredients` header reliably | Pending |
+| Handle case variations and emoji presence | Pending |
+| Strip Markdown syntax (bullets, checkboxes) | Partially done |
+| Unit tests for parser edge cases | Pending |
 
-**Acceptance Criteria:**
-- [ ] Plugin loads in Obsidian without errors
-- [ ] "Mise loaded" appears in console
-- [ ] Settings tab shows all configuration options
-- [ ] Settings persist across Obsidian restarts
-
-**REMINDER:** Follow the Phase Completion Protocol in CLAUDE.md:
-1. Check-in → 2. Do work → 3. TEST → 4. Update docs → 5. Next phase
+**Note:** Phase 3 is partially complete since `parseIngredients()` already exists in IngredientParser.ts. Focus on hardening and testing.
 ```
 
 ---
@@ -138,13 +195,13 @@ Mise - v0.0.0 → Phase 1: Foundation & Configuration
 ## Quick Reference
 
 ### Development Commands
-*(To be populated after project initialization)*
 
 | Command | Purpose |
 |---------|---------|
 | `npm install` | Install dependencies |
 | `npm run dev` | Watch mode (continuous build) |
 | `npm run build` | Production build |
+| `npm run deploy` | Build + copy to Obsidian plugins folder |
 
 ### Required Files in Deploy Directory
 | File | Purpose |
@@ -168,3 +225,4 @@ Mise - v0.0.0 → Phase 1: Foundation & Configuration
 *Sessions more than 10 entries old will be moved here to keep the main log manageable.*
 
 (No archived sessions yet)
+
