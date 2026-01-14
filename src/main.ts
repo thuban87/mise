@@ -8,11 +8,12 @@
  * - Wires dependencies together
  */
 
-import { Plugin } from 'obsidian';
+import { Plugin, WorkspaceLeaf } from 'obsidian';
 import { MiseSettings, DEFAULT_SETTINGS } from './types';
 import { RecipeIndexer, MealPlanService, ShoppingListService, TimeMigrationService } from './services';
 import { MiseSettingsTab } from './ui/settings/MiseSettingsTab';
-import { PLUGIN_NAME } from './utils/constants';
+import { CookbookView, CookbookSidebar } from './ui/views';
+import { PLUGIN_NAME, MISE_COOKBOOK_VIEW_TYPE, MISE_SIDEBAR_VIEW_TYPE } from './utils/constants';
 
 export default class MisePlugin extends Plugin {
     settings: MiseSettings;
@@ -35,6 +36,16 @@ export default class MisePlugin extends Plugin {
         this.shoppingListService = new ShoppingListService(this.app, this.settings, this.indexer);
         this.timeMigration = new TimeMigrationService(this.app, this.settings);
 
+        // Register views
+        this.registerView(
+            MISE_COOKBOOK_VIEW_TYPE,
+            (leaf) => new CookbookView(leaf, this)
+        );
+        this.registerView(
+            MISE_SIDEBAR_VIEW_TYPE,
+            (leaf) => new CookbookSidebar(leaf, this)
+        );
+
         // Register settings tab
         this.addSettingTab(new MiseSettingsTab(this.app, this));
 
@@ -43,8 +54,15 @@ export default class MisePlugin extends Plugin {
             id: 'open-cookbook',
             name: 'Open Cookbook',
             callback: () => {
-                // TODO: Phase 5 - Open cookbook view
-                console.log(`${PLUGIN_NAME}: Open Cookbook command (not yet implemented)`);
+                this.activateCookbookView();
+            }
+        });
+
+        this.addCommand({
+            id: 'open-cookbook-sidebar',
+            name: 'Open Cookbook Sidebar',
+            callback: () => {
+                this.activateCookbookSidebar();
             }
         });
 
@@ -86,10 +104,10 @@ export default class MisePlugin extends Plugin {
             }
         });
 
-        // TODO: Phase 5 - Add ribbon icon
-        // this.addRibbonIcon('chef-hat', 'Open Mise Cookbook', () => {
-        // 	this.activateCookbookView();
-        // });
+        // Add ribbon icon
+        this.addRibbonIcon('book-open', 'Open Mise Cookbook', () => {
+            this.activateCookbookView();
+        });
 
         // Wait for workspace layout to be ready before initializing indexer
         // This ensures the vault is fully loaded
@@ -106,7 +124,55 @@ export default class MisePlugin extends Plugin {
         // Clean up services
         this.indexer?.destroy();
 
+        // Detach all views
+        this.app.workspace.detachLeavesOfType(MISE_COOKBOOK_VIEW_TYPE);
+        this.app.workspace.detachLeavesOfType(MISE_SIDEBAR_VIEW_TYPE);
+
         console.log(`${PLUGIN_NAME}: Plugin unloaded.`);
+    }
+
+    /**
+     * Activate the main cookbook view in a new tab
+     */
+    async activateCookbookView(): Promise<void> {
+        const { workspace } = this.app;
+
+        // Check if view is already open
+        let leaf = workspace.getLeavesOfType(MISE_COOKBOOK_VIEW_TYPE)[0];
+
+        if (!leaf) {
+            // Create new leaf in main area
+            leaf = workspace.getLeaf('tab');
+            await leaf.setViewState({
+                type: MISE_COOKBOOK_VIEW_TYPE,
+                active: true,
+            });
+        }
+
+        // Reveal and focus the leaf
+        workspace.revealLeaf(leaf);
+    }
+
+    /**
+     * Activate the cookbook sidebar in the right panel
+     */
+    async activateCookbookSidebar(): Promise<void> {
+        const { workspace } = this.app;
+
+        // Check if sidebar is already open
+        let leaf = workspace.getLeavesOfType(MISE_SIDEBAR_VIEW_TYPE)[0];
+
+        if (!leaf) {
+            // Create new leaf in right sidebar
+            leaf = workspace.getRightLeaf(false)!;
+            await leaf.setViewState({
+                type: MISE_SIDEBAR_VIEW_TYPE,
+                active: true,
+            });
+        }
+
+        // Reveal and focus the leaf
+        workspace.revealLeaf(leaf);
     }
 
     async loadSettings(): Promise<void> {

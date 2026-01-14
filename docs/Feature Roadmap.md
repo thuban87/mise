@@ -12,7 +12,7 @@ tags:
 > This is a personal utility project with infinite runway. Features get done when they get done. Do not pressure the user with "we should do this after MVP" language.
 
 **Last Updated:** January 13, 2026
-**Current Phase:** Phase 5 - The Cookbook View (UI Skeleton)
+**Current Phase:** Phase 6 - The Recipe Card
 
 ---
 
@@ -279,25 +279,25 @@ interface ShoppingItem {
 
 ### Phase 5: The Cookbook View (UI Skeleton)
 - **Goal:** Create the visual container for recipe browsing.
-- **Status:** `[ ]` Not Started
+- **Status:** `[x]` Completed
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Create `CookbookView` (ItemView) | `[ ]` | Full-tab view |
-| Create `CookbookSidebar` (View) | `[ ]` | Right sidebar option |
-| Register view types | `[ ]` | Unique identifiers |
-| Add ribbon icon (chef hat) | `[ ]` | Opens full view |
-| Add command: "Open Cookbook" | `[ ]` | Opens full view |
-| Add command: "Open Cookbook Sidebar" | `[ ]` | Opens sidebar |
-| Mount React root | `[ ]` | In view container |
-| Pass RecipeIndexer data to React | `[ ]` | Props or context |
-| Basic list render proof-of-concept | `[ ]` | Just recipe titles |
+| Create `CookbookView` (ItemView) | `[x]` | Full-tab view with React |
+| Create `CookbookSidebar` (View) | `[x]` | Right sidebar, compact mode |
+| Register view types | `[x]` | MISE_COOKBOOK_VIEW_TYPE, MISE_SIDEBAR_VIEW_TYPE |
+| Add ribbon icon (book-open) | `[x]` | Opens full view |
+| Add command: "Open Cookbook" | `[x]` | Opens full view |
+| Add command: "Open Cookbook Sidebar" | `[x]` | Opens sidebar |
+| Mount React root | `[x]` | React 18 with new JSX transform |
+| Pass RecipeIndexer data to React | `[x]` | Via RecipeContext |
+| Basic list render proof-of-concept | `[x]` | Titles, categories, ratings |
 
 **Acceptance Criteria:**
-- [ ] Ribbon icon opens full cookbook view
-- [ ] Command opens sidebar view
-- [ ] View survives Obsidian restart
-- [ ] Recipe titles display from index
+- [x] Ribbon icon opens full cookbook view
+- [x] Command opens sidebar view
+- [x] View survives Obsidian restart
+- [x] Recipe titles display from index
 
 ---
 

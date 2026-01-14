@@ -305,6 +305,13 @@ export class RecipeIndexer extends Events {
     }
 
     /**
+     * Check if the indexer has completed initial scan
+     */
+    isReady(): boolean {
+        return this.isInitialized;
+    }
+
+    /**
      * Search recipes by title or ingredient
      */
     search(query: string): Recipe[] {
