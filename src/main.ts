@@ -32,9 +32,17 @@ export default class MisePlugin extends Plugin {
 
         // Initialize services
         this.indexer = new RecipeIndexer(this.app, this.settings);
-        this.mealPlanService = new MealPlanService(this.app, this.settings, this.indexer);
+        this.mealPlanService = new MealPlanService(this.app, this.settings);
         this.shoppingListService = new ShoppingListService(this.app, this.settings, this.indexer);
         this.timeMigration = new TimeMigrationService(this.app, this.settings);
+
+        // Initialize indexer immediately
+        this.indexer.initialize();
+
+        // Initialize meal plan after layout is ready (vault files are loaded)
+        this.app.workspace.onLayoutReady(() => {
+            this.mealPlanService.initialize();
+        });
 
         // Register views
         this.registerView(

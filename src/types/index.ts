@@ -139,11 +139,29 @@ export interface MealDay {
  * Represents a meal assigned to a day
  */
 export interface PlannedMeal {
-    /** Path to the recipe file */
-    recipePath: string;
+    /** Path to the recipe file (null if not a wikilink) */
+    recipePath: string | null;
 
-    /** Cached recipe title for display */
+    /** Recipe or meal title for display */
     recipeTitle: string;
+
+    /** Day abbreviation (Mon, Tue, etc.) */
+    day: string;
+
+    /** Meal type */
+    mealType: 'breakfast' | 'lunch' | 'dinner';
+
+    /** Protein info from table */
+    protein?: string;
+
+    /** First side dish */
+    side1?: string;
+
+    /** Second side dish */
+    side2?: string;
+
+    /** Notes for this meal */
+    notes?: string;
 
     /** Optional scaled servings */
     scaledServings?: number;

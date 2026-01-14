@@ -10,8 +10,8 @@ tags:
 **Purpose:** Session-by-session implementation notes. Each development session appends a new entry with details of what was done, what was tested, and what's next.
 
 **Last Updated:** January 13, 2026
-**Current Phase:** Phase 9 - Favorites & Recently Viewed
-**Current Branch:** feat/phase-8-search-filter-logic (pending merge)
+**Current Phase:** Phase 10 - Meal Plan Calendar UI
+**Current Branch:** feat/phase-9-meal-plan-reader (pending merge)
 **Version:** 0.1.0
 
 ---
@@ -415,17 +415,53 @@ Implemented comprehensive search and filtering for the cookbook. Added FilterBar
 - `src/ui/components/RecipeContext.tsx` — Filter state
 - `src/ui/components/CookbookApp.tsx` — Filter integration
 - `src/ui/components/index.ts` — Exports
-- `styles.css` — Filter bar styles
+---
+
+## Session: January 14, 2026 - Meal Plan Reader
+
+### Phase
+Phase 9: Meal Plan Reader
+
+### Session Summary
+Implemented meal plan file parsing with support for custom table format including Protein/Sides/Notes columns. Service watches for file changes. Recipe cards show "Planned" badge with days.
+
+### What Was Done
+
+| Task | Details |
+|------|---------|
+| MealPlanParser.ts | Parses week/meal headers, tables with Day/Meal/Protein/Sides/Notes |
+| MealPlanService.ts | Loads from settings folder, watches for changes |
+| RecipeContext update | Added getPlannedDays() function |
+| RecipeCard update | Shows "📅 Mon, Wed" badge |
+| CSS | Planned badge styling |
+
+### What Was Tested
+- [x] Parser extracts recipes from wikilinks
+- [x] Planned badge appears on cards
+- [x] File changes trigger reload
+- [x] Timing fixed (waits for vault ready)
+
+### Files Created
+- `src/services/MealPlanParser.ts` — Pure parsing functions
+
+### Files Modified
+- `src/services/MealPlanService.ts` — Full implementation
+- `src/main.ts` — onLayoutReady initialization
+- `src/ui/components/RecipeContext.tsx` — getPlannedDays
+- `src/ui/components/RecipeCard.tsx` — Planned badge
+- `src/ui/views/CookbookView.tsx` — Pass mealPlanService
+- `src/ui/views/CookbookSidebar.tsx` — Pass mealPlanService
+- `styles.css` — Planned badge styles
 
 ---
 
 ## Next Session Prompt
 
 ```
-Mise - v0.1.0 → Phase 9: Favorites & Recently Viewed
+Mise - v0.1.0 → Phase 10: Meal Plan Calendar UI
 
 **Project:** Culinary OS for Obsidian
-**Status:** Phases 0-8 complete. Search and filters working!
+**Status:** Phases 0-9 complete. Meal plan parsing works!
 
 ## Key Docs (READ FIRST)
 - docs/CLAUDE.md - Mandatory development workflow
@@ -433,9 +469,9 @@ Mise - v0.1.0 → Phase 9: Favorites & Recently Viewed
 
 ## What's Already Built
 - RecipeIndexer with real-time vault events
-- React UI with cards, mini cards, responsive grid
-- Recipe modal with interactive ingredient checkboxes
-- Full search and filter system
+- React UI with cards, filters, modal
+- Meal plan parser and service
+- "Planned" badges on recipe cards
 
 ## Dev Commands
 npm run build    # Production build
@@ -466,5 +502,4 @@ npm run deploy   # Build + copy to Obsidian
 ## Archived Sessions
 *Sessions more than 10 entries old will be moved here to keep the main log manageable.*
 
-(No archived sessions yet)
 (No archived sessions yet)
