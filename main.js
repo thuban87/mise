@@ -58,30 +58,86 @@ var DEFAULT_SETTINGS = {
 var import_obsidian = require("obsidian");
 
 // src/parsers/IngredientParser.ts
+var INGREDIENT_HEADER_PATTERNS = [
+  /^##\s*🥘\s*ingredients?\s*$/im,
+  /^##\s*ingredients?\s*🥘?\s*$/im,
+  /^##\s*ingredients?\s*$/im
+];
+var SECTION_END_PATTERNS = [
+  /^##\s+/,
+  // Any H2 header
+  /^#\s+/,
+  // Any H1 header
+  /^---\s*$/
+  // Horizontal rule
+];
 function parseIngredients(content) {
-  const headerMatch = content.match(/##\s+(?:🥘\s*)?Ingredients?\s*\n/i);
+  const headerMatch = findIngredientHeader(content);
   if (!headerMatch) {
     return [];
   }
-  const startIndex = headerMatch.index + headerMatch[0].length;
-  const nextHeaderMatch = content.slice(startIndex).match(/\n##\s+/);
-  const endIndex = nextHeaderMatch ? startIndex + nextHeaderMatch.index : content.length;
+  const startIndex = headerMatch.index + headerMatch.match.length;
+  const endIndex = findSectionEnd(content, startIndex);
   const ingredientSection = content.slice(startIndex, endIndex);
-  const lines = ingredientSection.split("\n");
+  return extractIngredientsFromSection(ingredientSection);
+}
+function findIngredientHeader(content) {
+  for (const pattern of INGREDIENT_HEADER_PATTERNS) {
+    const match = content.match(pattern);
+    if (match && match.index !== void 0) {
+      return {
+        index: match.index,
+        match: match[0]
+      };
+    }
+  }
+  return null;
+}
+function findSectionEnd(content, startIndex) {
+  const remaining = content.slice(startIndex);
+  const lines = remaining.split("\n");
+  let charCount = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (i > 0) {
+      for (const pattern of SECTION_END_PATTERNS) {
+        if (pattern.test(line)) {
+          return startIndex + charCount;
+        }
+      }
+    }
+    charCount += line.length + 1;
+  }
+  return content.length;
+}
+function extractIngredientsFromSection(section) {
+  const lines = section.split("\n");
   const ingredients = [];
   for (const line of lines) {
-    let cleaned = line.trim();
-    if (!cleaned) continue;
-    if (cleaned.startsWith("**") && cleaned.endsWith("**")) continue;
-    cleaned = cleaned.replace(/^[-*]\s*\[.\]\s*/, "");
-    cleaned = cleaned.replace(/^[-*]\s*/, "");
-    cleaned = cleaned.replace(/^\d+\.\s*/, "");
-    cleaned = cleaned.trim();
-    if (cleaned) {
+    const cleaned = cleanIngredientLine(line);
+    if (cleaned && !isSubHeader(cleaned)) {
       ingredients.push(cleaned);
     }
   }
   return ingredients;
+}
+function isSubHeader(line) {
+  if (/^\*\*[^*]+\*\*$/.test(line)) return true;
+  if (/^\*[^*]+\*$/.test(line)) return true;
+  if (/^###/.test(line)) return true;
+  if (/^_{2,}$/.test(line) || /^={2,}$/.test(line)) return true;
+  return false;
+}
+function cleanIngredientLine(line) {
+  let cleaned = line.trim();
+  if (!cleaned) return "";
+  if (/^[-_*]{3,}$/.test(cleaned)) return "";
+  cleaned = cleaned.replace(/^[-*+]\s*\[[x ]\]\s*/i, "");
+  cleaned = cleaned.replace(/^[-*+]\s+/, "");
+  cleaned = cleaned.replace(/^\d+[.)]\s*/, "");
+  cleaned = cleaned.trim();
+  cleaned = cleaned.replace(/\[[x ]\]/gi, "").trim();
+  return cleaned;
 }
 
 // src/parsers/FrontmatterParser.ts
