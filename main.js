@@ -1101,11 +1101,11 @@ var require_react_development = __commonJS({
           var dispatcher = resolveDispatcher();
           return dispatcher.useReducer(reducer, initialArg, init);
         }
-        function useRef(initialValue) {
+        function useRef2(initialValue) {
           var dispatcher = resolveDispatcher();
           return dispatcher.useRef(initialValue);
         }
-        function useEffect4(create, deps) {
+        function useEffect5(create, deps) {
           var dispatcher = resolveDispatcher();
           return dispatcher.useEffect(create, deps);
         }
@@ -1888,14 +1888,14 @@ var require_react_development = __commonJS({
         exports.useContext = useContext2;
         exports.useDebugValue = useDebugValue;
         exports.useDeferredValue = useDeferredValue;
-        exports.useEffect = useEffect4;
+        exports.useEffect = useEffect5;
         exports.useId = useId;
         exports.useImperativeHandle = useImperativeHandle;
         exports.useInsertionEffect = useInsertionEffect;
         exports.useLayoutEffect = useLayoutEffect;
         exports.useMemo = useMemo3;
         exports.useReducer = useReducer;
-        exports.useRef = useRef;
+        exports.useRef = useRef2;
         exports.useState = useState3;
         exports.useSyncExternalStore = useSyncExternalStore;
         exports.useTransition = useTransition;
@@ -2443,7 +2443,7 @@ var require_react_dom_development = __commonJS({
         var HostPortal = 4;
         var HostComponent = 5;
         var HostText = 6;
-        var Fragment2 = 7;
+        var Fragment3 = 7;
         var Mode = 8;
         var ContextConsumer = 9;
         var ContextProvider = 10;
@@ -3600,7 +3600,7 @@ var require_react_dom_development = __commonJS({
               return "DehydratedFragment";
             case ForwardRef:
               return getWrappedName$1(type, type.render, "ForwardRef");
-            case Fragment2:
+            case Fragment3:
               return "Fragment";
             case HostComponent:
               return type;
@@ -12029,7 +12029,7 @@ var require_react_dom_development = __commonJS({
             }
           }
           function updateFragment2(returnFiber, current2, fragment, lanes, key) {
-            if (current2 === null || current2.tag !== Fragment2) {
+            if (current2 === null || current2.tag !== Fragment3) {
               var created = createFiberFromFragment(fragment, returnFiber.mode, lanes, key);
               created.return = returnFiber;
               return created;
@@ -12432,7 +12432,7 @@ var require_react_dom_development = __commonJS({
               if (child.key === key) {
                 var elementType = element.type;
                 if (elementType === REACT_FRAGMENT_TYPE) {
-                  if (child.tag === Fragment2) {
+                  if (child.tag === Fragment3) {
                     deleteRemainingChildren(returnFiber, child.sibling);
                     var existing = useFiber(child, element.props.children);
                     existing.return = returnFiber;
@@ -17908,7 +17908,7 @@ var require_react_dom_development = __commonJS({
               var _resolvedProps2 = workInProgress2.elementType === type ? _unresolvedProps2 : resolveDefaultProps(type, _unresolvedProps2);
               return updateForwardRef(current2, workInProgress2, type, _resolvedProps2, renderLanes2);
             }
-            case Fragment2:
+            case Fragment3:
               return updateFragment(current2, workInProgress2, renderLanes2);
             case Mode:
               return updateMode(current2, workInProgress2, renderLanes2);
@@ -18180,7 +18180,7 @@ var require_react_dom_development = __commonJS({
             case SimpleMemoComponent:
             case FunctionComponent:
             case ForwardRef:
-            case Fragment2:
+            case Fragment3:
             case Mode:
             case Profiler:
             case ContextConsumer:
@@ -22441,7 +22441,7 @@ var require_react_dom_development = __commonJS({
           return fiber;
         }
         function createFiberFromFragment(elements, mode, lanes, key) {
-          var fiber = createFiber(Fragment2, elements, key, mode);
+          var fiber = createFiber(Fragment3, elements, key, mode);
           fiber.lanes = lanes;
           return fiber;
         }
@@ -24473,11 +24473,11 @@ var require_react_jsx_runtime_development = __commonJS({
             return jsxWithValidation(type, props, key, false);
           }
         }
-        var jsx13 = jsxWithValidationDynamic;
-        var jsxs8 = jsxWithValidationStatic;
+        var jsx14 = jsxWithValidationDynamic;
+        var jsxs9 = jsxWithValidationStatic;
         exports.Fragment = REACT_FRAGMENT_TYPE;
-        exports.jsx = jsx13;
-        exports.jsxs = jsxs8;
+        exports.jsx = jsx14;
+        exports.jsxs = jsxs9;
       })();
     }
   }
@@ -25277,6 +25277,130 @@ var MealPlanService = class extends import_obsidian2.Events {
     const days = [...new Set(meals.map((m) => m.day))];
     return days.join(", ");
   }
+  /**
+   * Get the current meal plan file path
+   */
+  getCurrentFilePath() {
+    return this.currentFilePath;
+  }
+  /**
+   * Add a meal to the meal plan file
+   */
+  async addMeal(recipeTitle, recipePath, day, weekNumber, mealType) {
+    if (!this.currentFilePath) {
+      console.error("MealPlanService: No meal plan file loaded");
+      return false;
+    }
+    const file = this.app.vault.getAbstractFileByPath(this.currentFilePath);
+    if (!file || !(file instanceof import_obsidian2.TFile)) {
+      console.error("MealPlanService: Meal plan file not found");
+      return false;
+    }
+    try {
+      const content = await this.app.vault.read(file);
+      const newContent = this.insertMealIntoContent(
+        content,
+        recipeTitle,
+        recipePath,
+        day,
+        weekNumber,
+        mealType
+      );
+      await this.app.vault.modify(file, newContent);
+      console.log(`MealPlanService: Added ${recipeTitle} to ${day} ${mealType} Week ${weekNumber}`);
+      return true;
+    } catch (error) {
+      console.error("MealPlanService: Error adding meal", error);
+      return false;
+    }
+  }
+  /**
+   * Remove a meal from the meal plan file
+   */
+  async removeMeal(recipeTitle, day, weekNumber, mealType) {
+    if (!this.currentFilePath) {
+      return false;
+    }
+    const file = this.app.vault.getAbstractFileByPath(this.currentFilePath);
+    if (!file || !(file instanceof import_obsidian2.TFile)) {
+      return false;
+    }
+    try {
+      const content = await this.app.vault.read(file);
+      const newContent = this.removeMealFromContent(
+        content,
+        recipeTitle,
+        day,
+        weekNumber,
+        mealType
+      );
+      await this.app.vault.modify(file, newContent);
+      console.log(`MealPlanService: Removed ${recipeTitle} from ${day} ${mealType} Week ${weekNumber}`);
+      return true;
+    } catch (error) {
+      console.error("MealPlanService: Error removing meal", error);
+      return false;
+    }
+  }
+  /**
+   * Insert a meal into the markdown content
+   * Finds the correct week and meal type table and adds a row
+   */
+  insertMealIntoContent(content, recipeTitle, recipePath, day, weekNumber, mealType) {
+    const lines = content.split("\n");
+    let currentWeek = 0;
+    let currentMealType = null;
+    let insertIndex = -1;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const weekMatch = line.match(/^##\s+Week\s+(\d+)/i);
+      if (weekMatch) {
+        currentWeek = parseInt(weekMatch[1], 10);
+      }
+      if (line.toLowerCase().includes("breakfast")) currentMealType = "breakfast";
+      else if (line.toLowerCase().includes("lunch")) currentMealType = "lunch";
+      else if (line.toLowerCase().includes("dinner")) currentMealType = "dinner";
+      if (currentWeek === weekNumber && currentMealType === mealType) {
+        if (line.startsWith("|") && !line.includes("---") && !line.toLowerCase().includes("day")) {
+          insertIndex = i + 1;
+        }
+      }
+    }
+    const wikilink = recipePath ? `[[${recipeTitle}]]` : recipeTitle;
+    const newRow = `| ${day} | ${wikilink} | - | - | - | |`;
+    if (insertIndex > 0) {
+      lines.splice(insertIndex, 0, newRow);
+    } else {
+      console.warn("MealPlanService: Could not find correct table, appending to end");
+      lines.push(newRow);
+    }
+    return lines.join("\n");
+  }
+  /**
+   * Remove a meal from the markdown content
+   */
+  removeMealFromContent(content, recipeTitle, day, weekNumber, mealType) {
+    const lines = content.split("\n");
+    let currentWeek = 0;
+    let currentMealType = null;
+    const result = [];
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const weekMatch = line.match(/^##\s+Week\s+(\d+)/i);
+      if (weekMatch) {
+        currentWeek = parseInt(weekMatch[1], 10);
+      }
+      if (line.toLowerCase().includes("breakfast")) currentMealType = "breakfast";
+      else if (line.toLowerCase().includes("lunch")) currentMealType = "lunch";
+      else if (line.toLowerCase().includes("dinner")) currentMealType = "dinner";
+      if (currentWeek === weekNumber && currentMealType === mealType && line.startsWith("|") && line.toLowerCase().includes(recipeTitle.toLowerCase()) && line.includes(day)) {
+        console.log(`MealPlanService: Removing line: ${line}`);
+        continue;
+      }
+      result.push(line);
+    }
+    return result.join("\n");
+  }
 };
 
 // src/services/ShoppingListService.ts
@@ -25857,19 +25981,40 @@ function RecipeCardMini({ recipe }) {
   const handleClick = () => {
     openModal(recipe);
   };
-  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "mise-card-mini", onClick: handleClick, children: [
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "mise-mini-image", children: imageUrl ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("img", { src: imageUrl, alt: recipe.title, loading: "lazy" }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "mise-mini-placeholder", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: categoryEmoji }) }) }),
-    /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "mise-mini-content", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "mise-mini-title", children: recipe.title }),
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "mise-mini-meta", children: [
-        recipe.rating && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "mise-mini-rating", children: "\u2605".repeat(recipe.rating) }),
-        totalTime && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "mise-mini-time", children: [
-          "\u23F1\uFE0F ",
-          totalTime
+  const handleDragStart = (e) => {
+    e.dataTransfer.setData("application/mise-recipe", JSON.stringify({
+      path: recipe.path,
+      title: recipe.title
+    }));
+    e.dataTransfer.effectAllowed = "copy";
+    e.target.classList.add("mise-dragging");
+  };
+  const handleDragEnd = (e) => {
+    e.target.classList.remove("mise-dragging");
+  };
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
+    "div",
+    {
+      className: "mise-card-mini",
+      onClick: handleClick,
+      draggable: true,
+      onDragStart: handleDragStart,
+      onDragEnd: handleDragEnd,
+      children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "mise-mini-image", children: imageUrl ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("img", { src: imageUrl, alt: recipe.title, loading: "lazy" }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "mise-mini-placeholder", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: categoryEmoji }) }) }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "mise-mini-content", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "mise-mini-title", children: recipe.title }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "mise-mini-meta", children: [
+            recipe.rating && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "mise-mini-rating", children: "\u2605".repeat(recipe.rating) }),
+            totalTime && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "mise-mini-time", children: [
+              "\u23F1\uFE0F ",
+              totalTime
+            ] })
+          ] })
         ] })
-      ] })
-    ] })
-  ] });
+      ]
+    }
+  );
 }
 
 // src/ui/components/RecipeModal.tsx
@@ -26228,8 +26373,66 @@ function CookbookApp({ compact = false }) {
 }
 
 // src/ui/components/MealCalendar.tsx
+var import_react4 = __toESM(require_react());
+
+// src/ui/components/MealTypePicker.tsx
 var import_react3 = __toESM(require_react());
 var import_jsx_runtime9 = __toESM(require_jsx_runtime());
+function MealTypePicker({ visible, onSelect, onCancel }) {
+  (0, import_react3.useEffect)(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        onCancel();
+      }
+    };
+    if (visible) {
+      document.addEventListener("keydown", handleKeyDown);
+      return () => document.removeEventListener("keydown", handleKeyDown);
+    }
+  }, [visible, onCancel]);
+  if (!visible) return null;
+  return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(import_jsx_runtime9.Fragment, { children: [
+    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mise-picker-backdrop", onClick: onCancel }),
+    /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mise-meal-picker mise-picker-centered", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mise-picker-title", children: "Add to..." }),
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+        "button",
+        {
+          className: "mise-picker-btn mise-picker-breakfast",
+          onClick: () => onSelect("breakfast"),
+          children: "\u{1F373} Breakfast"
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+        "button",
+        {
+          className: "mise-picker-btn mise-picker-lunch",
+          onClick: () => onSelect("lunch"),
+          children: "\u{1F957} Lunch"
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+        "button",
+        {
+          className: "mise-picker-btn mise-picker-dinner",
+          onClick: () => onSelect("dinner"),
+          children: "\u{1F37D}\uFE0F Dinner"
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+        "button",
+        {
+          className: "mise-picker-btn mise-picker-cancel",
+          onClick: onCancel,
+          children: "Cancel"
+        }
+      )
+    ] })
+  ] });
+}
+
+// src/ui/components/MealCalendar.tsx
+var import_jsx_runtime10 = __toESM(require_jsx_runtime());
 var DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 var MONTHS = [
   "January",
@@ -26246,12 +26449,17 @@ var MONTHS = [
   "December"
 ];
 function MealCalendar({ mealPlanService, app }) {
-  const [currentDate, setCurrentDate] = (0, import_react3.useState)(/* @__PURE__ */ new Date());
-  const [viewMode, setViewMode] = (0, import_react3.useState)("month");
-  const [refreshKey, setRefreshKey] = (0, import_react3.useState)(0);
+  const [currentDate, setCurrentDate] = (0, import_react4.useState)(/* @__PURE__ */ new Date());
+  const [viewMode, setViewMode] = (0, import_react4.useState)("month");
+  const [refreshKey, setRefreshKey] = (0, import_react4.useState)(0);
+  const [dragOverDay, setDragOverDay] = (0, import_react4.useState)(null);
+  const calendarRef = (0, import_react4.useRef)(null);
+  const [pickerVisible, setPickerVisible] = (0, import_react4.useState)(false);
+  const [dropTarget, setDropTarget] = (0, import_react4.useState)(null);
+  const [draggedRecipe, setDraggedRecipe] = (0, import_react4.useState)(null);
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
-  const allMeals = (0, import_react3.useMemo)(() => {
+  const allMeals = (0, import_react4.useMemo)(() => {
     return mealPlanService.getAllMeals();
   }, [mealPlanService, refreshKey]);
   const getWeekOfMonth = (date) => {
@@ -26259,7 +26467,7 @@ function MealCalendar({ mealPlanService, app }) {
     const firstDayWeekday = firstDayOfMonth.getDay();
     return Math.ceil((date.getDate() + firstDayWeekday) / 7);
   };
-  const calendarDays = (0, import_react3.useMemo)(() => {
+  const calendarDays = (0, import_react4.useMemo)(() => {
     const days = [];
     const today = /* @__PURE__ */ new Date();
     const firstDay = new Date(year, month, 1);
@@ -26314,7 +26522,7 @@ function MealCalendar({ mealPlanService, app }) {
     }
     return days;
   }, [year, month, allMeals]);
-  const currentWeekDays = (0, import_react3.useMemo)(() => {
+  const currentWeekDays = (0, import_react4.useMemo)(() => {
     const currentDayIndex = calendarDays.findIndex(
       (day) => day.date.toDateString() === currentDate.toDateString()
     );
@@ -26330,12 +26538,8 @@ function MealCalendar({ mealPlanService, app }) {
     return calendarDays.slice(rowStart, rowStart + 7);
   }, [calendarDays, currentDate]);
   const displayDays = viewMode === "week" ? currentWeekDays : calendarDays;
-  const goToPrevMonth = () => {
-    setCurrentDate(new Date(year, month - 1, 1));
-  };
-  const goToNextMonth = () => {
-    setCurrentDate(new Date(year, month + 1, 1));
-  };
+  const goToPrevMonth = () => setCurrentDate(new Date(year, month - 1, 1));
+  const goToNextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
   const goToPrevWeek = () => {
     const newDate = new Date(currentDate);
     newDate.setDate(newDate.getDate() - 7);
@@ -26346,14 +26550,12 @@ function MealCalendar({ mealPlanService, app }) {
     newDate.setDate(newDate.getDate() + 7);
     setCurrentDate(newDate);
   };
-  const goToToday = () => {
-    setCurrentDate(/* @__PURE__ */ new Date());
-  };
-  const refresh = (0, import_react3.useCallback)(() => {
+  const goToToday = () => setCurrentDate(/* @__PURE__ */ new Date());
+  const refresh = (0, import_react4.useCallback)(() => {
     mealPlanService.initialize();
     setRefreshKey((k) => k + 1);
   }, [mealPlanService]);
-  (0, import_react3.useEffect)(() => {
+  (0, import_react4.useEffect)(() => {
     const handler = () => setRefreshKey((k) => k + 1);
     mealPlanService.on("meal-plan-updated", handler);
     return () => mealPlanService.off("meal-plan-updated", handler);
@@ -26380,10 +26582,124 @@ function MealCalendar({ mealPlanService, app }) {
       }
     }
   };
+  const handleDragOver = (e, day) => {
+    if (!day.isCurrentMonth) return;
+    e.preventDefault();
+    if (e.dataTransfer.types.includes("application/mise-meal")) {
+      e.dataTransfer.dropEffect = "move";
+    } else {
+      e.dataTransfer.dropEffect = "copy";
+    }
+    const dayKey = `${day.date.toISOString()}`;
+    setDragOverDay(dayKey);
+  };
+  const handleDragLeave = () => {
+    setDragOverDay(null);
+  };
+  const handleDrop = (e, day) => {
+    e.preventDefault();
+    setDragOverDay(null);
+    if (!day.isCurrentMonth) return;
+    const recipeData = e.dataTransfer.getData("application/mise-recipe");
+    if (!recipeData) return;
+    try {
+      const recipe = JSON.parse(recipeData);
+      const dayName = DAYS_OF_WEEK[day.date.getDay()];
+      const weekNumber2 = day.weekOfMonth;
+      setDraggedRecipe(recipe);
+      setDropTarget({
+        day: dayName,
+        weekNumber: weekNumber2,
+        position: { x: 0, y: 0 }
+        // Not used anymore
+      });
+      setPickerVisible(true);
+    } catch (error) {
+      console.error("Error parsing dropped recipe", error);
+    }
+  };
+  const handleMealTypeSelect = async (mealType) => {
+    if (!draggedRecipe || !dropTarget) return;
+    setPickerVisible(false);
+    await mealPlanService.addMeal(
+      draggedRecipe.title,
+      draggedRecipe.path,
+      dropTarget.day,
+      dropTarget.weekNumber,
+      mealType
+    );
+    setDraggedRecipe(null);
+    setDropTarget(null);
+  };
+  const handlePickerCancel = () => {
+    setPickerVisible(false);
+    setDraggedRecipe(null);
+    setDropTarget(null);
+  };
+  const handleMealDragStart = (e, meal) => {
+    console.log("Meal drag start:", meal.recipeTitle);
+    e.dataTransfer.setData("application/mise-meal", JSON.stringify(meal));
+    e.dataTransfer.effectAllowed = "move";
+  };
+  const handleMealDragEnd = (e) => {
+    console.log("Meal drag end");
+  };
+  const handleMealDrop = async (e, day) => {
+    console.log("Meal drop on day:", day.dayNum);
+    e.preventDefault();
+    setDragOverDay(null);
+    if (!day.isCurrentMonth) {
+      console.log("Meal drop: not current month, ignoring");
+      return;
+    }
+    const mealData = e.dataTransfer.getData("application/mise-meal");
+    console.log("Meal drop data:", mealData);
+    if (!mealData) {
+      console.log("Meal drop: no meal data found");
+      return;
+    }
+    try {
+      const meal = JSON.parse(mealData);
+      const newDayName = DAYS_OF_WEEK[day.date.getDay()];
+      const newWeekNumber = day.weekOfMonth;
+      console.log(`Moving meal ${meal.recipeTitle} from ${meal.day} Week ${meal.weekNumber} to ${newDayName} Week ${newWeekNumber}`);
+      await mealPlanService.removeMeal(
+        meal.recipeTitle,
+        meal.day,
+        meal.weekNumber,
+        meal.mealType
+      );
+      await mealPlanService.addMeal(
+        meal.recipeTitle,
+        meal.recipePath,
+        newDayName,
+        newWeekNumber,
+        meal.mealType
+      );
+    } catch (error) {
+      console.error("Error moving meal", error);
+    }
+  };
+  const handleTrashDrop = async (e) => {
+    e.preventDefault();
+    const mealData = e.dataTransfer.getData("application/mise-meal");
+    if (!mealData) return;
+    try {
+      const meal = JSON.parse(mealData);
+      await mealPlanService.removeMeal(
+        meal.recipeTitle,
+        meal.day,
+        meal.weekNumber,
+        meal.mealType
+      );
+    } catch (error) {
+      console.error("Error deleting meal", error);
+    }
+  };
   const weekNumber = getWeekOfMonth(currentDate);
-  return /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mise-calendar", children: [
-    /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mise-calendar-header", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+  return /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mise-calendar", ref: calendarRef, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mise-calendar-header", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
         "button",
         {
           className: "mise-calendar-nav",
@@ -26392,26 +26708,19 @@ function MealCalendar({ mealPlanService, app }) {
           children: "\u25C0"
         }
       ),
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mise-calendar-title", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("h2", { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mise-calendar-title", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("h2", { children: [
           MONTHS[month],
           " ",
           year,
-          viewMode === "week" && /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("span", { className: "mise-week-label", children: [
+          viewMode === "week" && /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("span", { className: "mise-week-label", children: [
             " - Week ",
             weekNumber
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mise-calendar-controls", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
-            "button",
-            {
-              className: "mise-calendar-today",
-              onClick: goToToday,
-              children: "Today"
-            }
-          ),
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+        /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mise-calendar-controls", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("button", { className: "mise-calendar-today", onClick: goToToday, children: "Today" }),
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
             "button",
             {
               className: `mise-calendar-view-btn ${viewMode === "month" ? "active" : ""}`,
@@ -26419,7 +26728,7 @@ function MealCalendar({ mealPlanService, app }) {
               children: "Month"
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
             "button",
             {
               className: `mise-calendar-view-btn ${viewMode === "week" ? "active" : ""}`,
@@ -26427,18 +26736,10 @@ function MealCalendar({ mealPlanService, app }) {
               children: "Week"
             }
           ),
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
-            "button",
-            {
-              className: "mise-calendar-refresh",
-              onClick: refresh,
-              title: "Refresh meal plan",
-              children: "\u{1F504}"
-            }
-          )
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("button", { className: "mise-calendar-refresh", onClick: refresh, title: "Refresh meal plan", children: "\u{1F504}" })
         ] })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
         "button",
         {
           className: "mise-calendar-nav",
@@ -26448,21 +26749,45 @@ function MealCalendar({ mealPlanService, app }) {
         }
       )
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mise-calendar-weekdays", children: DAYS_OF_WEEK.map((day) => /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mise-calendar-weekday", children: day }, day)) }),
-    /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: `mise-calendar-grid ${viewMode === "week" ? "mise-week-view" : ""}`, children: displayDays.map((day, idx) => /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
+    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mise-calendar-weekdays", children: DAYS_OF_WEEK.map((day) => /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mise-calendar-weekday", children: day }, day)) }),
+    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
       "div",
       {
-        className: `mise-calendar-day ${!day.isCurrentMonth ? "mise-day-other-month" : ""} ${day.isToday ? "mise-day-today" : ""}`,
+        className: "mise-trash-zone",
+        onDragOver: (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+        },
+        onDrop: handleTrashDrop,
+        children: "\u{1F5D1}\uFE0F Drop here to delete"
+      }
+    ),
+    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: `mise-calendar-grid ${viewMode === "week" ? "mise-week-view" : ""}`, children: displayDays.map((day, idx) => /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
+      "div",
+      {
+        className: `mise-calendar-day ${!day.isCurrentMonth ? "mise-day-other-month" : ""} ${day.isToday ? "mise-day-today" : ""} ${dragOverDay === day.date.toISOString() ? "mise-day-dragover" : ""}`,
         onClick: () => handleDayClick(day),
+        onDragOver: (e) => handleDragOver(e, day),
+        onDragLeave: handleDragLeave,
+        onDrop: (e) => {
+          if (e.dataTransfer.types.includes("application/mise-meal")) {
+            handleMealDrop(e, day);
+          } else {
+            handleDrop(e, day);
+          }
+        },
         children: [
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mise-day-number", children: day.dayNum }),
-          /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)("div", { className: "mise-day-meals", children: [
-            day.meals.breakfast.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mise-meal-slot mise-meal-breakfast", children: day.meals.breakfast.map((meal, i) => /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mise-day-number", children: day.dayNum }),
+          /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mise-day-meals", children: [
+            day.meals.breakfast.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mise-meal-slot mise-meal-breakfast", children: day.meals.breakfast.map((meal, i) => /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
               "span",
               {
-                className: "mise-meal-pill mise-meal-clickable",
+                className: "mise-meal-pill mise-meal-clickable mise-meal-draggable",
                 title: getMealTooltip(meal),
                 onClick: (e) => handleMealClick(meal, e),
+                draggable: true,
+                onDragStart: (e) => handleMealDragStart(e, meal),
+                onDragEnd: handleMealDragEnd,
                 children: [
                   "\u{1F373} ",
                   meal.recipeTitle
@@ -26470,12 +26795,15 @@ function MealCalendar({ mealPlanService, app }) {
               },
               i
             )) }),
-            day.meals.lunch.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mise-meal-slot mise-meal-lunch", children: day.meals.lunch.map((meal, i) => /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
+            day.meals.lunch.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mise-meal-slot mise-meal-lunch", children: day.meals.lunch.map((meal, i) => /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
               "span",
               {
-                className: "mise-meal-pill mise-meal-clickable",
+                className: "mise-meal-pill mise-meal-clickable mise-meal-draggable",
                 title: getMealTooltip(meal),
                 onClick: (e) => handleMealClick(meal, e),
+                draggable: true,
+                onDragStart: (e) => handleMealDragStart(e, meal),
+                onDragEnd: handleMealDragEnd,
                 children: [
                   "\u{1F957} ",
                   meal.recipeTitle
@@ -26483,12 +26811,15 @@ function MealCalendar({ mealPlanService, app }) {
               },
               i
             )) }),
-            day.meals.dinner.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime9.jsx)("div", { className: "mise-meal-slot mise-meal-dinner", children: day.meals.dinner.map((meal, i) => /* @__PURE__ */ (0, import_jsx_runtime9.jsxs)(
+            day.meals.dinner.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mise-meal-slot mise-meal-dinner", children: day.meals.dinner.map((meal, i) => /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
               "span",
               {
-                className: "mise-meal-pill mise-meal-clickable",
+                className: "mise-meal-pill mise-meal-clickable mise-meal-draggable",
                 title: getMealTooltip(meal),
                 onClick: (e) => handleMealClick(meal, e),
+                draggable: true,
+                onDragStart: (e) => handleMealDragStart(e, meal),
+                onDragEnd: handleMealDragEnd,
                 children: [
                   "\u{1F37D}\uFE0F ",
                   meal.recipeTitle
@@ -26500,7 +26831,15 @@ function MealCalendar({ mealPlanService, app }) {
         ]
       },
       idx
-    )) })
+    )) }),
+    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+      MealTypePicker,
+      {
+        visible: pickerVisible,
+        onSelect: handleMealTypeSelect,
+        onCancel: handlePickerCancel
+      }
+    )
   ] });
 }
 function getMealTooltip(meal) {
@@ -26513,7 +26852,7 @@ function getMealTooltip(meal) {
 }
 
 // src/ui/views/CookbookView.tsx
-var import_jsx_runtime10 = __toESM(require_jsx_runtime());
+var import_jsx_runtime11 = __toESM(require_jsx_runtime());
 var CookbookView = class extends import_obsidian6.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
@@ -26535,13 +26874,13 @@ var CookbookView = class extends import_obsidian6.ItemView {
     container.addClass("mise-cookbook-container");
     this.root = (0, import_client.createRoot)(container);
     this.root.render(
-      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
         RecipeProvider,
         {
           app: this.app,
           indexer: this.plugin.indexer,
           mealPlanService: this.plugin.mealPlanService,
-          children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(CookbookApp, {})
+          children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(CookbookApp, {})
         }
       )
     );
@@ -26557,7 +26896,7 @@ var CookbookView = class extends import_obsidian6.ItemView {
 // src/ui/views/CookbookSidebar.tsx
 var import_obsidian7 = require("obsidian");
 var import_client2 = __toESM(require_client());
-var import_jsx_runtime11 = __toESM(require_jsx_runtime());
+var import_jsx_runtime12 = __toESM(require_jsx_runtime());
 var CookbookSidebar = class extends import_obsidian7.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
@@ -26579,13 +26918,13 @@ var CookbookSidebar = class extends import_obsidian7.ItemView {
     container.addClass("mise-sidebar-container");
     this.root = (0, import_client2.createRoot)(container);
     this.root.render(
-      /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
         RecipeProvider,
         {
           app: this.app,
           indexer: this.plugin.indexer,
           mealPlanService: this.plugin.mealPlanService,
-          children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(CookbookApp, { compact: true })
+          children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(CookbookApp, { compact: true })
         }
       )
     );
@@ -26601,7 +26940,7 @@ var CookbookSidebar = class extends import_obsidian7.ItemView {
 // src/ui/views/MealPlanView.tsx
 var import_obsidian8 = require("obsidian");
 var import_client3 = __toESM(require_client());
-var import_jsx_runtime12 = __toESM(require_jsx_runtime());
+var import_jsx_runtime13 = __toESM(require_jsx_runtime());
 var MISE_MEAL_PLAN_VIEW_TYPE = "mise-meal-plan-view";
 var MealPlanView = class extends import_obsidian8.ItemView {
   constructor(leaf, plugin) {
@@ -26624,7 +26963,7 @@ var MealPlanView = class extends import_obsidian8.ItemView {
     container.addClass("mise-meal-plan-container");
     this.root = (0, import_client3.createRoot)(container);
     this.root.render(
-      /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(
+      /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
         MealCalendar,
         {
           mealPlanService: this.plugin.mealPlanService,

@@ -9,9 +9,9 @@ tags:
 
 **Purpose:** Session-by-session implementation notes. Each development session appends a new entry with details of what was done, what was tested, and what's next.
 
-**Last Updated:** January 13, 2026
-**Current Phase:** Phase 11 - Drag-and-Drop Assignment
-**Current Branch:** feat/phase-10-meal-plan-calendar (pending merge)
+**Last Updated:** January 14, 2026
+**Current Phase:** Phase 12 - Ingredient Aggregator
+**Current Branch:** feat/phase-11-drag-drop (pending merge)
 **Version:** 0.1.0
 
 ---
@@ -34,6 +34,56 @@ Each session should include:
 - **Be specific** — Reference file paths, function names, and line numbers
 - **Test results are mandatory** — Every session must document testing
 - **Suggest commits** — Include recommended commit message at session end
+
+---
+
+## Session: January 14, 2026 - Phase 11 Drag-and-Drop Complete
+
+### Phase
+Phase 11: Drag-and-Drop Assignment
+
+### Session Summary
+Implemented comprehensive drag-and-drop functionality for the meal plan calendar. Users can now drag recipes from the sidebar cookbook onto calendar days to add them as meals, drag existing meals between days to move them, and drag meals to a trash zone to delete them. A centered meal type picker modal allows selecting Breakfast/Lunch/Dinner when dropping a recipe.
+
+### What Was Done
+
+| Task | Details |
+|------|--------|
+| `RecipeCardMini.tsx` | Added `draggable`, `onDragStart`, `onDragEnd` with data transfer |
+| `MealCalendar.tsx` | Drop handlers for recipes and meals, drag handlers for meal pills |
+| `MealTypePicker.tsx` | New centered modal component for meal type selection |
+| `MealPlanService.ts` | Added `addMeal()` and `removeMeal()` methods to modify markdown file |
+| `styles.css` | Added drag-over effects, picker styling, subtle trash zone |
+
+### Key Technical Discoveries
+
+| Issue | Solution |
+|-------|----------|
+| Drag immediately cancelled | Accessing `calendarRef.current` during drag handlers caused issues; use minimal handlers |
+| Drop effect mismatch | Changed `dropEffect` to 'move' for meals, 'copy' for new recipes |
+
+### What Was Tested
+- ✅ Drag recipe from sidebar to calendar - shows picker, adds meal
+- ✅ Meal type picker centered and working
+- ✅ Click meals to open recipe file
+- ✅ Drag meals between days on calendar
+- ✅ Delete meals by dragging to trash zone
+
+### Recommended Commit
+```
+feat(calendar): implement drag-and-drop meal assignment
+
+- Add drag from RecipeCardMini sidebar to calendar days
+- MealTypePicker modal for choosing breakfast/lunch/dinner
+- Drag meals between days to move them
+- Trash zone for deleting meals
+- MealPlanService.addMeal() and removeMeal() methods
+
+Closes Phase 11
+```
+
+### Next Session Prompt
+Phase 12: Ingredient Aggregator - Create ShoppingListService to collect ingredients from planned meals across a date range.
 
 ---
 

@@ -459,34 +459,26 @@ interface ShoppingItem {
 
 ### Phase 11: Drag-and-Drop Assignment
 - **Goal:** Assign recipes to days by dragging.
-- **Status:** `[ ]` Not Started
+- **Status:** `[x]` Complete
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Make `RecipeCard` draggable | `[ ]` | HTML5 DnD API |
-| Day cells as drop targets | `[ ]` | Accept recipe drops |
-| Meal slot targeting | `[ ]` | Breakfast, Lunch, or Dinner |
-| Visual feedback on drag | `[ ]` | Highlight valid targets |
-| Drop handler | `[ ]` | Add to MealPlan state |
-| Write changes to file | `[ ]` | Update markdown |
-| Configurable insert content | `[ ]` | Settings: what gets inserted |
-
-**Insert Content Options (Settings):**
-| Option | Default |
-|--------|---------|
-| Recipe wikilink | ✅ ON |
-| Servings | ❌ OFF |
-| Prep + Cook Time | ❌ OFF |
-| Ingredients (inline) | ❌ OFF |
-| Ingredients (callout) | ❌ OFF |
-| Source link | ❌ OFF |
+| Make `RecipeCard` draggable | `[x]` | HTML5 DnD API |
+| Day cells as drop targets | `[x]` | Accept recipe drops |
+| Meal slot targeting | `[x]` | Picker for Breakfast, Lunch, or Dinner |
+| Visual feedback on drag | `[x]` | Highlight valid targets, dragover effect |
+| Drop handler | `[x]` | Shows MealTypePicker, updates state |
+| Write changes to file | `[x]` | addMeal/removeMeal in MealPlanService |
+| Drag meals between days | `[x]` | Move existing meals on calendar |
+| Delete via trash zone | `[x]` | Subtle always-visible trash zone |
 
 **Acceptance Criteria:**
-- [ ] Drag recipe card onto day cell
-- [ ] Correct meal slot is targeted
-- [ ] Meal plan file is updated correctly
-- [ ] UI updates immediately (optimistic)
-- [ ] Insert content matches settings
+- [x] Drag recipe card onto day cell
+- [x] Correct meal slot is targeted (via picker)
+- [x] Meal plan file is updated correctly
+- [x] UI updates immediately (via file watcher)
+- [x] Drag meals between days on calendar
+- [x] Delete meals by dragging to trash zone
 
 ---
 

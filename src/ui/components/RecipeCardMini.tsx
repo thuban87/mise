@@ -2,6 +2,7 @@
  * RecipeCardMini - Compact card for sidebar view
  * 
  * Shows: small thumbnail, title, rating, time
+ * Draggable: Can be dragged to calendar for meal planning
  */
 
 import { Recipe } from '../../types';
@@ -23,8 +24,30 @@ export function RecipeCardMini({ recipe }: RecipeCardMiniProps) {
         openModal(recipe);
     };
 
+    const handleDragStart = (e: React.DragEvent) => {
+        // Set drag data for meal planning
+        e.dataTransfer.setData('application/mise-recipe', JSON.stringify({
+            path: recipe.path,
+            title: recipe.title,
+        }));
+        e.dataTransfer.effectAllowed = 'copy';
+
+        // Add dragging class for visual feedback
+        (e.target as HTMLElement).classList.add('mise-dragging');
+    };
+
+    const handleDragEnd = (e: React.DragEvent) => {
+        (e.target as HTMLElement).classList.remove('mise-dragging');
+    };
+
     return (
-        <div className="mise-card-mini" onClick={handleClick}>
+        <div
+            className="mise-card-mini"
+            onClick={handleClick}
+            draggable
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+        >
             {/* Thumbnail */}
             <div className="mise-mini-image">
                 {imageUrl ? (

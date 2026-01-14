@@ -12,3 +12,5 @@ export { RecipeModal } from './RecipeModal';
 export { FilterBar } from './FilterBar';
 export { FilterBarCompact } from './FilterBarCompact';
 export { MealCalendar } from './MealCalendar';
+export { MealTypePicker } from './MealTypePicker';
+export type { MealType } from './MealTypePicker';
