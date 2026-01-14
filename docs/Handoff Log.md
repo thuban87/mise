@@ -10,8 +10,8 @@ tags:
 **Purpose:** Session-by-session implementation notes. Each development session appends a new entry with details of what was done, what was tested, and what's next.
 
 **Last Updated:** January 13, 2026
-**Current Phase:** Phase 5 - The Cookbook View (UI Skeleton)
-**Current Branch:** feat/phase-4-time-migration (pending merge)
+**Current Phase:** Phase 6 - The Recipe Card
+**Current Branch:** feat/phase-5-cookbook-view (pending merge)
 **Version:** 0.1.0
 
 ---
@@ -234,54 +234,95 @@ Created `TimeMigrationService` to convert all time strings in recipe frontmatter
 
 ---
 
+## Session: January 13, 2026 - The Cookbook View (UI Skeleton)
+
+### Phase
+Phase 5: The Cookbook View (UI Skeleton)
+
+### Session Summary
+Implemented React-based UI skeleton for the Cookbook view. Added React 18 with the new JSX transform. Created full-tab `CookbookView` and right-sidebar `CookbookSidebar` views with React mounting. Implemented `RecipeContext` for state management and `CookbookApp` component for recipe list display. Added ribbon icon and commands for view activation. All tests passed.
+
+### What Was Done
+
+| Task | Details |
+|------|---------|
+| React setup | Added react, react-dom, @types/react, @types/react-dom |
+| TSConfig update | Added `jsx: "react-jsx"` for new JSX transform |
+| CookbookView | ItemView with React root, `book-open` icon |
+| CookbookSidebar | Right sidebar with compact layout |
+| RecipeContext | React context providing app, indexer, recipes state |
+| CookbookApp | Recipe list with titles, categories, ratings |
+| View registration | Both views registered in main.ts |
+| Commands | "Open Cookbook" and "Open Cookbook Sidebar" |
+| Ribbon icon | Book icon opens full cookbook view |
+| CSS styles | Loading spinner, empty state, recipe list, compact mode |
+| isReady() method | Added to RecipeIndexer for React state sync |
+
+### What Was Tested
+- [x] Plugin builds without errors
+- [x] Plugin loads in Obsidian
+- [x] Ribbon icon opens full cookbook view
+- [x] "Open Cookbook" command works
+- [x] "Open Cookbook Sidebar" command works
+- [x] Recipe list displays correctly
+- [x] Clicking recipe opens file in new tab
+- [x] View survives Obsidian restart
+
+### Issues Discovered
+- None
+
+### Files Created
+- `src/ui/views/CookbookView.tsx` — Full-tab ItemView with React
+- `src/ui/views/CookbookSidebar.tsx` — Right sidebar view
+- `src/ui/views/index.ts` — Views barrel export
+- `src/ui/components/RecipeContext.tsx` — React context for recipe state
+- `src/ui/components/CookbookApp.tsx` — Main cookbook React component
+
+### Files Modified
+- `package.json` — Added React dependencies
+- `tsconfig.json` — Added JSX compiler options
+- `src/main.ts` — View registration, commands, ribbon icon
+- `src/services/RecipeIndexer.ts` — Added `isReady()` method
+- `src/ui/components/index.ts` — Added new exports
+- `styles.css` — Cookbook view styles
+
+---
+
 ## Next Session Prompt
 
 ```
-Mise - v0.1.0 → Phase 5: The Cookbook View (UI Skeleton)
+Mise - v0.1.0 → Phase 6: The Recipe Card
 
 **Project:** Culinary OS for Obsidian (recipe discovery, meal planning, shopping lists)
-**Status:** Phases 0-4 complete. Backend ready. Time for UI!
+**Status:** Phases 0-5 complete. UI skeleton ready. Time for beautiful cards!
 
 ## Key Docs (READ FIRST)
 - docs/CLAUDE.md - Mandatory development workflow
 - docs/Feature Roadmap.md - Phase tasks and full architecture
 
 ## What's Already Built
-- RecipeIndexer with real-time vault events (create/modify/delete/rename)
-- IngredientParser with quantity parsing
-- FrontmatterParser with time normalization
-- All recipes now use integer minutes (migration complete)
-- Settings tab with folder autocomplete
+- RecipeIndexer with real-time vault events
+- React 18 UI with CookbookView and CookbookSidebar
+- RecipeContext for state management
+- Basic recipe list (proof of concept)
+- Ribbon icon and commands working
 
 ## Current Data Access
-- `plugin.indexer.getRecipes()` → Recipe[]
-- `plugin.indexer.search(query)` → Recipe[]  
-- `plugin.indexer.filterByCategory(cat)` → Recipe[]
-- `plugin.indexer.on('recipe-added' | 'recipe-updated' | 'recipe-deleted' | 'index-ready')`
+- `useRecipes()` hook → { app, recipes, isLoading, openRecipe }
+- Recipes have: title, category, rating, prepTime, cookTime, image, ingredients, etc.
 
-## Phase 5 Tasks
+## Phase 6 Tasks
 | Task | Notes |
 |------|-------|
-| Create CookbookView (ItemView) | Full-tab view |
-| Create CookbookSidebar (View) | Right sidebar option |
-| Register view types | COOKBOOK_VIEW_TYPE, etc. |
-| Add ribbon icon | chef-hat or utensils |
-| Add "Open Cookbook" command | Already exists, wire it up |
-| Mount React root (or vanilla) | User preference: check before deciding |
-| Basic recipe list render | Just titles, proves data flow |
-
-## CRITICAL USER REQUIREMENTS (Phase 7)
-- Recipe Modal MUST have interactive ingredient checkboxes
-- User checks off ingredients while cooking
-- This avoids needing source mode on mobile
-- Session state only, don't dirty the file
-
-## Architecture Notes  
-- main.ts is THIN orchestrator only
-- All logic in services/
-- UI in src/ui/
-- Use Obsidian's ItemView for full views
-- Mobile-first modal design (touch targets 44px+)
+| Create RecipeCard component | React component |
+| Hero image display | From frontmatter |
+| Fallback placeholder image | When no image |
+| Rating as stars | ⭐⭐⭐⭐☆ |
+| Time badges | "⏱️ 20 min" format |
+| Category/servings badges | Colored pills |
+| Hover effect | Scale/shadow |
+| Grid layout | Responsive columns |
+| Click opens recipe | New tab |
 
 ## Dev Commands
 npm run build    # Production build
@@ -323,6 +364,3 @@ npm run deploy   # Build + copy to Obsidian
 *Sessions more than 10 entries old will be moved here to keep the main log manageable.*
 
 (No archived sessions yet)
-
-
-

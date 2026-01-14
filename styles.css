@@ -3,12 +3,165 @@
 /* ===========================
    CSS Variables (Theme-Safe)
    =========================== */
-.mise-container {
+.mise-container,
+.mise-cookbook-container,
+.mise-sidebar-container {
 	--mise-card-radius: 8px;
 	--mise-card-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+	--mise-spacing-xs: 4px;
 	--mise-spacing-sm: 8px;
 	--mise-spacing-md: 16px;
 	--mise-spacing-lg: 24px;
+}
+
+/* ===========================
+   Cookbook Container
+   =========================== */
+.mise-cookbook-container,
+.mise-sidebar-container {
+	padding: var(--mise-spacing-md);
+	height: 100%;
+	overflow-y: auto;
+}
+
+.mise-cookbook {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
+
+/* ===========================
+   Cookbook Header
+   =========================== */
+.mise-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding-bottom: var(--mise-spacing-md);
+	border-bottom: 1px solid var(--background-modifier-border);
+	margin-bottom: var(--mise-spacing-md);
+}
+
+.mise-header h2 {
+	margin: 0;
+	font-size: 1.5em;
+	font-weight: 600;
+	color: var(--text-normal);
+}
+
+.mise-recipe-count {
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+
+/* ===========================
+   Recipe List (Phase 5 POC)
+   =========================== */
+.mise-recipe-list {
+	flex: 1;
+	overflow-y: auto;
+}
+
+.mise-recipe-item {
+	display: flex;
+	align-items: center;
+	gap: var(--mise-spacing-sm);
+	padding: var(--mise-spacing-sm) var(--mise-spacing-md);
+	border-radius: var(--mise-card-radius);
+	cursor: pointer;
+	transition: background-color 0.15s ease;
+}
+
+.mise-recipe-item:hover {
+	background-color: var(--background-secondary);
+}
+
+.mise-recipe-title {
+	flex: 1;
+	font-weight: 500;
+	color: var(--text-normal);
+}
+
+.mise-recipe-category {
+	font-size: 0.8em;
+	color: var(--text-muted);
+	background: var(--background-secondary);
+	padding: 2px 8px;
+	border-radius: 4px;
+}
+
+.mise-recipe-rating {
+	font-size: 0.75em;
+}
+
+/* Compact mode for sidebar */
+.mise-compact .mise-header h2 {
+	font-size: 1.2em;
+}
+
+.mise-compact .mise-recipe-item {
+	padding: var(--mise-spacing-xs) var(--mise-spacing-sm);
+}
+
+.mise-compact .mise-recipe-category {
+	display: none;
+}
+
+/* ===========================
+   Loading State
+   =========================== */
+.mise-loading {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	color: var(--text-muted);
+}
+
+.mise-loading-spinner {
+	width: 32px;
+	height: 32px;
+	border: 3px solid var(--background-modifier-border);
+	border-top-color: var(--interactive-accent);
+	border-radius: 50%;
+	animation: mise-spin 1s linear infinite;
+	margin-bottom: var(--mise-spacing-md);
+}
+
+@keyframes mise-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* ===========================
+   Empty State
+   =========================== */
+.mise-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	text-align: center;
+	color: var(--text-muted);
+}
+
+.mise-empty-icon {
+	font-size: 48px;
+	margin-bottom: var(--mise-spacing-md);
+	opacity: 0.6;
+}
+
+.mise-empty h3 {
+	margin: 0 0 var(--mise-spacing-sm);
+	color: var(--text-normal);
+}
+
+.mise-empty p {
+	margin: 0;
+	max-width: 250px;
 }
 
 /* ===========================
