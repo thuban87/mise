@@ -11,3 +11,4 @@ export { RecipeGrid } from './RecipeGrid';
 export { RecipeModal } from './RecipeModal';
 export { FilterBar } from './FilterBar';
 export { FilterBarCompact } from './FilterBarCompact';
+export { MealCalendar } from './MealCalendar';

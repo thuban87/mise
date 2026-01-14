@@ -30,26 +30,38 @@ export function parseMealPlan(content: string): ParsedMealPlan {
     const meals: PlannedMeal[] = [];
     const recipeMap = new Map<string, PlannedMeal[]>();
 
-    // Extract month from header
-    const monthMatch = content.match(/^#\s+Meal Plan\s*[-–—]?\s*(.+)$/m);
+    // Extract month/year from header (e.g., "# Meal Plan - January 2026" or "# Meal Plan - [January, 2026]")
+    const monthMatch = content.match(/^#\s+Meal Plan\s*[-–—]?\s*\[?(\w+)[,\s]+(\d{4})\]?/m);
     const month = monthMatch ? monthMatch[1].trim() : 'Unknown';
+    const year = monthMatch ? parseInt(monthMatch[2], 10) : new Date().getFullYear();
 
-    // Current meal type context
+    console.log(`MealPlanParser: Parsing meal plan for ${month} ${year}`);
+
+    // Current context
     let currentMealType: MealType | null = null;
+    let currentWeekNumber = 1;
 
     const lines = content.split('\n');
 
     for (const line of lines) {
-        // Check for meal section headers
-        const mealHeader = parseMealHeader(line);
-        if (mealHeader) {
-            currentMealType = mealHeader;
+        // Skip header lines (# Meal Plan - ...)
+        if (line.trim().startsWith('#')) {
+            // Check for week headers (## Week 1, ## Week 2, etc.)
+            const weekMatch = line.match(/^##\s+Week\s+(\d+)/i);
+            if (weekMatch) {
+                currentWeekNumber = parseInt(weekMatch[1], 10);
+            }
+            // Check for meal section headers (### Breakfast, etc.)
+            const mealHeader = parseMealHeader(line);
+            if (mealHeader) {
+                currentMealType = mealHeader;
+            }
             continue;
         }
 
         // Parse table rows
         if (currentMealType && line.trim().startsWith('|') && !line.includes('---')) {
-            const meal = parseTableRow(line, currentMealType);
+            const meal = parseTableRow(line, currentMealType, currentWeekNumber, month, year);
             if (meal && meal.recipeTitle && meal.recipeTitle !== '-') {
                 meals.push(meal);
 
@@ -63,6 +75,7 @@ export function parseMealPlan(content: string): ParsedMealPlan {
         }
     }
 
+    console.log(`MealPlanParser: Parsed ${meals.length} meals across ${currentWeekNumber} weeks for ${month} ${year}`);
     return { month, meals, recipeMap };
 }
 
@@ -83,7 +96,7 @@ function parseMealHeader(line: string): MealType | null {
  * Parse a table row into a PlannedMeal
  * Expected: | Day | Meal | Protein | Side 1 | Side 2 | Notes |
  */
-function parseTableRow(line: string, mealType: MealType): PlannedMeal | null {
+function parseTableRow(line: string, mealType: MealType, weekNumber: number, planMonth: string, planYear: number): PlannedMeal | null {
     // Split by | and trim
     const cells = line.split('|')
         .map(c => c.trim())
@@ -104,8 +117,20 @@ function parseTableRow(line: string, mealType: MealType): PlannedMeal | null {
     // Extract wikilink if present
     const { title, path } = extractWikilink(mealCell);
 
-    // Skip empty or dash entries
+    // Skip empty, dash entries, header text, or month names
     if (!title || title === '-' || title.toLowerCase() === 'meal') {
+        return null;
+    }
+
+    // Skip if title contains month names (header leftovers)
+    const monthNames = ['january', 'february', 'march', 'april', 'may', 'june',
+        'july', 'august', 'september', 'october', 'november', 'december'];
+    if (monthNames.some(m => title.toLowerCase().includes(m))) {
+        return null;
+    }
+
+    // Skip if title contains year (like "2026")
+    if (/\d{4}/.test(title)) {
         return null;
     }
 
@@ -113,6 +138,9 @@ function parseTableRow(line: string, mealType: MealType): PlannedMeal | null {
         recipePath: path,
         recipeTitle: title,
         day: normalizeDay(day),
+        weekNumber,
+        planMonth,
+        planYear,
         mealType,
         protein: cleanCellValue(protein),
         side1: cleanCellValue(side1),
@@ -130,7 +158,7 @@ function extractWikilink(text: string): { title: string; path: string | null } {
     // Remove markdown bold/italic
     const cleaned = text.replace(/\*+/g, '').trim();
 
-    // Check for wikilink
+    // Check for wikilink - must have DOUBLE brackets
     const match = cleaned.match(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/);
     if (match) {
         const linkTarget = match[1].trim();
@@ -139,6 +167,12 @@ function extractWikilink(text: string): { title: string; path: string | null } {
             title: displayText,
             path: linkTarget.endsWith('.md') ? linkTarget : `${linkTarget}.md`,
         };
+    }
+
+    // Check for single brackets (like [January, 2026]) - treat as plain text, not link
+    // This prevents header text from being parsed as a meal
+    if (cleaned.startsWith('[') && cleaned.endsWith(']') && !cleaned.includes('[[')) {
+        return { title: '', path: null };
     }
 
     return { title: cleaned, path: null };

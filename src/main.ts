@@ -12,7 +12,7 @@ import { Plugin, WorkspaceLeaf } from 'obsidian';
 import { MiseSettings, DEFAULT_SETTINGS } from './types';
 import { RecipeIndexer, MealPlanService, ShoppingListService, TimeMigrationService } from './services';
 import { MiseSettingsTab } from './ui/settings/MiseSettingsTab';
-import { CookbookView, CookbookSidebar } from './ui/views';
+import { CookbookView, CookbookSidebar, MealPlanView, MISE_MEAL_PLAN_VIEW_TYPE } from './ui/views';
 import { PLUGIN_NAME, MISE_COOKBOOK_VIEW_TYPE, MISE_SIDEBAR_VIEW_TYPE } from './utils/constants';
 
 export default class MisePlugin extends Plugin {
@@ -53,6 +53,10 @@ export default class MisePlugin extends Plugin {
             MISE_SIDEBAR_VIEW_TYPE,
             (leaf) => new CookbookSidebar(leaf, this)
         );
+        this.registerView(
+            MISE_MEAL_PLAN_VIEW_TYPE,
+            (leaf) => new MealPlanView(leaf, this)
+        );
 
         // Register settings tab
         this.addSettingTab(new MiseSettingsTab(this.app, this));
@@ -71,6 +75,14 @@ export default class MisePlugin extends Plugin {
             name: 'Open Cookbook Sidebar',
             callback: () => {
                 this.activateCookbookSidebar();
+            }
+        });
+
+        this.addCommand({
+            id: 'open-meal-plan',
+            name: 'Open Meal Plan Calendar',
+            callback: () => {
+                this.activateMealPlanView();
             }
         });
 
@@ -180,6 +192,28 @@ export default class MisePlugin extends Plugin {
         }
 
         // Reveal and focus the leaf
+        workspace.revealLeaf(leaf);
+    }
+
+    /**
+     * Activate the meal plan calendar view in the main panel
+     */
+    async activateMealPlanView(): Promise<void> {
+        const { workspace } = this.app;
+
+        // Check if already open
+        let leaf = workspace.getLeavesOfType(MISE_MEAL_PLAN_VIEW_TYPE)[0];
+
+        if (!leaf) {
+            // Create new tab
+            leaf = workspace.getLeaf('tab');
+            await leaf.setViewState({
+                type: MISE_MEAL_PLAN_VIEW_TYPE,
+                active: true,
+            });
+        }
+
+        // Reveal and focus
         workspace.revealLeaf(leaf);
     }
 
