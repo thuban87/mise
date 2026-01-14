@@ -1121,7 +1121,7 @@ var require_react_development = __commonJS({
           var dispatcher = resolveDispatcher();
           return dispatcher.useCallback(callback, deps);
         }
-        function useMemo(create, deps) {
+        function useMemo2(create, deps) {
           var dispatcher = resolveDispatcher();
           return dispatcher.useMemo(create, deps);
         }
@@ -1893,7 +1893,7 @@ var require_react_development = __commonJS({
         exports.useImperativeHandle = useImperativeHandle;
         exports.useInsertionEffect = useInsertionEffect;
         exports.useLayoutEffect = useLayoutEffect;
-        exports.useMemo = useMemo;
+        exports.useMemo = useMemo2;
         exports.useReducer = useReducer;
         exports.useRef = useRef;
         exports.useState = useState2;
@@ -24473,11 +24473,11 @@ var require_react_jsx_runtime_development = __commonJS({
             return jsxWithValidation(type, props, key, false);
           }
         }
-        var jsx9 = jsxWithValidationDynamic;
-        var jsxs5 = jsxWithValidationStatic;
+        var jsx11 = jsxWithValidationDynamic;
+        var jsxs7 = jsxWithValidationStatic;
         exports.Fragment = REACT_FRAGMENT_TYPE;
-        exports.jsx = jsx9;
-        exports.jsxs = jsxs5;
+        exports.jsx = jsx11;
+        exports.jsxs = jsxs7;
       })();
     }
   }
@@ -25355,17 +25355,21 @@ function RecipeProvider({ app, indexer, children }) {
   const [isLoading, setIsLoading] = (0, import_react.useState)(true);
   const [selectedRecipe, setSelectedRecipe] = (0, import_react.useState)(null);
   const [checkedIngredients, setCheckedIngredients] = (0, import_react.useState)(/* @__PURE__ */ new Map());
+  const [searchQuery, setSearchQuery] = (0, import_react.useState)("");
+  const [selectedCategory, setSelectedCategory] = (0, import_react.useState)(null);
+  const [minRating, setMinRating] = (0, import_react.useState)(0);
+  const [maxTime, setMaxTime] = (0, import_react.useState)(null);
+  const [selectedDietaryFlags, setSelectedDietaryFlags] = (0, import_react.useState)([]);
+  const [unratedOnly, setUnratedOnly] = (0, import_react.useState)(false);
+  const [missingImageOnly, setMissingImageOnly] = (0, import_react.useState)(false);
+  const [sortOption, setSortOption] = (0, import_react.useState)("alpha");
   (0, import_react.useEffect)(() => {
     const loadRecipes = () => {
       setRecipes(indexer.getRecipes());
       setIsLoading(false);
     };
-    const handleReady = () => {
-      loadRecipes();
-    };
-    const handleChange = () => {
-      setRecipes(indexer.getRecipes());
-    };
+    const handleReady = () => loadRecipes();
+    const handleChange = () => setRecipes(indexer.getRecipes());
     if (indexer.isReady()) {
       loadRecipes();
     }
@@ -25380,6 +25384,87 @@ function RecipeProvider({ app, indexer, children }) {
       indexer.off("recipe-deleted", handleChange);
     };
   }, [indexer]);
+  const categories = (0, import_react.useMemo)(() => {
+    const cats = /* @__PURE__ */ new Set();
+    recipes.forEach((r) => cats.add(r.category));
+    return Array.from(cats).sort();
+  }, [recipes]);
+  const allDietaryFlags = (0, import_react.useMemo)(() => {
+    const flags = /* @__PURE__ */ new Set();
+    recipes.forEach((r) => r.dietaryFlags.forEach((f) => flags.add(f)));
+    return Array.from(flags).sort();
+  }, [recipes]);
+  const filteredRecipes = (0, import_react.useMemo)(() => {
+    let result = [...recipes];
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (r) => r.title.toLowerCase().includes(query) || r.ingredients.some((ing) => ing.toLowerCase().includes(query))
+      );
+    }
+    if (selectedCategory) {
+      result = result.filter((r) => r.category === selectedCategory);
+    }
+    if (minRating > 0) {
+      result = result.filter((r) => {
+        var _a;
+        return ((_a = r.rating) != null ? _a : 0) >= minRating;
+      });
+    }
+    if (unratedOnly) {
+      result = result.filter((r) => r.rating === null);
+    }
+    if (maxTime !== null) {
+      result = result.filter((r) => {
+        var _a, _b;
+        const totalTime = ((_a = r.prepTime) != null ? _a : 0) + ((_b = r.cookTime) != null ? _b : 0);
+        return totalTime > 0 && totalTime <= maxTime;
+      });
+    }
+    if (selectedDietaryFlags.length > 0) {
+      result = result.filter(
+        (r) => selectedDietaryFlags.every((flag) => r.dietaryFlags.includes(flag))
+      );
+    }
+    if (missingImageOnly) {
+      result = result.filter((r) => !r.image);
+    }
+    result.sort((a, b) => {
+      var _a, _b, _c, _d, _e, _f;
+      switch (sortOption) {
+        case "rating":
+          const ratingA = (_a = a.rating) != null ? _a : 0;
+          const ratingB = (_b = b.rating) != null ? _b : 0;
+          return ratingB - ratingA;
+        case "time":
+          const timeA = ((_c = a.prepTime) != null ? _c : 0) + ((_d = a.cookTime) != null ? _d : 0);
+          const timeB = ((_e = b.prepTime) != null ? _e : 0) + ((_f = b.cookTime) != null ? _f : 0);
+          return timeA - timeB;
+        case "recent":
+          return b.lastModified - a.lastModified;
+        case "alpha":
+        default:
+          return a.title.localeCompare(b.title);
+      }
+    });
+    return result;
+  }, [recipes, searchQuery, selectedCategory, minRating, maxTime, selectedDietaryFlags, unratedOnly, missingImageOnly, sortOption]);
+  const hasActiveFilters = searchQuery !== "" || selectedCategory !== null || minRating > 0 || maxTime !== null || selectedDietaryFlags.length > 0 || missingImageOnly || unratedOnly || sortOption !== "alpha";
+  const clearFilters = (0, import_react.useCallback)(() => {
+    setSearchQuery("");
+    setSelectedCategory(null);
+    setMinRating(0);
+    setMaxTime(null);
+    setSelectedDietaryFlags([]);
+    setUnratedOnly(false);
+    setMissingImageOnly(false);
+    setSortOption("alpha");
+  }, []);
+  const toggleDietaryFlag = (0, import_react.useCallback)((flag) => {
+    setSelectedDietaryFlags(
+      (prev) => prev.includes(flag) ? prev.filter((f) => f !== flag) : [...prev, flag]
+    );
+  }, []);
   const openRecipe = (path) => {
     const file = app.vault.getAbstractFileByPath(path);
     if (file) {
@@ -25400,9 +25485,8 @@ function RecipeProvider({ app, indexer, children }) {
     setSelectedRecipe(null);
   }, []);
   const isIngredientChecked = (0, import_react.useCallback)((recipePath, ingredientIndex) => {
-    var _a;
-    const recipeChecked = checkedIngredients.get(recipePath);
-    return (_a = recipeChecked == null ? void 0 : recipeChecked.has(ingredientIndex)) != null ? _a : false;
+    var _a, _b;
+    return (_b = (_a = checkedIngredients.get(recipePath)) == null ? void 0 : _a.has(ingredientIndex)) != null ? _b : false;
   }, [checkedIngredients]);
   const toggleIngredient = (0, import_react.useCallback)((recipePath, ingredientIndex) => {
     setCheckedIngredients((prev) => {
@@ -25421,6 +25505,7 @@ function RecipeProvider({ app, indexer, children }) {
   return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RecipeContext.Provider, { value: {
     app,
     recipes,
+    filteredRecipes,
     isLoading,
     openRecipe,
     getImageUrl,
@@ -25428,7 +25513,27 @@ function RecipeProvider({ app, indexer, children }) {
     openModal,
     closeModal,
     isIngredientChecked,
-    toggleIngredient
+    toggleIngredient,
+    searchQuery,
+    setSearchQuery,
+    selectedCategory,
+    setSelectedCategory,
+    minRating,
+    setMinRating,
+    maxTime,
+    setMaxTime,
+    selectedDietaryFlags,
+    toggleDietaryFlag,
+    unratedOnly,
+    setUnratedOnly,
+    missingImageOnly,
+    setMissingImageOnly,
+    sortOption,
+    setSortOption,
+    clearFilters,
+    hasActiveFilters,
+    categories,
+    allDietaryFlags
   }, children });
 }
 function useRecipes() {
@@ -25624,52 +25729,255 @@ function RecipeModal() {
   ] }) });
 }
 
-// src/ui/components/CookbookApp.tsx
+// src/ui/components/FilterBar.tsx
 var import_jsx_runtime6 = __toESM(require_jsx_runtime());
+function FilterBar() {
+  const {
+    recipes,
+    filteredRecipes,
+    searchQuery,
+    setSearchQuery,
+    selectedCategory,
+    setSelectedCategory,
+    minRating,
+    setMinRating,
+    maxTime,
+    setMaxTime,
+    selectedDietaryFlags,
+    toggleDietaryFlag,
+    unratedOnly,
+    setUnratedOnly,
+    missingImageOnly,
+    setMissingImageOnly,
+    sortOption,
+    setSortOption,
+    clearFilters,
+    hasActiveFilters,
+    categories,
+    allDietaryFlags
+  } = useRecipes();
+  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mise-filter-bar", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mise-filter-row", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mise-search-wrapper", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+          "input",
+          {
+            type: "text",
+            className: "mise-search-input",
+            placeholder: "Search recipes...",
+            value: searchQuery,
+            onChange: (e) => setSearchQuery(e.target.value)
+          }
+        ),
+        searchQuery && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+          "button",
+          {
+            className: "mise-search-clear",
+            onClick: () => setSearchQuery(""),
+            "aria-label": "Clear search",
+            children: "\u2715"
+          }
+        )
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
+        "select",
+        {
+          className: "mise-filter-select",
+          value: sortOption,
+          onChange: (e) => setSortOption(e.target.value),
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "alpha", children: "A-Z" }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "rating", children: "Rating \u2193" }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "time", children: "Quickest" }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "recent", children: "Recent" })
+          ]
+        }
+      )
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mise-filter-row", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
+        "select",
+        {
+          className: "mise-filter-select",
+          value: selectedCategory != null ? selectedCategory : "",
+          onChange: (e) => setSelectedCategory(e.target.value || null),
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "", children: "All Categories" }),
+            categories.map((cat) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: cat, children: cat }, cat))
+          ]
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
+        "select",
+        {
+          className: "mise-filter-select",
+          value: unratedOnly ? "unrated" : minRating,
+          onChange: (e) => {
+            const val = e.target.value;
+            if (val === "unrated") {
+              setUnratedOnly(true);
+              setMinRating(0);
+            } else {
+              setUnratedOnly(false);
+              setMinRating(Number(val));
+            }
+          },
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "0", children: "Any Rating" }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "5", children: "5\u2605 Only" }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "4", children: "4\u2605+" }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "3", children: "3\u2605+" }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "unrated", children: "Unrated Only" })
+          ]
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(
+        "select",
+        {
+          className: "mise-filter-select",
+          value: maxTime != null ? maxTime : "",
+          onChange: (e) => setMaxTime(e.target.value ? Number(e.target.value) : null),
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "", children: "Any Time" }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "15", children: "\u2264 15 min" }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "30", children: "\u2264 30 min" }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "60", children: "\u2264 1 hour" }),
+            /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("option", { value: "120", children: "\u2264 2 hours" })
+          ]
+        }
+      )
+    ] }),
+    allDietaryFlags.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mise-filter-chips", children: allDietaryFlags.map((flag) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+      "button",
+      {
+        className: `mise-filter-chip ${selectedDietaryFlags.includes(flag) ? "active" : ""}`,
+        onClick: () => toggleDietaryFlag(flag),
+        children: flag
+      },
+      flag
+    )) }),
+    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mise-filter-toggles", children: /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("label", { className: "mise-filter-toggle", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+        "input",
+        {
+          type: "checkbox",
+          checked: missingImageOnly,
+          onChange: (e) => setMissingImageOnly(e.target.checked)
+        }
+      ),
+      "Missing Image"
+    ] }) }),
+    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mise-filter-row mise-filter-footer", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "mise-result-count", children: filteredRecipes.length === recipes.length ? `${recipes.length} recipes` : `Showing ${filteredRecipes.length} of ${recipes.length}` }),
+      hasActiveFilters && /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(
+        "button",
+        {
+          className: "mise-filter-clear",
+          onClick: clearFilters,
+          children: "Clear Filters"
+        }
+      )
+    ] })
+  ] });
+}
+
+// src/ui/components/FilterBarCompact.tsx
+var import_jsx_runtime7 = __toESM(require_jsx_runtime());
+function FilterBarCompact() {
+  const {
+    searchQuery,
+    setSearchQuery,
+    selectedCategory,
+    setSelectedCategory,
+    maxTime,
+    setMaxTime,
+    categories
+  } = useRecipes();
+  return /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "mise-filter-compact", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+      "input",
+      {
+        type: "text",
+        className: "mise-search-input",
+        placeholder: "Search...",
+        value: searchQuery,
+        onChange: (e) => setSearchQuery(e.target.value)
+      }
+    ),
+    /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)("div", { className: "mise-filter-compact-row", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+        "select",
+        {
+          className: "mise-filter-select-compact",
+          value: selectedCategory != null ? selectedCategory : "",
+          onChange: (e) => setSelectedCategory(e.target.value || null),
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("option", { value: "", children: "Category" }),
+            categories.map((cat) => /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("option", { value: cat, children: cat }, cat))
+          ]
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
+        "select",
+        {
+          className: "mise-filter-select-compact",
+          value: maxTime != null ? maxTime : "",
+          onChange: (e) => setMaxTime(e.target.value ? Number(e.target.value) : null),
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("option", { value: "", children: "Time" }),
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("option", { value: "15", children: "\u226415m" }),
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("option", { value: "30", children: "\u226430m" }),
+            /* @__PURE__ */ (0, import_jsx_runtime7.jsx)("option", { value: "60", children: "\u22641h" })
+          ]
+        }
+      )
+    ] })
+  ] });
+}
+
+// src/ui/components/CookbookApp.tsx
+var import_jsx_runtime8 = __toESM(require_jsx_runtime());
 function CookbookApp({ compact = false }) {
-  const { recipes, isLoading } = useRecipes();
+  const { recipes, filteredRecipes, isLoading, hasActiveFilters } = useRecipes();
   if (isLoading) {
-    return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mise-cookbook mise-loading", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mise-loading-spinner" }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("p", { children: "Loading recipes..." })
+    return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "mise-cookbook mise-loading", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "mise-loading-spinner" }),
+      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("p", { children: "Loading recipes..." })
     ] });
   }
   if (recipes.length === 0) {
-    return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mise-cookbook mise-empty", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mise-empty-icon", children: "\u{1F4DA}" }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h3", { children: "No recipes found" }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("p", { children: "Add recipes to your configured recipe folder to get started." })
+    return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "mise-cookbook mise-empty", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "mise-empty-icon", children: "\u{1F4DA}" }),
+      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("h3", { children: "No recipes found" }),
+      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("p", { children: "Add recipes to your configured recipe folder to get started." })
     ] });
   }
   if (compact) {
-    return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_jsx_runtime6.Fragment, { children: [
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mise-cookbook mise-compact", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("header", { className: "mise-header", children: [
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h2", { children: "\u{1F373} Recipes" }),
-          /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("span", { className: "mise-recipe-count", children: recipes.length })
-        ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("div", { className: "mise-mini-list", children: recipes.map((recipe) => /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(RecipeCardMini, { recipe }, recipe.path)) })
+    return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_jsx_runtime8.Fragment, { children: [
+      /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "mise-cookbook mise-compact", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("header", { className: "mise-header", children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("h2", { children: "\u{1F373} Recipes" }) }),
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(FilterBarCompact, {}),
+        filteredRecipes.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "mise-empty mise-no-results-compact", children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("p", { children: "No matches" }) }) : /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "mise-mini-list", children: filteredRecipes.map((recipe) => /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(RecipeCardMini, { recipe }, recipe.path)) })
       ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(RecipeModal, {})
+      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(RecipeModal, {})
     ] });
   }
-  return /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)(import_jsx_runtime6.Fragment, { children: [
-    /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("div", { className: "mise-cookbook", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("header", { className: "mise-header", children: [
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsx)("h2", { children: "\u{1F373} Cookbook" }),
-        /* @__PURE__ */ (0, import_jsx_runtime6.jsxs)("span", { className: "mise-recipe-count", children: [
-          recipes.length,
-          " recipes"
-        ] })
-      ] }),
-      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(RecipeGrid, { recipes })
+  return /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)(import_jsx_runtime8.Fragment, { children: [
+    /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "mise-cookbook", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("header", { className: "mise-header", children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("h2", { children: "\u{1F373} Cookbook" }) }),
+      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(FilterBar, {}),
+      filteredRecipes.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime8.jsxs)("div", { className: "mise-empty mise-no-results", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("div", { className: "mise-empty-icon", children: "\u{1F50D}" }),
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("h3", { children: "No recipes match" }),
+        /* @__PURE__ */ (0, import_jsx_runtime8.jsx)("p", { children: "Try adjusting your filters or search terms." })
+      ] }) : /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(RecipeGrid, { recipes: filteredRecipes })
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(RecipeModal, {})
+    /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(RecipeModal, {})
   ] });
 }
 
 // src/ui/views/CookbookView.tsx
-var import_jsx_runtime7 = __toESM(require_jsx_runtime());
+var import_jsx_runtime9 = __toESM(require_jsx_runtime());
 var CookbookView = class extends import_obsidian5.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
@@ -25691,7 +25999,7 @@ var CookbookView = class extends import_obsidian5.ItemView {
     container.addClass("mise-cookbook-container");
     this.root = (0, import_client.createRoot)(container);
     this.root.render(
-      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(RecipeProvider, { app: this.app, indexer: this.plugin.indexer, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(CookbookApp, {}) })
+      /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(RecipeProvider, { app: this.app, indexer: this.plugin.indexer, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(CookbookApp, {}) })
     );
   }
   async onClose() {
@@ -25705,7 +26013,7 @@ var CookbookView = class extends import_obsidian5.ItemView {
 // src/ui/views/CookbookSidebar.tsx
 var import_obsidian6 = require("obsidian");
 var import_client2 = __toESM(require_client());
-var import_jsx_runtime8 = __toESM(require_jsx_runtime());
+var import_jsx_runtime10 = __toESM(require_jsx_runtime());
 var CookbookSidebar = class extends import_obsidian6.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
@@ -25727,7 +26035,7 @@ var CookbookSidebar = class extends import_obsidian6.ItemView {
     container.addClass("mise-sidebar-container");
     this.root = (0, import_client2.createRoot)(container);
     this.root.render(
-      /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(RecipeProvider, { app: this.app, indexer: this.plugin.indexer, children: /* @__PURE__ */ (0, import_jsx_runtime8.jsx)(CookbookApp, { compact: true }) })
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(RecipeProvider, { app: this.app, indexer: this.plugin.indexer, children: /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(CookbookApp, { compact: true }) })
     );
   }
   async onClose() {

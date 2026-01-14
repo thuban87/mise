@@ -8,13 +8,15 @@ import { useRecipes } from './RecipeContext';
 import { RecipeGrid } from './RecipeGrid';
 import { RecipeCardMini } from './RecipeCardMini';
 import { RecipeModal } from './RecipeModal';
+import { FilterBar } from './FilterBar';
+import { FilterBarCompact } from './FilterBarCompact';
 
 interface CookbookAppProps {
     compact?: boolean; // For sidebar layout
 }
 
 export function CookbookApp({ compact = false }: CookbookAppProps) {
-    const { recipes, isLoading } = useRecipes();
+    const { recipes, filteredRecipes, isLoading, hasActiveFilters } = useRecipes();
 
     if (isLoading) {
         return (
@@ -35,37 +37,53 @@ export function CookbookApp({ compact = false }: CookbookAppProps) {
         );
     }
 
-    // Compact view for sidebar - use mini cards
+    // Compact view for sidebar - mini cards with compact filters
     if (compact) {
         return (
             <>
                 <div className="mise-cookbook mise-compact">
                     <header className="mise-header">
                         <h2>🍳 Recipes</h2>
-                        <span className="mise-recipe-count">{recipes.length}</span>
                     </header>
 
-                    <div className="mise-mini-list">
-                        {recipes.map((recipe) => (
-                            <RecipeCardMini key={recipe.path} recipe={recipe} />
-                        ))}
-                    </div>
+                    <FilterBarCompact />
+
+                    {filteredRecipes.length === 0 ? (
+                        <div className="mise-empty mise-no-results-compact">
+                            <p>No matches</p>
+                        </div>
+                    ) : (
+                        <div className="mise-mini-list">
+                            {filteredRecipes.map((recipe) => (
+                                <RecipeCardMini key={recipe.path} recipe={recipe} />
+                            ))}
+                        </div>
+                    )}
                 </div>
                 <RecipeModal />
             </>
         );
     }
 
-    // Full view - use card grid
+    // Full view with filters
     return (
         <>
             <div className="mise-cookbook">
                 <header className="mise-header">
                     <h2>🍳 Cookbook</h2>
-                    <span className="mise-recipe-count">{recipes.length} recipes</span>
                 </header>
 
-                <RecipeGrid recipes={recipes} />
+                <FilterBar />
+
+                {filteredRecipes.length === 0 ? (
+                    <div className="mise-empty mise-no-results">
+                        <div className="mise-empty-icon">🔍</div>
+                        <h3>No recipes match</h3>
+                        <p>Try adjusting your filters or search terms.</p>
+                    </div>
+                ) : (
+                    <RecipeGrid recipes={filteredRecipes} />
+                )}
             </div>
             <RecipeModal />
         </>
