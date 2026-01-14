@@ -688,3 +688,226 @@
 		flex-direction: column;
 	}
 }
+
+/* ===========================
+   Filter Bar (Phase 8)
+   =========================== */
+.mise-filter-bar {
+	display: flex;
+	flex-direction: column;
+	gap: var(--mise-spacing-sm);
+	padding: var(--mise-spacing-md);
+	background: var(--background-secondary);
+	border-radius: var(--mise-card-radius);
+	margin-bottom: var(--mise-spacing-md);
+}
+
+.mise-filter-row {
+	display: flex;
+	gap: var(--mise-spacing-sm);
+	flex-wrap: wrap;
+	align-items: center;
+}
+
+/* Search Input */
+.mise-search-wrapper {
+	position: relative;
+	flex: 1;
+	min-width: 200px;
+}
+
+.mise-search-input {
+	width: 100%;
+	padding: 8px 32px 8px 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-size: 0.9em;
+}
+
+.mise-search-input:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+}
+
+.mise-search-clear {
+	position: absolute;
+	right: 8px;
+	top: 50%;
+	transform: translateY(-50%);
+	border: none;
+	background: none;
+	color: var(--text-muted);
+	cursor: pointer;
+	padding: 2px 6px;
+	font-size: 12px;
+}
+
+.mise-search-clear:hover {
+	color: var(--text-normal);
+}
+
+/* Filter Selects */
+.mise-filter-select {
+	height: 36px;
+	padding: 0 12px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-size: 0.85em;
+	cursor: pointer;
+	min-width: 120px;
+	line-height: 36px;
+}
+
+.mise-filter-select:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+}
+
+/* Dietary Chips */
+.mise-filter-chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.mise-filter-chip {
+	padding: 4px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 20px;
+	background: var(--background-primary);
+	color: var(--text-muted);
+	font-size: 0.75em;
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.mise-filter-chip:hover {
+	border-color: var(--interactive-accent);
+	color: var(--text-normal);
+}
+
+.mise-filter-chip.active {
+	background: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+/* Maintenance Toggles */
+.mise-filter-toggles {
+	display: flex;
+	gap: var(--mise-spacing-md);
+	flex-wrap: wrap;
+}
+
+.mise-filter-toggle {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 0.85em;
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.mise-filter-toggle input[type="checkbox"] {
+	cursor: pointer;
+}
+
+/* Footer Row */
+.mise-filter-footer {
+	justify-content: space-between;
+	border-top: 1px solid var(--background-modifier-border);
+	padding-top: var(--mise-spacing-sm);
+	margin-top: var(--mise-spacing-xs);
+}
+
+.mise-result-count {
+	font-size: 0.85em;
+	color: var(--text-muted);
+}
+
+.mise-filter-clear {
+	padding: 6px 12px;
+	border: none;
+	border-radius: 4px;
+	background: var(--background-modifier-border);
+	color: var(--text-normal);
+	font-size: 0.8em;
+	cursor: pointer;
+	transition: background 0.15s ease;
+}
+
+.mise-filter-clear:hover {
+	background: var(--background-modifier-error);
+	color: var(--text-on-accent);
+}
+
+/* No Results Empty State */
+.mise-no-results {
+	margin-top: var(--mise-spacing-lg);
+}
+
+/* Mobile Adjustments */
+@media (max-width: 600px) {
+	.mise-filter-row {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.mise-search-wrapper {
+		min-width: unset;
+	}
+
+	.mise-filter-select {
+		width: 100%;
+	}
+}
+
+/* ===========================
+   Compact Filter Bar (Sidebar)
+   =========================== */
+.mise-filter-compact {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: var(--mise-spacing-sm);
+	margin-bottom: var(--mise-spacing-sm);
+}
+
+.mise-filter-compact .mise-search-input {
+	width: 100%;
+	padding: 6px 10px;
+	font-size: 0.85em;
+}
+
+.mise-filter-compact-row {
+	display: flex;
+	gap: 6px;
+}
+
+.mise-filter-select-compact {
+	flex: 1;
+	padding: 6px 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-size: 0.75em;
+	cursor: pointer;
+	line-height: 1.2;
+}
+
+.mise-filter-select-compact:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+}
+
+.mise-no-results-compact {
+	text-align: center;
+	padding: var(--mise-spacing-md);
+	color: var(--text-muted);
+	font-size: 0.9em;
+}

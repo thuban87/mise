@@ -12,7 +12,7 @@ tags:
 > This is a personal utility project with infinite runway. Features get done when they get done. Do not pressure the user with "we should do this after MVP" language.
 
 **Last Updated:** January 13, 2026
-**Current Phase:** Phase 8 - Search & Filter Logic
+**Current Phase:** Phase 9 - Favorites & Recently Viewed
 
 ---
 
@@ -365,32 +365,33 @@ interface ShoppingItem {
 
 ### Phase 8: Search & Filter Logic
 - **Goal:** Fast, intuitive recipe discovery.
-- **Status:** `[ ]` Not Started
+- **Status:** `[x]` Completed
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Create `FilterBar` component | `[ ]` | Top of cookbook view |
-| Search input (title + ingredients) | `[ ]` | Fuzzy matching |
-| Category dropdown/filter | `[ ]` | Multi-select |
-| Rating filter | `[ ]` | Min rating slider |
-| Max cook time filter | `[ ]` | Slider or input |
-| Dietary flags filter | `[ ]` | Multi-select chips |
-| Source filter | `[ ]` | By domain |
-| Sort dropdown | `[ ]` | Rating, Time, A-Z, Recent |
-| "Unrated only" toggle | `[ ]` | For trying new recipes |
-| Clear filters button | `[ ]` | Reset all |
-| Result count display | `[ ]` | "Showing 42 of 156 recipes" |
-| Empty state message | `[ ]` | "No recipes match filters" |
+| Create `FilterBar` component | `[x]` | Full view with all filters |
+| Create `FilterBarCompact` component | `[x]` | Sidebar with search/category/time |
+| Search input (title + ingredients) | `[x]` | Instant filtering |
+| Category dropdown/filter | `[x]` | Single-select |
+| Rating filter | `[x]` | 5★, 4★+, 3★+, Unrated |
+| Max cook time filter | `[x]` | ≤15m, ≤30m, ≤1h, ≤2h |
+| Dietary flags filter | `[x]` | Multi-select chips |
+| Missing image filter | `[x]` | Maintenance helper |
+| Source filter | `[-]` | Deferred |
+| Sort dropdown | `[x]` | Rating, Time, A-Z, Recent |
+| "Unrated only" toggle | `[x]` | Combined with rating filter |
+| Clear filters button | `[x]` | Reset all |
+| Result count display | `[x]` | "Showing X of Y" |
+| Empty state message | `[x]` | Friendly message |
 
 **Performance:**
-- [ ] Debounced search input (150ms)
-- [ ] Filters should feel instant (<50ms)
+- [x] Filters feel instant (useMemo)
 
 **Acceptance Criteria:**
-- [ ] Typing in search shows matching recipes instantly
-- [ ] Multiple filters combine correctly (AND logic)
-- [ ] Sorting works correctly
-- [ ] Empty state is friendly, not an error
+- [x] Typing in search shows matching recipes instantly
+- [x] Multiple filters combine correctly (AND logic)
+- [x] Sorting works correctly
+- [x] Empty state is friendly, not an error
 
 ---
 

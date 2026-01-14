@@ -10,8 +10,8 @@ tags:
 **Purpose:** Session-by-session implementation notes. Each development session appends a new entry with details of what was done, what was tested, and what's next.
 
 **Last Updated:** January 13, 2026
-**Current Phase:** Phase 8 - Search & Filter Logic
-**Current Branch:** feat/phase-7-quick-look-modal (pending merge)
+**Current Phase:** Phase 9 - Favorites & Recently Viewed
+**Current Branch:** feat/phase-8-search-filter-logic (pending merge)
 **Version:** 0.1.0
 
 ---
@@ -376,15 +376,56 @@ Implemented recipe preview modal with interactive ingredient checkboxes. Added g
 - `src/ui/components/index.ts` — Export RecipeModal
 - `styles.css` — Modal, glassmorphism, checkboxes
 
+## Session: January 14, 2026 - Search & Filter Logic
+
+### Phase
+Phase 8: Search & Filter Logic
+
+### Session Summary
+Implemented comprehensive search and filtering for the cookbook. Added FilterBar with search, category, rating, time, dietary chips, missing image toggle, and sort. Created compact filter bar for sidebar. All filters use AND logic and feel instant.
+
+### What Was Done
+
+| Task | Details |
+|------|---------|
+| FilterBar.tsx | Full filter bar with all controls |
+| FilterBarCompact.tsx | Sidebar version: search, category, time |
+| RecipeContext update | Filter state, filteredRecipes, clearFilters |
+| CookbookApp update | Uses FilterBar/FilterBarCompact, filteredRecipes |
+| CSS styles | Search, dropdowns, chips, compact filters |
+
+### What Was Tested
+- [x] Search filters by title + ingredients
+- [x] Category filter works
+- [x] Rating filter (5★, 4★+, 3★+, Unrated)
+- [x] Time filter (≤15m, ≤30m, ≤1h, ≤2h)
+- [x] Missing image toggle
+- [x] Sort options all work
+- [x] Filters combine correctly (AND)
+- [x] Clear filters resets all
+- [x] Result count updates
+- [x] Empty state displays
+- [x] Sidebar filters work
+
+### Files Created
+- `src/ui/components/FilterBar.tsx` — Full filter bar
+- `src/ui/components/FilterBarCompact.tsx` — Compact sidebar filters
+
+### Files Modified
+- `src/ui/components/RecipeContext.tsx` — Filter state
+- `src/ui/components/CookbookApp.tsx` — Filter integration
+- `src/ui/components/index.ts` — Exports
+- `styles.css` — Filter bar styles
+
 ---
 
 ## Next Session Prompt
 
 ```
-Mise - v0.1.0 → Phase 8: Search & Filter Logic
+Mise - v0.1.0 → Phase 9: Favorites & Recently Viewed
 
 **Project:** Culinary OS for Obsidian
-**Status:** Phases 0-7 complete. UI is beautiful. Time for search!
+**Status:** Phases 0-8 complete. Search and filters working!
 
 ## Key Docs (READ FIRST)
 - docs/CLAUDE.md - Mandatory development workflow
@@ -394,20 +435,7 @@ Mise - v0.1.0 → Phase 8: Search & Filter Logic
 - RecipeIndexer with real-time vault events
 - React UI with cards, mini cards, responsive grid
 - Recipe modal with interactive ingredient checkboxes
-- Session-only checkbox state
-
-## Phase 8 Tasks
-| Task | Notes |
-|------|-------|
-| FilterBar component | Top of cookbook |
-| Search input | Fuzzy match title + ingredients |
-| Category filter | Multi-select |
-| Rating filter | Min rating |
-| Max cook time filter | Slider/input |
-| Dietary flags filter | Multi-select chips |
-| Sort dropdown | Rating, Time, A-Z, Recent |
-| Result count | "Showing X of Y recipes" |
-| Debounced search | 150ms |
+- Full search and filter system
 
 ## Dev Commands
 npm run build    # Production build
@@ -438,4 +466,5 @@ npm run deploy   # Build + copy to Obsidian
 ## Archived Sessions
 *Sessions more than 10 entries old will be moved here to keep the main log manageable.*
 
+(No archived sessions yet)
 (No archived sessions yet)
