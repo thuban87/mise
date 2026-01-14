@@ -12,7 +12,7 @@ tags:
 > This is a personal utility project with infinite runway. Features get done when they get done. Do not pressure the user with "we should do this after MVP" language.
 
 **Last Updated:** January 13, 2026
-**Current Phase:** Phase 4 - Time Format Migration
+**Current Phase:** Phase 5 - The Cookbook View (UI Skeleton)
 
 ---
 
@@ -260,20 +260,20 @@ interface ShoppingItem {
 
 ### Phase 4: Time Format Migration
 - **Goal:** Normalize all time fields to integer minutes.
-- **Status:** `[ ]` Not Started
+- **Status:** `[x]` Completed
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Create `FrontmatterParser` module | `[ ]` | Pure functions |
-| Parse time strings to minutes | `[ ]` | Handle "5 mins", "1 hour 30 minutes", "90", etc. |
-| Create migration script | `[ ]` | One-time vault update |
-| Update all recipe files | `[ ]` | Convert to integer format |
-| Display formatter | `[ ]` | `90` → "1 hour 30 minutes" |
+| Create `FrontmatterParser` module | `[x]` | Already existed from Phase 1 |
+| Parse time strings to minutes | `[x]` | Handles "5 mins", "1h 30m", etc. |
+| Create migration script | `[x]` | `TimeMigrationService` |
+| Update all recipe files | `[x]` | Via "Migrate Recipe Time Formats" command |
+| Display formatter | `[x]` | `formatTime()` → "1 hour 30 minutes" |
 
 **Acceptance Criteria:**
-- [ ] All existing recipes converted to integer format
-- [ ] Parser handles edge cases (empty, malformed)
-- [ ] Display shows human-readable times
+- [x] All existing recipes converted to integer format
+- [x] Parser handles edge cases (empty, malformed)
+- [x] Display shows human-readable times
 
 ---
 
@@ -342,6 +342,7 @@ interface ShoppingItem {
 | Create `RecipeModal` component | `[ ]` | React modal |
 | Hero image (large) | `[ ]` | Full-width on modal |
 | All metadata badges | `[ ]` | Rating, time, servings, category |
+| Interactive ingredient checkboxes | `[ ]` | **CRITICAL**: Check off while cooking, no source mode needed |
 | Collapsible ingredients list | `[ ]` | Default collapsed on mobile |
 | "Open Recipe" button | `[ ]` | Opens .md file |
 | "Add to Meal Plan" button | `[ ]` | Opens day picker |
@@ -350,9 +351,12 @@ interface ShoppingItem {
 | Swipe-to-dismiss (mobile) | `[ ]` | Touch gesture |
 | Keyboard: Escape to close | `[ ]` | Accessibility |
 
+**User Workflow Note:** User checks off ingredients while cooking. Must work without entering source mode.
+
 **Acceptance Criteria:**
 - [ ] Modal opens on card click (or long-press on mobile)
 - [ ] All recipe info visible
+- [ ] Ingredient checkboxes work (session state, not persisted to file)
 - [ ] Works well on mobile (touch-friendly, scrollable)
 - [ ] Escape and click-outside close modal
 

@@ -27,7 +27,7 @@ __export(main_exports, {
   default: () => MisePlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian4 = require("obsidian");
+var import_obsidian5 = require("obsidian");
 
 // src/types/index.ts
 var DEFAULT_SETTINGS = {
@@ -555,19 +555,177 @@ var ShoppingListService = class {
   }
 };
 
+// src/services/TimeMigrationService.ts
+var import_obsidian2 = require("obsidian");
+var TimeMigrationService = class {
+  constructor(app, settings) {
+    this.app = app;
+    this.settings = settings;
+  }
+  /**
+   * Run the time migration on all recipe files
+   */
+  async migrateAll() {
+    const result = {
+      totalFiles: 0,
+      migratedFiles: 0,
+      skippedFiles: 0,
+      errors: []
+    };
+    const folder = this.app.vault.getAbstractFileByPath(this.settings.recipesFolder);
+    if (!folder || !(folder instanceof import_obsidian2.TFolder)) {
+      new import_obsidian2.Notice(`${PLUGIN_NAME}: Recipes folder not found: ${this.settings.recipesFolder}`);
+      return result;
+    }
+    const files = this.getMarkdownFilesRecursive(folder);
+    result.totalFiles = files.length;
+    new import_obsidian2.Notice(`${PLUGIN_NAME}: Migrating ${files.length} recipe files...`);
+    for (const file of files) {
+      try {
+        const migrated = await this.migrateFile(file);
+        if (migrated) {
+          result.migratedFiles++;
+        } else {
+          result.skippedFiles++;
+        }
+      } catch (error) {
+        const msg = `Error migrating ${file.path}: ${error}`;
+        result.errors.push(msg);
+        console.error(`${PLUGIN_NAME}: ${msg}`);
+      }
+    }
+    const summary = `Migration complete: ${result.migratedFiles} updated, ${result.skippedFiles} unchanged, ${result.errors.length} errors`;
+    new import_obsidian2.Notice(`${PLUGIN_NAME}: ${summary}`);
+    console.log(`${PLUGIN_NAME}: ${summary}`);
+    if (result.errors.length > 0) {
+      console.log(`${PLUGIN_NAME}: Errors:`, result.errors);
+    }
+    return result;
+  }
+  /**
+   * Migrate a single file's time fields
+   * Returns true if file was modified, false if no changes needed
+   */
+  async migrateFile(file) {
+    const content = await this.app.vault.read(file);
+    if (!content.startsWith("---")) {
+      return false;
+    }
+    const endIndex = content.indexOf("---", 3);
+    if (endIndex === -1) {
+      return false;
+    }
+    const frontmatter = content.slice(4, endIndex);
+    const body = content.slice(endIndex + 3);
+    let modified = false;
+    const lines = frontmatter.split("\n");
+    const newLines = [];
+    for (const line of lines) {
+      const prepMatch = line.match(/^(prep_time:\s*)(.+)$/);
+      const cookMatch = line.match(/^(cook_time:\s*)(.+)$/);
+      if (prepMatch) {
+        const newLine = this.migrateLine(prepMatch[1], prepMatch[2]);
+        if (newLine !== line) {
+          modified = true;
+        }
+        newLines.push(newLine);
+      } else if (cookMatch) {
+        const newLine = this.migrateLine(cookMatch[1], cookMatch[2]);
+        if (newLine !== line) {
+          modified = true;
+        }
+        newLines.push(newLine);
+      } else {
+        newLines.push(line);
+      }
+    }
+    if (modified) {
+      const newContent = `---
+${newLines.join("\n")}---${body}`;
+      await this.app.vault.modify(file, newContent);
+    }
+    return modified;
+  }
+  /**
+   * Migrate a single time line
+   */
+  migrateLine(prefix, value) {
+    const trimmed = value.trim();
+    if (/^\d+$/.test(trimmed)) {
+      return `${prefix}${trimmed}`;
+    }
+    const minutes = parseTime(trimmed);
+    if (minutes === null) {
+      return `${prefix}${trimmed}`;
+    }
+    return `${prefix}${minutes}`;
+  }
+  /**
+   * Recursively get all markdown files in a folder
+   */
+  getMarkdownFilesRecursive(folder) {
+    const files = [];
+    for (const child of folder.children) {
+      if (child instanceof import_obsidian2.TFile && child.extension === "md") {
+        files.push(child);
+      } else if (child instanceof import_obsidian2.TFolder) {
+        files.push(...this.getMarkdownFilesRecursive(child));
+      }
+    }
+    return files;
+  }
+  /**
+   * Preview migration without making changes
+   */
+  async previewMigration() {
+    const previews = [];
+    const folder = this.app.vault.getAbstractFileByPath(this.settings.recipesFolder);
+    if (!folder || !(folder instanceof import_obsidian2.TFolder)) {
+      return previews;
+    }
+    const files = this.getMarkdownFilesRecursive(folder);
+    for (const file of files) {
+      const content = await this.app.vault.read(file);
+      if (!content.startsWith("---")) continue;
+      const endIndex = content.indexOf("---", 3);
+      if (endIndex === -1) continue;
+      const frontmatter = content.slice(4, endIndex);
+      const changes = [];
+      for (const line of frontmatter.split("\n")) {
+        const prepMatch = line.match(/^(prep_time:\s*)(.+)$/);
+        const cookMatch = line.match(/^(cook_time:\s*)(.+)$/);
+        const match = prepMatch || cookMatch;
+        if (match) {
+          const trimmed = match[2].trim();
+          if (!/^\d+$/.test(trimmed)) {
+            const minutes = parseTime(trimmed);
+            if (minutes !== null) {
+              changes.push(`${match[1]}${trimmed} \u2192 ${minutes}`);
+            }
+          }
+        }
+      }
+      if (changes.length > 0) {
+        previews.push({ file: file.path, changes });
+      }
+    }
+    return previews;
+  }
+};
+
 // src/ui/settings/MiseSettingsTab.ts
-var import_obsidian3 = require("obsidian");
+var import_obsidian4 = require("obsidian");
 
 // src/ui/components/FolderSuggest.ts
-var import_obsidian2 = require("obsidian");
-var FolderSuggest = class extends import_obsidian2.AbstractInputSuggest {
+var import_obsidian3 = require("obsidian");
+var FolderSuggest = class extends import_obsidian3.AbstractInputSuggest {
   constructor(app, inputEl) {
     super(app, inputEl);
     this.textInput = inputEl;
     this.folders = this.getFolders();
   }
   getFolders() {
-    return this.app.vault.getAllLoadedFiles().filter((f) => f instanceof import_obsidian2.TFolder).sort((a, b) => a.path.localeCompare(b.path));
+    return this.app.vault.getAllLoadedFiles().filter((f) => f instanceof import_obsidian3.TFolder).sort((a, b) => a.path.localeCompare(b.path));
   }
   getSuggestions(query) {
     const lowerQuery = query.toLowerCase();
@@ -586,7 +744,7 @@ var FolderSuggest = class extends import_obsidian2.AbstractInputSuggest {
 };
 
 // src/ui/settings/MiseSettingsTab.ts
-var MiseSettingsTab = class extends import_obsidian3.PluginSettingTab {
+var MiseSettingsTab = class extends import_obsidian4.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
@@ -600,21 +758,21 @@ var MiseSettingsTab = class extends import_obsidian3.PluginSettingTab {
       cls: "mise-settings-description"
     });
     containerEl.createEl("h2", { text: "\u{1F4C1} Folder Paths" });
-    new import_obsidian3.Setting(containerEl).setName("Recipes Folder").setDesc("The folder containing your recipe markdown files.").addText((text) => {
+    new import_obsidian4.Setting(containerEl).setName("Recipes Folder").setDesc("The folder containing your recipe markdown files.").addText((text) => {
       text.setPlaceholder("Type to search folders...").setValue(this.plugin.settings.recipesFolder).onChange(async (value) => {
         this.plugin.settings.recipesFolder = value;
         await this.plugin.saveSettings();
       });
       new FolderSuggest(this.app, text.inputEl);
     });
-    new import_obsidian3.Setting(containerEl).setName("Meal Plan Folder").setDesc("The folder where meal plan files are stored.").addText((text) => {
+    new import_obsidian4.Setting(containerEl).setName("Meal Plan Folder").setDesc("The folder where meal plan files are stored.").addText((text) => {
       text.setPlaceholder("Type to search folders...").setValue(this.plugin.settings.mealPlanFolder).onChange(async (value) => {
         this.plugin.settings.mealPlanFolder = value;
         await this.plugin.saveSettings();
       });
       new FolderSuggest(this.app, text.inputEl);
     });
-    new import_obsidian3.Setting(containerEl).setName("Shopping List Folder").setDesc("The folder where shopping lists are generated.").addText((text) => {
+    new import_obsidian4.Setting(containerEl).setName("Shopping List Folder").setDesc("The folder where shopping lists are generated.").addText((text) => {
       text.setPlaceholder("Type to search folders...").setValue(this.plugin.settings.shoppingListFolder).onChange(async (value) => {
         this.plugin.settings.shoppingListFolder = value;
         await this.plugin.saveSettings();
@@ -622,7 +780,7 @@ var MiseSettingsTab = class extends import_obsidian3.PluginSettingTab {
       new FolderSuggest(this.app, text.inputEl);
     });
     containerEl.createEl("h2", { text: "\u{1F6D2} Shopping Lists" });
-    new import_obsidian3.Setting(containerEl).setName("Auto-archive Shopping Lists").setDesc("What to do with old shopping lists when generating new ones.").addDropdown((dropdown) => dropdown.addOption("off", "Off - Keep all lists in place").addOption("on", "On - Automatically archive").addOption("ask", "Ask every time").setValue(this.plugin.settings.autoArchiveShoppingLists).onChange(async (value) => {
+    new import_obsidian4.Setting(containerEl).setName("Auto-archive Shopping Lists").setDesc("What to do with old shopping lists when generating new ones.").addDropdown((dropdown) => dropdown.addOption("off", "Off - Keep all lists in place").addOption("on", "On - Automatically archive").addOption("ask", "Ask every time").setValue(this.plugin.settings.autoArchiveShoppingLists).onChange(async (value) => {
       this.plugin.settings.autoArchiveShoppingLists = value;
       await this.plugin.saveSettings();
     }));
@@ -632,23 +790,23 @@ var MiseSettingsTab = class extends import_obsidian3.PluginSettingTab {
       cls: "mise-settings-description"
     });
     const insertOptions = this.plugin.settings.mealPlanInsertOptions;
-    new import_obsidian3.Setting(containerEl).setName("Include Servings").setDesc("Add servings info when inserting a recipe.").addToggle((toggle) => toggle.setValue(insertOptions.includeServings).onChange(async (value) => {
+    new import_obsidian4.Setting(containerEl).setName("Include Servings").setDesc("Add servings info when inserting a recipe.").addToggle((toggle) => toggle.setValue(insertOptions.includeServings).onChange(async (value) => {
       this.plugin.settings.mealPlanInsertOptions.includeServings = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian3.Setting(containerEl).setName("Include Prep/Cook Time").setDesc("Add time information when inserting a recipe.").addToggle((toggle) => toggle.setValue(insertOptions.includeTime).onChange(async (value) => {
+    new import_obsidian4.Setting(containerEl).setName("Include Prep/Cook Time").setDesc("Add time information when inserting a recipe.").addToggle((toggle) => toggle.setValue(insertOptions.includeTime).onChange(async (value) => {
       this.plugin.settings.mealPlanInsertOptions.includeTime = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian3.Setting(containerEl).setName("Include Ingredients (Inline)").setDesc("Add a comma-separated ingredient list.").addToggle((toggle) => toggle.setValue(insertOptions.includeIngredientsInline).onChange(async (value) => {
+    new import_obsidian4.Setting(containerEl).setName("Include Ingredients (Inline)").setDesc("Add a comma-separated ingredient list.").addToggle((toggle) => toggle.setValue(insertOptions.includeIngredientsInline).onChange(async (value) => {
       this.plugin.settings.mealPlanInsertOptions.includeIngredientsInline = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian3.Setting(containerEl).setName("Include Ingredients (Callout)").setDesc("Add ingredients in a collapsible callout block.").addToggle((toggle) => toggle.setValue(insertOptions.includeIngredientsCallout).onChange(async (value) => {
+    new import_obsidian4.Setting(containerEl).setName("Include Ingredients (Callout)").setDesc("Add ingredients in a collapsible callout block.").addToggle((toggle) => toggle.setValue(insertOptions.includeIngredientsCallout).onChange(async (value) => {
       this.plugin.settings.mealPlanInsertOptions.includeIngredientsCallout = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian3.Setting(containerEl).setName("Include Source Link").setDesc("Add the source URL if available.").addToggle((toggle) => toggle.setValue(insertOptions.includeSource).onChange(async (value) => {
+    new import_obsidian4.Setting(containerEl).setName("Include Source Link").setDesc("Add the source URL if available.").addToggle((toggle) => toggle.setValue(insertOptions.includeSource).onChange(async (value) => {
       this.plugin.settings.mealPlanInsertOptions.includeSource = value;
       await this.plugin.saveSettings();
     }));
@@ -665,7 +823,7 @@ var MiseSettingsTab = class extends import_obsidian3.PluginSettingTab {
       });
     }
     containerEl.createEl("h2", { text: "\u2699\uFE0F Advanced" });
-    new import_obsidian3.Setting(containerEl).setName("Reset to Defaults").setDesc("Reset all settings to their default values.").addButton((button) => button.setButtonText("Reset").setWarning().onClick(async () => {
+    new import_obsidian4.Setting(containerEl).setName("Reset to Defaults").setDesc("Reset all settings to their default values.").addButton((button) => button.setButtonText("Reset").setWarning().onClick(async () => {
       this.plugin.settings = { ...DEFAULT_SETTINGS };
       await this.plugin.saveSettings();
       this.display();
@@ -674,13 +832,14 @@ var MiseSettingsTab = class extends import_obsidian3.PluginSettingTab {
 };
 
 // src/main.ts
-var MisePlugin = class extends import_obsidian4.Plugin {
+var MisePlugin = class extends import_obsidian5.Plugin {
   async onload() {
     console.log(`${PLUGIN_NAME}: Loading plugin...`);
     await this.loadSettings();
     this.indexer = new RecipeIndexer(this.app, this.settings);
     this.mealPlanService = new MealPlanService(this.app, this.settings, this.indexer);
     this.shoppingListService = new ShoppingListService(this.app, this.settings, this.indexer);
+    this.timeMigration = new TimeMigrationService(this.app, this.settings);
     this.addSettingTab(new MiseSettingsTab(this.app, this));
     this.addCommand({
       id: "open-cookbook",
@@ -694,6 +853,32 @@ var MisePlugin = class extends import_obsidian4.Plugin {
       name: "Generate Shopping List",
       callback: () => {
         console.log(`${PLUGIN_NAME}: Generate Shopping List command (not yet implemented)`);
+      }
+    });
+    this.addCommand({
+      id: "migrate-time-formats",
+      name: "Migrate Recipe Time Formats",
+      callback: async () => {
+        await this.timeMigration.migrateAll();
+        await this.indexer.initialize();
+      }
+    });
+    this.addCommand({
+      id: "preview-time-migration",
+      name: "Preview Time Format Migration",
+      callback: async () => {
+        const previews = await this.timeMigration.previewMigration();
+        if (previews.length === 0) {
+          console.log(`${PLUGIN_NAME}: No time migrations needed - all recipes already use integer format`);
+        } else {
+          console.log(`${PLUGIN_NAME}: Time migration preview (${previews.length} files would be changed):`);
+          for (const p of previews) {
+            console.log(`  ${p.file}:`);
+            for (const c of p.changes) {
+              console.log(`    ${c}`);
+            }
+          }
+        }
       }
     });
     this.app.workspace.onLayoutReady(async () => {

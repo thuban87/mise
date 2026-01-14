@@ -10,7 +10,7 @@
 
 import { Plugin } from 'obsidian';
 import { MiseSettings, DEFAULT_SETTINGS } from './types';
-import { RecipeIndexer, MealPlanService, ShoppingListService } from './services';
+import { RecipeIndexer, MealPlanService, ShoppingListService, TimeMigrationService } from './services';
 import { MiseSettingsTab } from './ui/settings/MiseSettingsTab';
 import { PLUGIN_NAME } from './utils/constants';
 
@@ -21,6 +21,7 @@ export default class MisePlugin extends Plugin {
     indexer: RecipeIndexer;
     mealPlanService: MealPlanService;
     shoppingListService: ShoppingListService;
+    timeMigration: TimeMigrationService;
 
     async onload(): Promise<void> {
         console.log(`${PLUGIN_NAME}: Loading plugin...`);
@@ -32,11 +33,12 @@ export default class MisePlugin extends Plugin {
         this.indexer = new RecipeIndexer(this.app, this.settings);
         this.mealPlanService = new MealPlanService(this.app, this.settings, this.indexer);
         this.shoppingListService = new ShoppingListService(this.app, this.settings, this.indexer);
+        this.timeMigration = new TimeMigrationService(this.app, this.settings);
 
         // Register settings tab
         this.addSettingTab(new MiseSettingsTab(this.app, this));
 
-        // Register commands (placeholders for future phases)
+        // Register commands
         this.addCommand({
             id: 'open-cookbook',
             name: 'Open Cookbook',
@@ -52,6 +54,35 @@ export default class MisePlugin extends Plugin {
             callback: () => {
                 // TODO: Phase 13 - Generate shopping list
                 console.log(`${PLUGIN_NAME}: Generate Shopping List command (not yet implemented)`);
+            }
+        });
+
+        this.addCommand({
+            id: 'migrate-time-formats',
+            name: 'Migrate Recipe Time Formats',
+            callback: async () => {
+                await this.timeMigration.migrateAll();
+                // Re-index after migration
+                await this.indexer.initialize();
+            }
+        });
+
+        this.addCommand({
+            id: 'preview-time-migration',
+            name: 'Preview Time Format Migration',
+            callback: async () => {
+                const previews = await this.timeMigration.previewMigration();
+                if (previews.length === 0) {
+                    console.log(`${PLUGIN_NAME}: No time migrations needed - all recipes already use integer format`);
+                } else {
+                    console.log(`${PLUGIN_NAME}: Time migration preview (${previews.length} files would be changed):`);
+                    for (const p of previews) {
+                        console.log(`  ${p.file}:`);
+                        for (const c of p.changes) {
+                            console.log(`    ${c}`);
+                        }
+                    }
+                }
             }
         });
 
