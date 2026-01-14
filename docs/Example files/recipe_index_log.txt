@@ -1,0 +1,12 @@
+[2026-01-12 12:20:53] --- Starting Recipe Indexer ---
+[2026-01-12 12:20:53] Root: G:\My Drive\IT\Obsidian Vault\My Notebooks
+[2026-01-12 12:20:53] Success! Indexed 154 recipes.
+[2026-01-12 12:25:06] --- Starting Recipe Indexer ---
+[2026-01-12 12:25:06] Root: G:\My Drive\IT\Obsidian Vault\My Notebooks
+[2026-01-12 12:25:06] Success! Indexed 154 recipes.
+[2026-01-12 12:26:02] --- Starting Recipe Indexer ---
+[2026-01-12 12:26:02] Root: G:\My Drive\IT\Obsidian Vault\My Notebooks
+[2026-01-12 12:26:02] Success! Indexed 154 recipes.
+[2026-01-13 04:00:02] --- Starting Recipe Indexer ---
+[2026-01-13 04:00:02] Root: G:\My Drive\IT\Obsidian Vault\My Notebooks
+[2026-01-13 04:00:03] Success! Indexed 154 recipes.
