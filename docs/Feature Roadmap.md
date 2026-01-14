@@ -12,7 +12,7 @@ tags:
 > This is a personal utility project with infinite runway. Features get done when they get done. Do not pressure the user with "we should do this after MVP" language.
 
 **Last Updated:** January 13, 2026
-**Current Phase:** Phase 10 - Meal Plan Calendar UI
+**Current Phase:** Phase 11 - Drag-and-Drop Assignment
 
 ---
 
@@ -435,23 +435,25 @@ interface ShoppingItem {
 
 ### Phase 10: Meal Plan Calendar UI
 - **Goal:** Visual calendar for viewing/editing meal plans.
-- **Status:** `[ ]` Not Started
+- **Status:** `[x]` Completed
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Create `MealCalendar` component | `[ ]` | React component |
-| Month view layout | `[ ]` | 7x4/5 grid |
-| Day cells with meal slots | `[ ]` | 3 rows per day |
-| Display planned recipes | `[ ]` | Compact card or pill |
-| Navigate months | `[ ]` | Previous/Next arrows |
-| Generate weekly view on command | `[ ]` | Extracts current week |
-| Mobile-friendly layout | `[ ]` | Stack or scroll |
+| Create `MealCalendar` component | `[x]` | React component with App context |
+| Month view layout | `[x]` | 7x6 grid with overflow days |
+| Day cells with meal slots | `[x]` | Breakfast/Lunch/Dinner pills |
+| Display planned recipes | `[x]` | Color-coded meal pills with tooltips |
+| Navigate months | `[x]` | Previous/Next arrows |
+| Week view toggle | `[x]` | Month/Week buttons, click day to zoom |
+| Click to open recipe | `[x]` | Opens recipe file on meal click |
+| Refresh button | `[x]` | 🔄 to reload meal plan |
+| Mobile-friendly layout | `[x]` | Responsive with smaller pills |
 
 **Acceptance Criteria:**
-- [ ] Month calendar displays correctly
-- [ ] Planned meals show in correct slots
-- [ ] Can navigate between months
-- [ ] Weekly view generation works
+- [x] Month calendar displays correctly
+- [x] Planned meals show in correct slots (month+week+day aware)
+- [x] Can navigate between months/weeks
+- [x] Weekly view generation works
 
 ---
 

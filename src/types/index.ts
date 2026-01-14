@@ -148,6 +148,15 @@ export interface PlannedMeal {
     /** Day abbreviation (Mon, Tue, etc.) */
     day: string;
 
+    /** Week number from meal plan (1, 2, 3, etc.) */
+    weekNumber: number;
+
+    /** Month name from meal plan header */
+    planMonth: string;
+
+    /** Year from meal plan header */
+    planYear: number;
+
     /** Meal type */
     mealType: 'breakfast' | 'lunch' | 'dinner';
 

@@ -927,3 +927,261 @@
 	font-weight: 500;
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
+
+/* ===========================
+   Meal Plan Calendar (Phase 10)
+   =========================== */
+.mise-meal-plan-container {
+	height: 100%;
+	overflow: auto;
+	background: var(--background-primary);
+}
+
+.mise-calendar {
+	max-width: 1200px;
+	margin: 0 auto;
+	padding: var(--mise-spacing-lg);
+}
+
+/* Calendar Header */
+.mise-calendar-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: var(--mise-spacing-lg);
+}
+
+.mise-calendar-nav {
+	background: var(--background-modifier-border);
+	border: none;
+	padding: 8px 16px;
+	border-radius: 6px;
+	cursor: pointer;
+	font-size: 1.1em;
+	color: var(--text-normal);
+	transition: background 0.2s;
+}
+
+.mise-calendar-nav:hover {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.mise-calendar-title {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+}
+
+.mise-calendar-title h2 {
+	margin: 0;
+	font-size: 1.5em;
+	color: var(--text-normal);
+}
+
+.mise-calendar-today {
+	background: transparent;
+	border: 1px solid var(--background-modifier-border);
+	padding: 4px 12px;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 0.75em;
+	color: var(--text-muted);
+	transition: all 0.2s;
+}
+
+.mise-calendar-today:hover {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-color: var(--interactive-accent);
+}
+
+/* Calendar Controls */
+.mise-calendar-controls {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+}
+
+.mise-calendar-view-btn {
+	background: transparent;
+	border: 1px solid var(--background-modifier-border);
+	padding: 4px 10px;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 0.75em;
+	color: var(--text-muted);
+	transition: all 0.2s;
+}
+
+.mise-calendar-view-btn:hover,
+.mise-calendar-view-btn.active {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-color: var(--interactive-accent);
+}
+
+.mise-calendar-refresh {
+	background: transparent;
+	border: 1px solid var(--background-modifier-border);
+	padding: 4px 8px;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 0.85em;
+	transition: all 0.2s;
+}
+
+.mise-calendar-refresh:hover {
+	background: var(--background-modifier-hover);
+}
+
+.mise-week-label {
+	font-size: 0.7em;
+	color: var(--text-muted);
+}
+
+/* Week View */
+.mise-calendar-grid.mise-week-view {
+	grid-template-columns: repeat(7, 1fr);
+}
+
+.mise-week-view .mise-calendar-day {
+	min-height: 200px;
+}
+
+/* Weekday Headers */
+.mise-calendar-weekdays {
+	display: grid;
+	grid-template-columns: repeat(7, 1fr);
+	gap: 2px;
+	margin-bottom: 4px;
+}
+
+.mise-calendar-weekday {
+	text-align: center;
+	font-weight: 600;
+	font-size: 0.8em;
+	color: var(--text-muted);
+	padding: 8px 0;
+}
+
+/* Calendar Grid */
+.mise-calendar-grid {
+	display: grid;
+	grid-template-columns: repeat(7, 1fr);
+	gap: 2px;
+}
+
+.mise-calendar-day {
+	min-height: 100px;
+	background: var(--background-secondary);
+	border-radius: 4px;
+	padding: 6px;
+	display: flex;
+	flex-direction: column;
+}
+
+.mise-day-other-month {
+	opacity: 0.4;
+}
+
+.mise-day-today {
+	box-shadow: inset 0 0 0 2px var(--interactive-accent);
+}
+
+.mise-day-number {
+	font-weight: 600;
+	font-size: 0.9em;
+	color: var(--text-normal);
+	margin-bottom: 4px;
+}
+
+.mise-day-today .mise-day-number {
+	color: var(--interactive-accent);
+}
+
+/* Meal Slots */
+.mise-day-meals {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	flex: 1;
+	overflow: hidden;
+}
+
+.mise-meal-slot {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+}
+
+.mise-meal-pill {
+	font-size: 0.65em;
+	padding: 2px 4px;
+	border-radius: 3px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	border-left: 2px solid;
+}
+
+.mise-meal-breakfast .mise-meal-pill {
+	border-color: #f39c12;
+}
+
+.mise-meal-lunch .mise-meal-pill {
+	border-color: #2ecc71;
+}
+
+.mise-meal-dinner .mise-meal-pill {
+	border-color: #9b59b6;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+	.mise-calendar {
+		padding: var(--mise-spacing-md);
+	}
+
+	.mise-calendar-day {
+		min-height: 60px;
+		padding: 4px;
+	}
+
+	.mise-day-number {
+		font-size: 0.75em;
+	}
+
+	.mise-meal-pill {
+		font-size: 0.55em;
+		padding: 1px 2px;
+	}
+
+	.mise-calendar-weekday {
+		font-size: 0.65em;
+	}
+}
+
+/* Clickable day cells */
+.mise-calendar-day {
+	cursor: pointer;
+	transition: background 0.15s;
+}
+
+.mise-calendar-day:hover {
+	background: var(--background-modifier-hover);
+}
+
+/* Clickable meal pills */
+.mise-meal-clickable {
+	cursor: pointer;
+	transition: all 0.15s;
+}
+
+.mise-meal-clickable:hover {
+	transform: scale(1.02);
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
