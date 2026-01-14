@@ -503,6 +503,24 @@ interface ShoppingItem {
 
 ---
 
+### Phase 12.5: Store Profiles & Shopping List Refinement
+- **Goal:** Customizable aisle configurations and guided list generation.
+- **Status:** `[x]` Complete
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Define Store Profile models | `[x]` | `StoreProfile`, `AisleMapping` |
+| Settings UI for Profiles | `[x]` | Add/Edit/Delete profiles |
+| Shopping List Wizard | `[x]` | Time/Store/Item selection modal |
+| Store-specific generation logic | `[x]` | Prioritize profile mappings over defaults |
+
+**Acceptance Criteria:**
+- [x] Can create generic and store-specific profiles
+- [x] Wizard guides user through generation options
+- [x] Ingredients sort into correct aisles based on selected store
+
+---
+
 ### Phase 13: Shopping List Writer
 - **Goal:** Generate formatted shopping list files.
 - **Status:** `[ ]` Not Started
@@ -578,6 +596,25 @@ interface ShoppingItem {
 - [ ] Scaling math is accurate
 - [ ] UI shows scaled quantities clearly
 - [ ] Original recipe unchanged
+
+---
+
+### Phase 15.5: Ingredient Unit Standardization (New)
+- **Goal:** Normalize units for better shopping list consolidation.
+- **Status:** `[ ]` Not Started
+- **Notes:** Added per user feedback. "2 tsp" + "1 tbsp" should combine.
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Create `UnitConverter` module | `[ ]` | Define standard units (ml, g) |
+| Implement conversion logic | `[ ]` | `convert(val, from, to)` |
+| Add normalization to grouped items | `[ ]` | Sum up quantities in `ShoppingListService` |
+| Handle "clove" vs "head", "stick" vs "cup" | `[ ]` | Hardcoded equivalents table |
+
+**Acceptance Criteria:**
+- [ ] Shopping list combines "2 tsp" and "1 tbsp" into single line (e.g. "5 tsp" or "1.6 tbsp")
+- [ ] Consolidates diverse units into standard metric/imperial base
+
 
 ---
 

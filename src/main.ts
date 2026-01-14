@@ -113,9 +113,9 @@ export default class MisePlugin extends Plugin {
                         // Generate based on time range
                         let list;
                         if (result.timeRange.type === 'month') {
-                            list = await this.shoppingListService.generateListForMonth();
+                            list = await this.shoppingListService.generateListForMonth(undefined, undefined, result.storeId || undefined);
                         } else {
-                            list = await this.shoppingListService.generateListForWeek(result.timeRange.weekNumber);
+                            list = await this.shoppingListService.generateListForWeek(result.timeRange.weekNumber, undefined, undefined, result.storeId || undefined);
                         }
 
                         // Filter items if user selected specific ones

@@ -24501,7 +24501,7 @@ __export(main_exports, {
   default: () => MisePlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian9 = require("obsidian");
+var import_obsidian11 = require("obsidian");
 
 // src/types/index.ts
 var DEFAULT_SETTINGS = {
@@ -24518,6 +24518,7 @@ var DEFAULT_SETTINGS = {
     { name: "Frozen", keywords: ["frozen", "ice cream"] },
     { name: "Beverages", keywords: ["soda", "juice", "water", "coffee", "tea"] }
   ],
+  storeProfiles: [],
   mealPlanInsertOptions: {
     includeLink: true,
     includeServings: false,
@@ -24714,8 +24715,38 @@ function parseIngredientQuantity(ingredientStr) {
     original
   };
 }
+var PREP_WORDS = [
+  "minced",
+  "diced",
+  "chopped",
+  "sliced",
+  "crushed",
+  "grated",
+  "shredded",
+  "peeled",
+  "cubed",
+  "halved",
+  "quartered",
+  "whole",
+  "fresh",
+  "dried",
+  "ground",
+  "powder",
+  "powdered",
+  "leaves",
+  "leaf",
+  "large",
+  "medium",
+  "small"
+];
 function normalizeIngredient(ingredient) {
-  return ingredient.toLowerCase().replace(/\s+/g, " ").trim();
+  let normalized = ingredient.toLowerCase();
+  for (const word of PREP_WORDS) {
+    const regex = new RegExp(`\\b${word}\\b`, "gi");
+    normalized = normalized.replace(regex, "");
+  }
+  normalized = normalized.replace(/s\b/g, "");
+  return normalized.replace(/[^\w\s]/g, "").replace(/\s+/g, " ").trim();
 }
 
 // src/parsers/FrontmatterParser.ts
@@ -25115,6 +25146,10 @@ var RecipeIndexer = class extends import_obsidian.Events {
    */
   async exportToJson() {
     const exportPath = "System/Mise/recipe-index.json";
+    const folderPath = "System/Mise";
+    if (!(this.app.vault.getAbstractFileByPath(folderPath) instanceof import_obsidian.TFolder)) {
+      await this.app.vault.createFolder(folderPath);
+    }
     const exportData = this.getRecipes().map((recipe) => ({
       title: recipe.title,
       path: recipe.path,
@@ -25418,6 +25453,49 @@ var MealPlanService = class extends import_obsidian2.Events {
    */
   getCurrentFilePath() {
     return this.currentFilePath;
+  }
+  /**
+   * Get info about available weeks (with date ranges if available in the file)
+   */
+  async getWeeksInfo() {
+    var _a;
+    if (!this.currentFilePath) return [];
+    const file = this.app.vault.getAbstractFileByPath(this.currentFilePath);
+    if (!(file instanceof Object)) return [];
+    try {
+      const content = await this.app.vault.read(file);
+      const weeks = [];
+      const weekRegex = /^##\s+Week\s+(\d+)\s*\(?([^)]*)\)?/gmi;
+      let match;
+      while ((match = weekRegex.exec(content)) !== null) {
+        const weekNum = parseInt(match[1], 10);
+        const dateRange = ((_a = match[2]) == null ? void 0 : _a.trim()) || "";
+        let startDate = "";
+        let endDate = "";
+        if (dateRange) {
+          const rangeMatch = dateRange.match(/([A-Za-z]+)\s*(\d+)\s*[-–]\s*(?:([A-Za-z]+)\s*)?(\d+)/);
+          if (rangeMatch) {
+            const startMonth = rangeMatch[1];
+            const startDay = rangeMatch[2];
+            const endMonth = rangeMatch[3] || startMonth;
+            const endDay = rangeMatch[4];
+            startDate = `${startMonth} ${startDay}`;
+            endDate = `${endMonth} ${endDay}`;
+          }
+        }
+        weeks.push({ weekNumber: weekNum, startDate, endDate });
+      }
+      if (weeks.length === 0) {
+        const weekNumbers = [...new Set(this.getAllMeals().map((m) => m.weekNumber))].sort();
+        for (const num of weekNumbers) {
+          weeks.push({ weekNumber: num, startDate: "", endDate: "" });
+        }
+      }
+      return weeks;
+    } catch (error) {
+      console.error("MealPlanService: Error getting weeks info", error);
+      return [];
+    }
   }
   /**
    * Add a meal to the meal plan file
@@ -25914,7 +25992,7 @@ var ShoppingListService = class {
   /**
    * Generate a shopping list for a week number
    */
-  async generateListForWeek(weekNumber, month, year) {
+  async generateListForWeek(weekNumber, month, year, storeId) {
     console.log(`ShoppingListService: Generating list for Week ${weekNumber}`);
     const now = /* @__PURE__ */ new Date();
     const targetMonth = month || this.getMonthName(now.getMonth());
@@ -25925,7 +26003,8 @@ var ShoppingListService = class {
     console.log(`ShoppingListService: Collected ${ingredients.length} ingredients`);
     const aggregated = this.aggregateIngredients(ingredients);
     console.log(`ShoppingListService: Aggregated to ${aggregated.length} unique items`);
-    const aisles = this.groupByAisle(aggregated);
+    const storeProfile = storeId ? this.settings.storeProfiles.find((p) => p.id === storeId) : void 0;
+    const aisles = this.groupByAisle(aggregated, storeProfile);
     return {
       generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
       dateRange: {
@@ -25939,7 +26018,7 @@ var ShoppingListService = class {
   /**
    * Generate a shopping list for an entire month
    */
-  async generateListForMonth(month, year) {
+  async generateListForMonth(month, year, storeId) {
     const now = /* @__PURE__ */ new Date();
     const targetMonth = month || this.getMonthName(now.getMonth());
     const targetYear = year || now.getFullYear();
@@ -25950,7 +26029,8 @@ var ShoppingListService = class {
     console.log(`ShoppingListService: Collected ${ingredients.length} ingredients`);
     const aggregated = this.aggregateIngredients(ingredients);
     console.log(`ShoppingListService: Aggregated to ${aggregated.length} unique items`);
-    const aisles = this.groupByAisle(aggregated);
+    const storeProfile = storeId ? this.settings.storeProfiles.find((p) => p.id === storeId) : void 0;
+    const aisles = this.groupByAisle(aggregated, storeProfile);
     return {
       generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
       dateRange: {
@@ -26001,12 +26081,13 @@ var ShoppingListService = class {
     const results = [];
     for (const meal of meals) {
       if (!meal.recipePath) continue;
-      let recipe = this.indexer.getRecipe(meal.recipePath);
+      const recipePath = meal.recipePath;
+      let recipe = this.indexer.getRecipe(recipePath);
       if (!recipe) {
-        const searchTitle = meal.recipePath.replace(/\.md$/i, "");
+        const searchTitle = recipePath.replace(/\.md$/i, "");
         const allRecipes = this.indexer.getRecipes();
         recipe = allRecipes.find(
-          (r) => r.title.toLowerCase() === searchTitle.toLowerCase() || r.path.toLowerCase().endsWith(`/${meal.recipePath.toLowerCase()}`) || r.path.toLowerCase() === meal.recipePath.toLowerCase()
+          (r) => r.title.toLowerCase() === searchTitle.toLowerCase() || r.path.toLowerCase().endsWith(`/${recipePath.toLowerCase()}`) || r.path.toLowerCase() === recipePath.toLowerCase()
         );
       }
       if (!recipe) {
@@ -26050,14 +26131,38 @@ var ShoppingListService = class {
   /**
    * Group ingredients by inferred aisle
    */
-  groupByAisle(ingredients) {
+  groupByAisle(ingredients, storeProfile) {
     const aisleMap = /* @__PURE__ */ new Map();
     for (const ing of ingredients) {
-      const aisle = this.inferAisle(ing.normalized);
-      if (!aisleMap.has(aisle.name)) {
-        aisleMap.set(aisle.name, { emoji: aisle.emoji, items: [] });
+      let aisleName = "";
+      let sortKey = "";
+      if (storeProfile) {
+        for (const mapping of storeProfile.aisles) {
+          if (mapping.keywords.some((k) => ing.normalized.includes(k.toLowerCase()))) {
+            const prefix = mapping.aisleNumber ? `${mapping.aisleNumber} - ` : "";
+            aisleName = `${prefix}${mapping.aisleName}`;
+            const numMatch = mapping.aisleNumber.match(/^(\d+)/);
+            if (numMatch) {
+              sortKey = numMatch[1].padStart(3, "0");
+            } else {
+              sortKey = `z_${mapping.aisleName}`;
+            }
+            break;
+          }
+        }
       }
-      aisleMap.get(aisle.name).items.push({
+      if (!aisleName) {
+        const aisle = this.inferAisle(ing.normalized);
+        aisleName = `${aisle.emoji} ${aisle.name}`;
+        const aisleOrder = ["Produce", "Meat", "Dairy", "Bakery", "Frozen", "Pantry", "Other"];
+        let idx = aisleOrder.indexOf(aisle.name);
+        if (idx === -1) idx = 99;
+        sortKey = `zz_${idx.toString().padStart(2, "0")}`;
+      }
+      if (!aisleMap.has(aisleName)) {
+        aisleMap.set(aisleName, { sortKey, items: [] });
+      }
+      aisleMap.get(aisleName).items.push({
         ingredient: ing.original,
         quantity: ing.parsed.quantity || void 0,
         fromRecipes: ing.fromRecipes,
@@ -26066,16 +26171,12 @@ var ShoppingListService = class {
     }
     const aisles = [];
     for (const [name, data] of aisleMap) {
-      aisles.push({
-        name: `${data.emoji} ${name}`,
-        items: data.items
-      });
+      aisles.push({ name, items: data.items });
     }
-    const aisleOrder = ["Produce", "Meat", "Dairy", "Bakery", "Frozen", "Pantry", "Other"];
     aisles.sort((a, b) => {
-      const aBase = a.name.replace(/^[^\w]+/, "").trim();
-      const bBase = b.name.replace(/^[^\w]+/, "").trim();
-      return aisleOrder.indexOf(aBase) - aisleOrder.indexOf(bBase);
+      const keyA = aisleMap.get(a.name).sortKey;
+      const keyB = aisleMap.get(b.name).sortKey;
+      return keyA.localeCompare(keyB);
     });
     return aisles;
   }
@@ -26281,7 +26382,7 @@ ${newLines.join("\n")}---${body}`;
 };
 
 // src/ui/settings/MiseSettingsTab.ts
-var import_obsidian5 = require("obsidian");
+var import_obsidian6 = require("obsidian");
 
 // src/ui/components/FolderSuggest.ts
 var import_obsidian4 = require("obsidian");
@@ -26310,8 +26411,100 @@ var FolderSuggest = class extends import_obsidian4.AbstractInputSuggest {
   }
 };
 
+// src/ui/settings/StoreProfileModal.ts
+var import_obsidian5 = require("obsidian");
+var StoreProfileModal = class extends import_obsidian5.Modal {
+  constructor(app, profile, onSave) {
+    super(app);
+    this.profile = profile ? JSON.parse(JSON.stringify(profile)) : {
+      id: crypto.randomUUID(),
+      name: "",
+      isDefault: false,
+      aisles: []
+    };
+    this.onSave = onSave;
+  }
+  onOpen() {
+    const { contentEl } = this;
+    this.modalEl.addClass("mise-modal-wide");
+    contentEl.empty();
+    contentEl.addClass("mise-store-profile-modal");
+    contentEl.createEl("h2", { text: this.profile.name ? `Edit Profile: ${this.profile.name}` : "New Store Profile" });
+    this.renderBasicSettings(contentEl);
+    this.renderAisles(contentEl);
+    this.renderFooter(contentEl);
+  }
+  renderBasicSettings(container) {
+    new import_obsidian5.Setting(container).setName("Store Name").setDesc('E.g. "Jewel-Osco", "Whole Foods"').addText((text) => text.setValue(this.profile.name).onChange((value) => {
+      this.profile.name = value;
+    }));
+    new import_obsidian5.Setting(container).setName("Default Profile").setDesc("Use this store by default if no other is selected.").addToggle((toggle) => toggle.setValue(this.profile.isDefault).onChange((value) => {
+      this.profile.isDefault = value;
+    }));
+  }
+  renderAisles(container) {
+    container.createEl("h3", { text: "Aisles Configuration" });
+    const aislesContainer = container.createDiv("mise-aisles-container");
+    this.profile.aisles.forEach((aisle, index) => {
+      this.renderAisleItem(aislesContainer, aisle, index);
+    });
+    const addBtnContainer = container.createDiv("mise-add-aisle-btn");
+    const addBtn = addBtnContainer.createEl("button", { text: "+ Add Aisle" });
+    addBtn.onclick = () => {
+      this.profile.aisles.push({
+        aisleName: "",
+        aisleNumber: "",
+        keywords: []
+      });
+      this.onOpen();
+    };
+  }
+  renderAisleItem(container, aisle, index) {
+    const aisleDiv = container.createDiv("mise-aisle-item");
+    aisleDiv.addClass("mise-card");
+    const headerDiv = aisleDiv.createDiv("mise-aisle-header");
+    new import_obsidian5.Setting(headerDiv).setClass("mise-aisle-number-setting").addText((text) => text.setPlaceholder("8").setValue(aisle.aisleNumber).onChange((val) => aisle.aisleNumber = val));
+    new import_obsidian5.Setting(headerDiv).setClass("mise-aisle-name-setting").addText((text) => text.setPlaceholder("Spices \u{1F96B}").setValue(aisle.aisleName).onChange((val) => aisle.aisleName = val));
+    const deleteBtn = headerDiv.createEl("div", { text: "\u{1F5D1}\uFE0F" });
+    deleteBtn.addClass("mise-aisle-delete-btn");
+    deleteBtn.onclick = () => {
+      this.profile.aisles.splice(index, 1);
+      this.onOpen();
+    };
+    const keywordsDiv = aisleDiv.createDiv("mise-aisle-keywords");
+    keywordsDiv.createEl("span", { text: "Keywords (comma separated):" });
+    const textArea = new import_obsidian5.TextAreaComponent(keywordsDiv);
+    textArea.setValue(aisle.keywords.join(", ")).setPlaceholder("cumin, paprika, salt, pepper...").onChange((val) => {
+      aisle.keywords = val.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+    });
+    textArea.inputEl.rows = 2;
+    textArea.inputEl.style.width = "100%";
+  }
+  renderFooter(container) {
+    const footer = container.createDiv("mise-modal-footer");
+    footer.style.display = "flex";
+    footer.style.justifyContent = "flex-end";
+    footer.style.marginTop = "20px";
+    footer.style.gap = "10px";
+    const cancelBtn = footer.createEl("button", { text: "Cancel" });
+    cancelBtn.onclick = () => this.close();
+    const saveBtn = footer.createEl("button", { text: "Save Profile" });
+    saveBtn.addClass("mod-cta");
+    saveBtn.onclick = () => {
+      if (!this.profile.name) {
+        return;
+      }
+      this.onSave(this.profile);
+      this.close();
+    };
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+};
+
 // src/ui/settings/MiseSettingsTab.ts
-var MiseSettingsTab = class extends import_obsidian5.PluginSettingTab {
+var MiseSettingsTab = class extends import_obsidian6.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
@@ -26325,21 +26518,21 @@ var MiseSettingsTab = class extends import_obsidian5.PluginSettingTab {
       cls: "mise-settings-description"
     });
     containerEl.createEl("h2", { text: "\u{1F4C1} Folder Paths" });
-    new import_obsidian5.Setting(containerEl).setName("Recipes Folder").setDesc("The folder containing your recipe markdown files.").addText((text) => {
+    new import_obsidian6.Setting(containerEl).setName("Recipes Folder").setDesc("The folder containing your recipe markdown files.").addText((text) => {
       text.setPlaceholder("Type to search folders...").setValue(this.plugin.settings.recipesFolder).onChange(async (value) => {
         this.plugin.settings.recipesFolder = value;
         await this.plugin.saveSettings();
       });
       new FolderSuggest(this.app, text.inputEl);
     });
-    new import_obsidian5.Setting(containerEl).setName("Meal Plan Folder").setDesc("The folder where meal plan files are stored.").addText((text) => {
+    new import_obsidian6.Setting(containerEl).setName("Meal Plan Folder").setDesc("The folder where meal plan files are stored.").addText((text) => {
       text.setPlaceholder("Type to search folders...").setValue(this.plugin.settings.mealPlanFolder).onChange(async (value) => {
         this.plugin.settings.mealPlanFolder = value;
         await this.plugin.saveSettings();
       });
       new FolderSuggest(this.app, text.inputEl);
     });
-    new import_obsidian5.Setting(containerEl).setName("Shopping List Folder").setDesc("The folder where shopping lists are generated.").addText((text) => {
+    new import_obsidian6.Setting(containerEl).setName("Shopping List Folder").setDesc("The folder where shopping lists are generated.").addText((text) => {
       text.setPlaceholder("Type to search folders...").setValue(this.plugin.settings.shoppingListFolder).onChange(async (value) => {
         this.plugin.settings.shoppingListFolder = value;
         await this.plugin.saveSettings();
@@ -26347,7 +26540,7 @@ var MiseSettingsTab = class extends import_obsidian5.PluginSettingTab {
       new FolderSuggest(this.app, text.inputEl);
     });
     containerEl.createEl("h2", { text: "\u{1F6D2} Shopping Lists" });
-    new import_obsidian5.Setting(containerEl).setName("Auto-archive Shopping Lists").setDesc("What to do with old shopping lists when generating new ones.").addDropdown((dropdown) => dropdown.addOption("off", "Off - Keep all lists in place").addOption("on", "On - Automatically archive").addOption("ask", "Ask every time").setValue(this.plugin.settings.autoArchiveShoppingLists).onChange(async (value) => {
+    new import_obsidian6.Setting(containerEl).setName("Auto-archive Shopping Lists").setDesc("What to do with old shopping lists when generating new ones.").addDropdown((dropdown) => dropdown.addOption("off", "Off - Keep all lists in place").addOption("on", "On - Automatically archive").addOption("ask", "Ask every time").setValue(this.plugin.settings.autoArchiveShoppingLists).onChange(async (value) => {
       this.plugin.settings.autoArchiveShoppingLists = value;
       await this.plugin.saveSettings();
     }));
@@ -26357,40 +26550,87 @@ var MiseSettingsTab = class extends import_obsidian5.PluginSettingTab {
       cls: "mise-settings-description"
     });
     const insertOptions = this.plugin.settings.mealPlanInsertOptions;
-    new import_obsidian5.Setting(containerEl).setName("Include Servings").setDesc("Add servings info when inserting a recipe.").addToggle((toggle) => toggle.setValue(insertOptions.includeServings).onChange(async (value) => {
+    new import_obsidian6.Setting(containerEl).setName("Include Servings").setDesc("Add servings info when inserting a recipe.").addToggle((toggle) => toggle.setValue(insertOptions.includeServings).onChange(async (value) => {
       this.plugin.settings.mealPlanInsertOptions.includeServings = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian5.Setting(containerEl).setName("Include Prep/Cook Time").setDesc("Add time information when inserting a recipe.").addToggle((toggle) => toggle.setValue(insertOptions.includeTime).onChange(async (value) => {
+    new import_obsidian6.Setting(containerEl).setName("Include Prep/Cook Time").setDesc("Add time information when inserting a recipe.").addToggle((toggle) => toggle.setValue(insertOptions.includeTime).onChange(async (value) => {
       this.plugin.settings.mealPlanInsertOptions.includeTime = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian5.Setting(containerEl).setName("Include Ingredients (Inline)").setDesc("Add a comma-separated ingredient list.").addToggle((toggle) => toggle.setValue(insertOptions.includeIngredientsInline).onChange(async (value) => {
+    new import_obsidian6.Setting(containerEl).setName("Include Ingredients (Inline)").setDesc("Add a comma-separated ingredient list.").addToggle((toggle) => toggle.setValue(insertOptions.includeIngredientsInline).onChange(async (value) => {
       this.plugin.settings.mealPlanInsertOptions.includeIngredientsInline = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian5.Setting(containerEl).setName("Include Ingredients (Callout)").setDesc("Add ingredients in a collapsible callout block.").addToggle((toggle) => toggle.setValue(insertOptions.includeIngredientsCallout).onChange(async (value) => {
+    new import_obsidian6.Setting(containerEl).setName("Include Ingredients (Callout)").setDesc("Add ingredients in a collapsible callout block.").addToggle((toggle) => toggle.setValue(insertOptions.includeIngredientsCallout).onChange(async (value) => {
       this.plugin.settings.mealPlanInsertOptions.includeIngredientsCallout = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian5.Setting(containerEl).setName("Include Source Link").setDesc("Add the source URL if available.").addToggle((toggle) => toggle.setValue(insertOptions.includeSource).onChange(async (value) => {
+    new import_obsidian6.Setting(containerEl).setName("Include Source Link").setDesc("Add the source URL if available.").addToggle((toggle) => toggle.setValue(insertOptions.includeSource).onChange(async (value) => {
       this.plugin.settings.mealPlanInsertOptions.includeSource = value;
       await this.plugin.saveSettings();
     }));
-    containerEl.createEl("h2", { text: "\u{1F3EA} Aisle Configuration" });
+    containerEl.createEl("h2", { text: "\u{1F3EA} Store Profiles" });
     containerEl.createEl("p", {
-      text: "Customize how ingredients are grouped into aisles. (Coming in a future update)",
+      text: "Create custom aisle configurations for your favorite stores.",
       cls: "mise-settings-description"
     });
-    const aisleList = containerEl.createEl("div", { cls: "mise-aisle-list" });
-    for (const aisle of this.plugin.settings.aisles) {
-      aisleList.createEl("p", {
-        text: `\u2022 ${aisle.name}: ${aisle.keywords.slice(0, 5).join(", ")}...`,
-        cls: "mise-settings-description"
+    const profilesContainer = containerEl.createDiv("mise-store-profiles");
+    this.plugin.settings.storeProfiles.forEach((profile, index) => {
+      const profileDiv = profilesContainer.createDiv("mise-profile-item");
+      profileDiv.addClass("mise-card");
+      profileDiv.style.marginBottom = "10px";
+      profileDiv.style.padding = "10px";
+      profileDiv.style.display = "flex";
+      profileDiv.style.alignItems = "center";
+      profileDiv.style.justifyContent = "space-between";
+      const infoDiv = profileDiv.createDiv();
+      infoDiv.createEl("strong", { text: profile.name });
+      if (profile.isDefault) {
+        infoDiv.createEl("span", { text: " (Default)", cls: "mise-tag" });
+      }
+      const detailsDiv = infoDiv.createDiv({
+        text: `${profile.aisles.length} aisle mappings`,
+        cls: "mise-text-muted"
       });
-    }
+      detailsDiv.style.fontSize = "0.8em";
+      const btnDiv = profileDiv.createDiv();
+      btnDiv.style.display = "flex";
+      btnDiv.style.gap = "5px";
+      const editBtn = btnDiv.createEl("button", { text: "Edit" });
+      editBtn.onclick = () => {
+        new StoreProfileModal(this.app, profile, async (updatedProfile) => {
+          this.plugin.settings.storeProfiles[index] = updatedProfile;
+          if (updatedProfile.isDefault) {
+            this.plugin.settings.storeProfiles.forEach((p, i) => {
+              if (i !== index) p.isDefault = false;
+            });
+          }
+          await this.plugin.saveSettings();
+          this.display();
+        }).open();
+      };
+      const deleteBtn = btnDiv.createEl("button", { text: "Delete" });
+      deleteBtn.onclick = async () => {
+        this.plugin.settings.storeProfiles.splice(index, 1);
+        await this.plugin.saveSettings();
+        this.display();
+      };
+    });
+    new import_obsidian6.Setting(containerEl).addButton((btn) => btn.setButtonText("Add Store Profile").onClick(() => {
+      new StoreProfileModal(this.app, null, async (newProfile) => {
+        this.plugin.settings.storeProfiles.push(newProfile);
+        if (newProfile.isDefault) {
+          this.plugin.settings.storeProfiles.forEach((p) => {
+            if (p !== newProfile) p.isDefault = false;
+          });
+        }
+        await this.plugin.saveSettings();
+        this.display();
+      }).open();
+    }));
     containerEl.createEl("h2", { text: "\u2699\uFE0F Advanced" });
-    new import_obsidian5.Setting(containerEl).setName("Reset to Defaults").setDesc("Reset all settings to their default values.").addButton((button) => button.setButtonText("Reset").setWarning().onClick(async () => {
+    new import_obsidian6.Setting(containerEl).setName("Reset to Defaults").setDesc("Reset all settings to their default values.").addButton((button) => button.setButtonText("Reset").setWarning().onClick(async () => {
       this.plugin.settings = { ...DEFAULT_SETTINGS };
       await this.plugin.saveSettings();
       this.display();
@@ -26399,7 +26639,7 @@ var MiseSettingsTab = class extends import_obsidian5.PluginSettingTab {
 };
 
 // src/ui/views/CookbookView.tsx
-var import_obsidian6 = require("obsidian");
+var import_obsidian7 = require("obsidian");
 var import_client = __toESM(require_client());
 
 // src/ui/components/RecipeContext.tsx
@@ -27544,7 +27784,7 @@ function getMealTooltip(meal) {
 
 // src/ui/views/CookbookView.tsx
 var import_jsx_runtime11 = __toESM(require_jsx_runtime());
-var CookbookView = class extends import_obsidian6.ItemView {
+var CookbookView = class extends import_obsidian7.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.root = null;
@@ -27585,10 +27825,10 @@ var CookbookView = class extends import_obsidian6.ItemView {
 };
 
 // src/ui/views/CookbookSidebar.tsx
-var import_obsidian7 = require("obsidian");
+var import_obsidian8 = require("obsidian");
 var import_client2 = __toESM(require_client());
 var import_jsx_runtime12 = __toESM(require_jsx_runtime());
-var CookbookSidebar = class extends import_obsidian7.ItemView {
+var CookbookSidebar = class extends import_obsidian8.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.root = null;
@@ -27629,11 +27869,11 @@ var CookbookSidebar = class extends import_obsidian7.ItemView {
 };
 
 // src/ui/views/MealPlanView.tsx
-var import_obsidian8 = require("obsidian");
+var import_obsidian9 = require("obsidian");
 var import_client3 = __toESM(require_client());
 var import_jsx_runtime13 = __toESM(require_jsx_runtime());
 var MISE_MEAL_PLAN_VIEW_TYPE = "mise-meal-plan-view";
-var MealPlanView = class extends import_obsidian8.ItemView {
+var MealPlanView = class extends import_obsidian9.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.root = null;
@@ -27671,8 +27911,179 @@ var MealPlanView = class extends import_obsidian8.ItemView {
   }
 };
 
+// src/ui/components/ShoppingListModal.ts
+var import_obsidian10 = require("obsidian");
+var ShoppingListModal = class extends import_obsidian10.Modal {
+  constructor(app, settings, weeks, allItems, onGenerate) {
+    super(app);
+    // State
+    this.step = 1;
+    this.selectedTimeRange = null;
+    this.selectedStoreId = null;
+    this.selectSpecificItems = false;
+    this.itemSelections = /* @__PURE__ */ new Map();
+    this.settings = settings;
+    this.weeks = weeks;
+    this.allItems = allItems;
+    this.onGenerate = onGenerate;
+    for (const item of allItems) {
+      this.itemSelections.set(item.ingredient, true);
+    }
+  }
+  onOpen() {
+    this.renderStep();
+  }
+  renderStep() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("mise-shopping-modal");
+    switch (this.step) {
+      case 1:
+        this.renderTimeRangeStep();
+        break;
+      case 2:
+        this.renderStoreStep();
+        break;
+      case 3:
+        this.renderItemsStep();
+        break;
+    }
+  }
+  renderTimeRangeStep() {
+    const { contentEl } = this;
+    contentEl.createEl("h2", { text: "Select Time Range" });
+    const container = contentEl.createDiv("mise-modal-options");
+    for (const week of this.weeks) {
+      const label = `Week ${week.weekNumber} (${week.startDate} - ${week.endDate})`;
+      new import_obsidian10.Setting(container).setName(label).addToggle((toggle) => {
+        var _a;
+        toggle.setValue(((_a = this.selectedTimeRange) == null ? void 0 : _a.type) === "week" && this.selectedTimeRange.weekNumber === week.weekNumber).onChange(() => {
+          this.selectedTimeRange = {
+            type: "week",
+            weekNumber: week.weekNumber,
+            label
+          };
+          this.renderStep();
+        });
+      });
+    }
+    new import_obsidian10.Setting(container).setName("Entire Month").addToggle((toggle) => {
+      var _a;
+      toggle.setValue(((_a = this.selectedTimeRange) == null ? void 0 : _a.type) === "month").onChange(() => {
+        this.selectedTimeRange = { type: "month", label: "Entire Month" };
+        this.renderStep();
+      });
+    });
+    const navDiv = contentEl.createDiv("mise-modal-nav");
+    const nextBtn = navDiv.createEl("button", { text: "Next \u2192" });
+    nextBtn.disabled = !this.selectedTimeRange;
+    nextBtn.onclick = () => {
+      if (this.selectedTimeRange) {
+        this.step = 2;
+        this.renderStep();
+      }
+    };
+  }
+  renderStoreStep() {
+    const { contentEl } = this;
+    contentEl.createEl("h2", { text: "Select Store" });
+    const container = contentEl.createDiv("mise-modal-options");
+    new import_obsidian10.Setting(container).setName("General (default)").setDesc("Uses default aisle categories").addToggle((toggle) => {
+      toggle.setValue(this.selectedStoreId === null).onChange(() => {
+        this.selectedStoreId = null;
+        this.renderStep();
+      });
+    });
+    for (const profile of this.settings.storeProfiles) {
+      new import_obsidian10.Setting(container).setName(profile.name).addToggle((toggle) => {
+        toggle.setValue(this.selectedStoreId === profile.id).onChange(() => {
+          this.selectedStoreId = profile.id;
+          this.renderStep();
+        });
+      });
+    }
+    contentEl.createEl("hr");
+    new import_obsidian10.Setting(contentEl).setName("Select specific items").setDesc("Choose which items to include in this list").addToggle((toggle) => {
+      toggle.setValue(this.selectSpecificItems).onChange((value) => {
+        this.selectSpecificItems = value;
+      });
+    });
+    const navDiv = contentEl.createDiv("mise-modal-nav");
+    const backBtn = navDiv.createEl("button", { text: "\u2190 Back" });
+    backBtn.onclick = () => {
+      this.step = 1;
+      this.renderStep();
+    };
+    const nextBtn = navDiv.createEl("button", {
+      text: this.selectSpecificItems ? "Next \u2192" : "Generate"
+    });
+    nextBtn.onclick = () => {
+      if (this.selectSpecificItems) {
+        this.step = 3;
+        this.renderStep();
+      } else {
+        this.complete();
+      }
+    };
+  }
+  renderItemsStep() {
+    var _a;
+    const { contentEl } = this;
+    contentEl.createEl("h2", { text: "Select Items" });
+    const btnRow = contentEl.createDiv("mise-modal-btn-row");
+    const selectAllBtn = btnRow.createEl("button", { text: "Select All" });
+    selectAllBtn.onclick = () => {
+      for (const item of this.allItems) {
+        this.itemSelections.set(item.ingredient, true);
+      }
+      this.renderStep();
+    };
+    const selectNoneBtn = btnRow.createEl("button", { text: "Select None" });
+    selectNoneBtn.onclick = () => {
+      for (const item of this.allItems) {
+        this.itemSelections.set(item.ingredient, false);
+      }
+      this.renderStep();
+    };
+    const container = contentEl.createDiv("mise-modal-items");
+    for (const item of this.allItems) {
+      const itemDiv = container.createDiv("mise-modal-item");
+      const checkbox = itemDiv.createEl("input", { type: "checkbox" });
+      checkbox.checked = (_a = this.itemSelections.get(item.ingredient)) != null ? _a : true;
+      checkbox.onchange = () => {
+        this.itemSelections.set(item.ingredient, checkbox.checked);
+      };
+      itemDiv.createSpan({ text: item.ingredient });
+      if (item.fromRecipes.length > 0) {
+        const recipeSpan = itemDiv.createSpan({ cls: "mise-modal-item-recipes" });
+        recipeSpan.setText(`(${item.fromRecipes.join(", ")})`);
+      }
+    }
+    const navDiv = contentEl.createDiv("mise-modal-nav");
+    const backBtn = navDiv.createEl("button", { text: "\u2190 Back" });
+    backBtn.onclick = () => {
+      this.step = 2;
+      this.renderStep();
+    };
+    const generateBtn = navDiv.createEl("button", { text: "Generate" });
+    generateBtn.onclick = () => this.complete();
+  }
+  complete() {
+    const selectedItems = this.selectSpecificItems ? this.allItems.filter((item) => this.itemSelections.get(item.ingredient)) : null;
+    this.onGenerate({
+      timeRange: this.selectedTimeRange,
+      storeId: this.selectedStoreId,
+      selectedItems
+    });
+    this.close();
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+};
+
 // src/main.ts
-var MisePlugin = class extends import_obsidian9.Plugin {
+var MisePlugin = class extends import_obsidian11.Plugin {
   async onload() {
     console.log(`${PLUGIN_NAME}: Loading plugin...`);
     await this.loadSettings();
@@ -27723,15 +28134,35 @@ var MisePlugin = class extends import_obsidian9.Plugin {
       id: "generate-shopping-list",
       name: "Generate Shopping List",
       callback: async () => {
-        const list = await this.shoppingListService.generateListForMonth();
-        console.log(`${PLUGIN_NAME}: Generated shopping list:`, list);
-        console.log(`${PLUGIN_NAME}: Aisles:`, list.aisles.map((a) => `${a.name} (${a.items.length} items)`));
-        for (const aisle of list.aisles) {
-          console.log(`  ${aisle.name}:`);
-          for (const item of aisle.items) {
-            console.log(`    - ${item.ingredient} (from: ${item.fromRecipes.join(", ")})`);
+        const weeks = await this.mealPlanService.getWeeksInfo();
+        const monthList = await this.shoppingListService.generateListForMonth();
+        const allItems = monthList.aisles.flatMap((aisle) => aisle.items);
+        const modal = new ShoppingListModal(
+          this.app,
+          this.settings,
+          weeks,
+          allItems,
+          async (result) => {
+            console.log(`${PLUGIN_NAME}: Generating shopping list with:`, result);
+            let list;
+            if (result.timeRange.type === "month") {
+              list = await this.shoppingListService.generateListForMonth(void 0, void 0, result.storeId || void 0);
+            } else {
+              list = await this.shoppingListService.generateListForWeek(result.timeRange.weekNumber, void 0, void 0, result.storeId || void 0);
+            }
+            if (result.selectedItems) {
+              const selectedSet = new Set(result.selectedItems.map((i) => i.ingredient));
+              for (const aisle of list.aisles) {
+                aisle.items = aisle.items.filter((item) => selectedSet.has(item.ingredient));
+              }
+              list.aisles = list.aisles.filter((a) => a.items.length > 0);
+            }
+            console.log(`${PLUGIN_NAME}: Generated list for ${result.timeRange.label}:`);
+            console.log(`${PLUGIN_NAME}: Store: ${result.storeId || "General"}`);
+            console.log(`${PLUGIN_NAME}: Aisles:`, list.aisles.map((a) => `${a.name} (${a.items.length} items)`));
           }
-        }
+        );
+        modal.open();
       }
     });
     this.addCommand({

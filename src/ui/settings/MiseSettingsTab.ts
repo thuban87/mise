@@ -6,8 +6,9 @@
 
 import { App, PluginSettingTab, Setting, TFolder } from 'obsidian';
 import type MisePlugin from '../../main';
-import { DEFAULT_SETTINGS, MiseSettings } from '../../types';
+import { DEFAULT_SETTINGS, MiseSettings, StoreProfile } from '../../types';
 import { FolderSuggest } from '../components/FolderSuggest';
+import { StoreProfileModal } from './StoreProfileModal';
 
 export class MiseSettingsTab extends PluginSettingTab {
     plugin: MisePlugin;
@@ -160,22 +161,80 @@ export class MiseSettingsTab extends PluginSettingTab {
                 }));
 
         // ========================================
-        // Aisle Configuration (Future)
+        // Store Profiles
         // ========================================
-        containerEl.createEl('h2', { text: '🏪 Aisle Configuration' });
+        containerEl.createEl('h2', { text: '🏪 Store Profiles' });
         containerEl.createEl('p', {
-            text: 'Customize how ingredients are grouped into aisles. (Coming in a future update)',
+            text: 'Create custom aisle configurations for your favorite stores.',
             cls: 'mise-settings-description'
         });
 
-        // Show current aisles as read-only for now
-        const aisleList = containerEl.createEl('div', { cls: 'mise-aisle-list' });
-        for (const aisle of this.plugin.settings.aisles) {
-            aisleList.createEl('p', {
-                text: `• ${aisle.name}: ${aisle.keywords.slice(0, 5).join(', ')}...`,
-                cls: 'mise-settings-description'
+        const profilesContainer = containerEl.createDiv('mise-store-profiles');
+
+        // List existing profiles
+        this.plugin.settings.storeProfiles.forEach((profile, index) => {
+            const profileDiv = profilesContainer.createDiv('mise-profile-item');
+            profileDiv.addClass('mise-card'); // Use card styling
+            profileDiv.style.marginBottom = '10px';
+            profileDiv.style.padding = '10px';
+            profileDiv.style.display = 'flex';
+            profileDiv.style.alignItems = 'center';
+            profileDiv.style.justifyContent = 'space-between';
+
+            const infoDiv = profileDiv.createDiv();
+            infoDiv.createEl('strong', { text: profile.name });
+            if (profile.isDefault) {
+                infoDiv.createEl('span', { text: ' (Default)', cls: 'mise-tag' });
+            }
+            const detailsDiv = infoDiv.createDiv({
+                text: `${profile.aisles.length} aisle mappings`,
+                cls: 'mise-text-muted'
             });
-        }
+            detailsDiv.style.fontSize = '0.8em';
+
+            const btnDiv = profileDiv.createDiv();
+            btnDiv.style.display = 'flex';
+            btnDiv.style.gap = '5px';
+
+            const editBtn = btnDiv.createEl('button', { text: 'Edit' });
+            editBtn.onclick = () => {
+                new StoreProfileModal(this.app, profile, async (updatedProfile: StoreProfile) => {
+                    this.plugin.settings.storeProfiles[index] = updatedProfile;
+                    // Ensure only one default
+                    if (updatedProfile.isDefault) {
+                        this.plugin.settings.storeProfiles.forEach((p, i) => {
+                            if (i !== index) p.isDefault = false;
+                        });
+                    }
+                    await this.plugin.saveSettings();
+                    this.display();
+                }).open();
+            };
+
+            const deleteBtn = btnDiv.createEl('button', { text: 'Delete' });
+            deleteBtn.onclick = async () => {
+                this.plugin.settings.storeProfiles.splice(index, 1);
+                await this.plugin.saveSettings();
+                this.display();
+            };
+        });
+
+        new Setting(containerEl)
+            .addButton(btn => btn
+                .setButtonText('Add Store Profile')
+                .onClick(() => {
+                    new StoreProfileModal(this.app, null, async (newProfile: StoreProfile) => {
+                        this.plugin.settings.storeProfiles.push(newProfile);
+                        // Ensure only one default
+                        if (newProfile.isDefault) {
+                            this.plugin.settings.storeProfiles.forEach(p => {
+                                if (p !== newProfile) p.isDefault = false;
+                            });
+                        }
+                        await this.plugin.saveSettings();
+                        this.display();
+                    }).open();
+                }));
 
         // ========================================
         // Reset to Defaults

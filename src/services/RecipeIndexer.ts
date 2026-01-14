@@ -360,6 +360,12 @@ export class RecipeIndexer extends Events {
      */
     async exportToJson(): Promise<void> {
         const exportPath = 'System/Mise/recipe-index.json';
+        const folderPath = 'System/Mise';
+
+        // Ensure folder exists
+        if (!(this.app.vault.getAbstractFileByPath(folderPath) instanceof TFolder)) {
+            await this.app.vault.createFolder(folderPath);
+        }
 
         // Build simplified export format
         const exportData = this.getRecipes().map(recipe => ({

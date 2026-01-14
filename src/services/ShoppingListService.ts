@@ -6,7 +6,7 @@
  */
 
 import { App } from 'obsidian';
-import { ShoppingList, ShoppingMode, MiseSettings, Aisle, ShoppingItem, PlannedMeal, Recipe } from '../types';
+import { ShoppingList, ShoppingMode, MiseSettings, Aisle, ShoppingItem, PlannedMeal, Recipe, StoreProfile } from '../types';
 import { RecipeIndexer } from './RecipeIndexer';
 import { MealPlanService } from './MealPlanService';
 import { parseIngredientQuantity, normalizeIngredient, ParsedIngredient } from '../parsers/IngredientParser';
@@ -157,7 +157,7 @@ export class ShoppingListService {
     /**
      * Generate a shopping list for a week number
      */
-    async generateListForWeek(weekNumber: number, month?: string, year?: number): Promise<ShoppingList> {
+    async generateListForWeek(weekNumber: number, month?: string, year?: number, storeId?: string): Promise<ShoppingList> {
         console.log(`ShoppingListService: Generating list for Week ${weekNumber}`);
 
         const now = new Date();
@@ -176,8 +176,11 @@ export class ShoppingListService {
         const aggregated = this.aggregateIngredients(ingredients);
         console.log(`ShoppingListService: Aggregated to ${aggregated.length} unique items`);
 
+        // Get store profile
+        const storeProfile = storeId ? this.settings.storeProfiles.find(p => p.id === storeId) : undefined;
+
         // Group by aisle
-        const aisles = this.groupByAisle(aggregated);
+        const aisles = this.groupByAisle(aggregated, storeProfile);
 
         return {
             generatedAt: new Date().toISOString(),
@@ -193,7 +196,7 @@ export class ShoppingListService {
     /**
      * Generate a shopping list for an entire month
      */
-    async generateListForMonth(month?: string, year?: number): Promise<ShoppingList> {
+    async generateListForMonth(month?: string, year?: number, storeId?: string): Promise<ShoppingList> {
         const now = new Date();
         const targetMonth = month || this.getMonthName(now.getMonth());
         const targetYear = year || now.getFullYear();
@@ -212,8 +215,11 @@ export class ShoppingListService {
         const aggregated = this.aggregateIngredients(ingredients);
         console.log(`ShoppingListService: Aggregated to ${aggregated.length} unique items`);
 
+        // Get store profile
+        const storeProfile = storeId ? this.settings.storeProfiles.find(p => p.id === storeId) : undefined;
+
         // Group by aisle
-        const aisles = this.groupByAisle(aggregated);
+        const aisles = this.groupByAisle(aggregated, storeProfile);
 
         return {
             generatedAt: new Date().toISOString(),
@@ -276,18 +282,19 @@ export class ShoppingListService {
 
         for (const meal of meals) {
             if (!meal.recipePath) continue;
+            const recipePath = meal.recipePath;
 
             // Get recipe from indexer - try full path first, then search by title
-            let recipe = this.indexer.getRecipe(meal.recipePath);
+            let recipe = this.indexer.getRecipe(recipePath);
 
             if (!recipe) {
                 // Try to find by title or filename (recipePath might just be filename)
-                const searchTitle = meal.recipePath.replace(/\.md$/i, '');
+                const searchTitle = recipePath.replace(/\.md$/i, '');
                 const allRecipes = this.indexer.getRecipes();
                 recipe = allRecipes.find(r =>
                     r.title.toLowerCase() === searchTitle.toLowerCase() ||
-                    r.path.toLowerCase().endsWith(`/${meal.recipePath.toLowerCase()}`) ||
-                    r.path.toLowerCase() === meal.recipePath.toLowerCase()
+                    r.path.toLowerCase().endsWith(`/${recipePath.toLowerCase()}`) ||
+                    r.path.toLowerCase() === recipePath.toLowerCase()
                 );
             }
 
@@ -341,17 +348,54 @@ export class ShoppingListService {
     /**
      * Group ingredients by inferred aisle
      */
-    private groupByAisle(ingredients: AggregatedIngredient[]): Aisle[] {
-        const aisleMap = new Map<string, { emoji: string; items: ShoppingItem[] }>();
+    private groupByAisle(ingredients: AggregatedIngredient[], storeProfile?: StoreProfile): Aisle[] {
+        const aisleMap = new Map<string, { sortKey: string; items: ShoppingItem[] }>();
 
         for (const ing of ingredients) {
-            const aisle = this.inferAisle(ing.normalized);
+            let aisleName = '';
+            let sortKey = '';
 
-            if (!aisleMap.has(aisle.name)) {
-                aisleMap.set(aisle.name, { emoji: aisle.emoji, items: [] });
+            // 1. Try Store Profile Mapping
+            if (storeProfile) {
+                for (const mapping of storeProfile.aisles) {
+                    // Check strict match or partial? Standard rules use partial.
+                    // Store profiles might be specific. Let's use includes (case-insensitive) to be flexible.
+                    if (mapping.keywords.some(k => ing.normalized.includes(k.toLowerCase()))) {
+                        // Found mapping
+                        // Name: "8 - Spices" or just "Spices"
+                        const prefix = mapping.aisleNumber ? `${mapping.aisleNumber} - ` : '';
+                        aisleName = `${prefix}${mapping.aisleName}`;
+
+                        // Sort Key: "008" (for "8") or "z_Spices"
+                        const numMatch = mapping.aisleNumber.match(/^(\d+)/);
+                        if (numMatch) {
+                            sortKey = numMatch[1].padStart(3, '0');
+                        } else {
+                            sortKey = `z_${mapping.aisleName}`;
+                        }
+                        break;
+                    }
+                }
             }
 
-            aisleMap.get(aisle.name)!.items.push({
+            // 2. Fallback to Default Rules
+            if (!aisleName) {
+                const aisle = this.inferAisle(ing.normalized);
+                aisleName = `${aisle.emoji} ${aisle.name}`;
+
+                // Sort key for defaults
+                const aisleOrder = ['Produce', 'Meat', 'Dairy', 'Bakery', 'Frozen', 'Pantry', 'Other'];
+                let idx = aisleOrder.indexOf(aisle.name);
+                if (idx === -1) idx = 99;
+                // Prefix with 'zz' to ensure they come after numbered aisles
+                sortKey = `zz_${idx.toString().padStart(2, '0')}`;
+            }
+
+            if (!aisleMap.has(aisleName)) {
+                aisleMap.set(aisleName, { sortKey, items: [] });
+            }
+
+            aisleMap.get(aisleName)!.items.push({
                 ingredient: ing.original,
                 quantity: ing.parsed.quantity || undefined,
                 fromRecipes: ing.fromRecipes,
@@ -359,21 +403,16 @@ export class ShoppingListService {
             });
         }
 
-        // Convert to array, sorted by aisle name
         const aisles: Aisle[] = [];
         for (const [name, data] of aisleMap) {
-            aisles.push({
-                name: `${data.emoji} ${name}`,
-                items: data.items,
-            });
+            aisles.push({ name, items: data.items });
         }
 
-        // Sort aisles in a logical order
-        const aisleOrder = ['Produce', 'Meat', 'Dairy', 'Bakery', 'Frozen', 'Pantry', 'Other'];
+        // Sort aisles
         aisles.sort((a, b) => {
-            const aBase = a.name.replace(/^[^\w]+/, '').trim();
-            const bBase = b.name.replace(/^[^\w]+/, '').trim();
-            return aisleOrder.indexOf(aBase) - aisleOrder.indexOf(bBase);
+            const keyA = aisleMap.get(a.name)!.sortKey;
+            const keyB = aisleMap.get(b.name)!.sortKey;
+            return keyA.localeCompare(keyB);
         });
 
         return aisles;
