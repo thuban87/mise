@@ -1,0 +1,36 @@
+{
+	"name": "mise",
+	"version": "0.0.1",
+	"description": "A culinary operating system for Obsidian - recipe discovery, meal planning, and shopping lists",
+	"main": "main.js",
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "node esbuild.config.mjs production",
+		"deploy": "npm run build && powershell -Command \"$d='G:\\My Drive\\IT\\Obsidian Vault\\My Notebooks\\.obsidian\\plugins\\mise'; New-Item -ItemType Directory -Force -Path $d; Copy-Item main.js,styles.css,manifest.json $d -Force\""
+	},
+	"keywords": [
+		"obsidian",
+		"plugin",
+		"recipes",
+		"meal-planning",
+		"shopping-list",
+		"cookbook"
+	],
+	"author": "Brad Wales",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/thuban87/mise.git"
+	},
+	"bugs": {
+		"url": "https://github.com/thuban87/mise/issues"
+	},
+	"homepage": "https://github.com/thuban87/mise#readme",
+	"devDependencies": {
+		"@types/node": "^22.0.0",
+		"builtin-modules": "^4.0.0",
+		"esbuild": "^0.24.0",
+		"obsidian": "latest",
+		"typescript": "^5.0.0"
+	}
+}

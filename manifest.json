@@ -1,0 +1,10 @@
+{
+    "id": "mise",
+    "name": "Mise",
+    "version": "0.0.1",
+    "minAppVersion": "1.0.0",
+    "description": "A culinary operating system for Obsidian - recipe discovery, meal planning, and shopping lists",
+    "author": "Brad Wales",
+    "authorUrl": "https://github.com/thuban87",
+    "isDesktopOnly": false
+}

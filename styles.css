@@ -1,0 +1,46 @@
+/* Mise Plugin Styles */
+
+/* ===========================
+   CSS Variables (Theme-Safe)
+   =========================== */
+.mise-container {
+	--mise-card-radius: 8px;
+	--mise-card-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+	--mise-spacing-sm: 8px;
+	--mise-spacing-md: 16px;
+	--mise-spacing-lg: 24px;
+}
+
+/* ===========================
+   Recipe Cards (Phase 6)
+   =========================== */
+.mise-recipe-card {
+	background: var(--background-secondary);
+	border-radius: var(--mise-card-radius);
+	box-shadow: var(--mise-card-shadow);
+	overflow: hidden;
+	transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mise-recipe-card:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* ===========================
+   Settings Tab
+   =========================== */
+.mise-settings-section {
+	margin-bottom: var(--mise-spacing-lg);
+}
+
+.mise-settings-section h3 {
+	margin-bottom: var(--mise-spacing-sm);
+	color: var(--text-normal);
+}
+
+.mise-settings-description {
+	color: var(--text-muted);
+	font-size: 0.9em;
+	margin-bottom: var(--mise-spacing-md);
+}
