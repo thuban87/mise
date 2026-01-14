@@ -14,6 +14,7 @@ import { RecipeIndexer, MealPlanService, ShoppingListService, TimeMigrationServi
 import { MiseSettingsTab } from './ui/settings/MiseSettingsTab';
 import { CookbookView, CookbookSidebar, MealPlanView, MISE_MEAL_PLAN_VIEW_TYPE } from './ui/views';
 import { PLUGIN_NAME, MISE_COOKBOOK_VIEW_TYPE, MISE_SIDEBAR_VIEW_TYPE } from './utils/constants';
+import { ShoppingListModal } from './ui/components/ShoppingListModal';
 
 export default class MisePlugin extends Plugin {
     settings: MiseSettings;
@@ -35,6 +36,9 @@ export default class MisePlugin extends Plugin {
         this.mealPlanService = new MealPlanService(this.app, this.settings);
         this.shoppingListService = new ShoppingListService(this.app, this.settings, this.indexer);
         this.timeMigration = new TimeMigrationService(this.app, this.settings);
+
+        // Wire up service dependencies
+        this.shoppingListService.setMealPlanService(this.mealPlanService);
 
         // Initialize indexer immediately
         this.indexer.initialize();
@@ -89,9 +93,48 @@ export default class MisePlugin extends Plugin {
         this.addCommand({
             id: 'generate-shopping-list',
             name: 'Generate Shopping List',
-            callback: () => {
-                // TODO: Phase 13 - Generate shopping list
-                console.log(`${PLUGIN_NAME}: Generate Shopping List command (not yet implemented)`);
+            callback: async () => {
+                // Get weeks info from meal plan
+                const weeks = await this.mealPlanService.getWeeksInfo();
+
+                // Get all items (for the entire month as baseline)
+                const monthList = await this.shoppingListService.generateListForMonth();
+                const allItems = monthList.aisles.flatMap(aisle => aisle.items);
+
+                // Show the modal
+                const modal = new ShoppingListModal(
+                    this.app,
+                    this.settings,
+                    weeks,
+                    allItems,
+                    async (result) => {
+                        console.log(`${PLUGIN_NAME}: Generating shopping list with:`, result);
+
+                        // Generate based on time range
+                        let list;
+                        if (result.timeRange.type === 'month') {
+                            list = await this.shoppingListService.generateListForMonth(undefined, undefined, result.storeId || undefined);
+                        } else {
+                            list = await this.shoppingListService.generateListForWeek(result.timeRange.weekNumber, undefined, undefined, result.storeId || undefined);
+                        }
+
+                        // Filter items if user selected specific ones
+                        if (result.selectedItems) {
+                            const selectedSet = new Set(result.selectedItems.map(i => i.ingredient));
+                            for (const aisle of list.aisles) {
+                                aisle.items = aisle.items.filter(item => selectedSet.has(item.ingredient));
+                            }
+                            // Remove empty aisles
+                            list.aisles = list.aisles.filter(a => a.items.length > 0);
+                        }
+
+                        // Log results (Phase 13 will write to file)
+                        console.log(`${PLUGIN_NAME}: Generated list for ${result.timeRange.label}:`);
+                        console.log(`${PLUGIN_NAME}: Store: ${result.storeId || 'General'}`);
+                        console.log(`${PLUGIN_NAME}: Aisles:`, list.aisles.map(a => `${a.name} (${a.items.length} items)`));
+                    }
+                );
+                modal.open();
             }
         });
 
@@ -121,6 +164,15 @@ export default class MisePlugin extends Plugin {
                         }
                     }
                 }
+            }
+        });
+
+        this.addCommand({
+            id: 'export-recipe-index',
+            name: 'Export Recipe Index to JSON',
+            callback: async () => {
+                await this.indexer.exportToJson();
+                console.log(`${PLUGIN_NAME}: Recipe index exported to System/Mise/recipe-index.json`);
             }
         });
 

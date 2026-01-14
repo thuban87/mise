@@ -235,13 +235,34 @@ export function parseIngredientQuantity(ingredientStr: string): ParsedIngredient
     };
 }
 
+// Common preparation words to strip for normalization
+const PREP_WORDS = [
+    'minced', 'diced', 'chopped', 'sliced', 'crushed', 'grated', 'shredded',
+    'peeled', 'cubed', 'halved', 'quartered', 'whole', 'fresh', 'dried',
+    'ground', 'powder', 'powdered', 'leaves', 'leaf', 'large', 'medium', 'small'
+];
+
 /**
  * Normalize an ingredient for comparison/deduplication
- * Lowercase, remove plurals, simplify whitespace
+ * Lowercase, remove plurals, remove prep words, simplify whitespace
  */
 export function normalizeIngredient(ingredient: string): string {
-    return ingredient
-        .toLowerCase()
+    let normalized = ingredient.toLowerCase();
+
+    // Remove prep words
+    for (const word of PREP_WORDS) {
+        const regex = new RegExp(`\\b${word}\\b`, 'gi');
+        normalized = normalized.replace(regex, '');
+    }
+
+    // Remove plural 's' at end of words (simple heuristic)
+    // Be careful not to break words like "success" or "mess", but for ingredients
+    // like "onions" -> "onion", "cloves" -> "clove" it helps.
+    // Ideally this would be smarter, but simplistic works for many.
+    normalized = normalized.replace(/s\b/g, '');
+
+    return normalized
+        .replace(/[^\w\s]/g, '') // Remove punctuation
         .replace(/\s+/g, ' ')
         .trim();
 }

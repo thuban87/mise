@@ -37,6 +37,56 @@ Each session should include:
 
 ---
 
+## Session: January 14, 2026 - Store Profiles & Shopping List Wizard
+
+### Phase
+Phase 12.5: Store Profiles & Shopping List Refinement
+
+### Session Summary
+Implemented robust store-specific shopping list generation. Created a Store Profile management system (Settings UI) allowing users to define custom aisle layouts and keywords. Developed a 3-step "Generate Shopping List" wizard (Time Range -> Store -> Items) to replace the simple command. Updated `ShoppingListService` to categorize ingredients based on the selected store's mappings, falling back to default rules where needed. Enhanced ingredient consolidation by stripping prep words.
+
+### What Was Done
+
+| Task | Details |
+|------|--------|
+| `StoreProfileModal.ts` | New modal for adding/editing store profiles and aisle mappings |
+| `ShoppingListModal.ts` | New multi-step wizard for generating lists |
+| `MiseSettingsTab.ts` | Integrated Store Profiles section with Add/Edit/Delete actions |
+| `ShoppingListService.ts` | Updated `generateListForWeek/Month` to accept `storeId`, refactored `groupByAisle` to prioritize profile mappings |
+| `IngredientParser.ts` | Updated `normalizeIngredient` to strip prep words (minced, diced, etc.) for better consolidation |
+| `styles.css` | Added styles for new modals, fixed width/overflow issues |
+| `RecipeIndexer.ts` | Fixed crash when creating existing export folder |
+
+### Key Technical Discoveries
+
+| Issue | Solution |
+|-------|----------|
+| Empty Aisles | Custom aisles with no matching keywords were disappearing. Confirmed this is intended behavior (empty aisles are filtered). User must add keywords. |
+| Modal Overflow | Store Profile modal was too narrow/overflowing. Fixed by targeting `modalEl` directly with `width: 750px`. |
+
+### What Was Tested
+- [x] Create Store Profile (e.g., "My Local Grocery") with custom aisles
+- [x] Edit/Delete Store Profiles
+- [x] Generate List Wizard: Select Week -> Select Store -> Select Items
+- [x] Generated list respects store-specific aisle sorting (numbered aisles first)
+- [x] Ingredients consolidate correctly (e.g., "minced garlic" + "diced garlic" -> "garlic")
+
+### Recommended Commit
+```
+feat(shopping): store profiles and generation wizard
+
+- Add Store Profiles settings (custom aisles/keywords)
+- Add Shopping List Wizard (Time/Store/Items selection)
+- Update ShoppingListService to use store-specific aisle mappings
+- Enhance ingredient consolidation (strip prep words)
+- Fix RecipeIndexer export bug
+```
+
+### Next Session Prompt
+Phase 13: Shopping List Writer - Implement `ShoppingListService.writeListToFile()` to output formatted markdown files.
+
+---
+
 ## Session: January 14, 2026 - Phase 11 Drag-and-Drop Complete
 
 ### Phase

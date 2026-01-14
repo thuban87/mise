@@ -253,8 +253,11 @@ export interface MiseSettings {
     /** Auto-archive behavior: 'on', 'off', or 'ask' */
     autoArchiveShoppingLists: 'on' | 'off' | 'ask';
 
-    /** Custom aisle configuration */
+    /** Custom aisle configuration (default/general) */
     aisles: AisleConfig[];
+
+    /** Store-specific profiles with custom aisle mappings */
+    storeProfiles: StoreProfile[];
 
     /** What to insert when dropping a recipe on a meal plan */
     mealPlanInsertOptions: MealPlanInsertOptions;
@@ -294,6 +297,41 @@ export interface MealPlanInsertOptions {
     includeSource: boolean;
 }
 
+// ============================================================================
+// Store Profile Types
+// ============================================================================
+
+/**
+ * A store profile with custom aisle mappings
+ */
+export interface StoreProfile {
+    /** Unique identifier (e.g., "jewel", "marianos") */
+    id: string;
+
+    /** Display name (e.g., "Jewel-Osco") */
+    name: string;
+
+    /** Whether this is the default store */
+    isDefault: boolean;
+
+    /** Custom aisle mappings for this store */
+    aisles: StoreAisleMapping[];
+}
+
+/**
+ * Maps keywords to a specific aisle at a store
+ */
+export interface StoreAisleMapping {
+    /** Aisle name/label (user can include emoji, e.g., "🥫 Spices") */
+    aisleName: string;
+
+    /** Aisle number or location (e.g., "8", "Back Wall") */
+    aisleNumber: string;
+
+    /** Keywords that map to this aisle (overrides defaults) */
+    keywords: string[];
+}
+
 /**
  * Default settings values
  */
@@ -311,6 +349,7 @@ export const DEFAULT_SETTINGS: MiseSettings = {
         { name: 'Frozen', keywords: ['frozen', 'ice cream'] },
         { name: 'Beverages', keywords: ['soda', 'juice', 'water', 'coffee', 'tea'] },
     ],
+    storeProfiles: [],
     mealPlanInsertOptions: {
         includeLink: true,
         includeServings: false,

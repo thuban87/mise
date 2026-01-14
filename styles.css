@@ -1316,3 +1316,206 @@
 .mise-meal-draggable:active {
 	cursor: grabbing !important;
 }
+
+/* ===========================
+   Shopping List Modal
+   =========================== */
+.mise-shopping-modal {
+	padding: var(--size-4-4);
+	min-width: 400px;
+}
+
+.mise-shopping-modal h2 {
+	margin: 0 0 var(--size-4-4) 0;
+	font-size: 1.3em;
+	font-weight: 600;
+}
+
+.mise-modal-options {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+	margin-bottom: var(--size-4-4);
+}
+
+.mise-modal-options .setting-item {
+	border: none;
+	padding: var(--size-4-2) var(--size-4-3);
+	background: var(--background-secondary);
+	border-radius: var(--radius-s);
+}
+
+.mise-modal-options .setting-item:hover {
+	background: var(--background-modifier-hover);
+}
+
+.mise-modal-btn-row {
+	display: flex;
+	gap: var(--size-4-2);
+	margin-bottom: var(--size-4-3);
+}
+
+.mise-modal-btn-row button {
+	padding: var(--size-4-1) var(--size-4-3);
+	font-size: 0.85em;
+}
+
+.mise-modal-items {
+	max-height: 300px;
+	overflow-y: auto;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	padding: var(--size-4-2);
+	margin-bottom: var(--size-4-4);
+}
+
+.mise-modal-item {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding: var(--size-4-1) 0;
+	border-bottom: 1px solid var(--background-modifier-border-hover);
+}
+
+.mise-modal-item:last-child {
+	border-bottom: none;
+}
+
+.mise-modal-item input[type="checkbox"] {
+	flex-shrink: 0;
+}
+
+.mise-modal-item-recipes {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	margin-left: auto;
+}
+
+.mise-modal-nav {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--size-4-2);
+	margin-top: var(--size-4-4);
+	padding-top: var(--size-4-3);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.mise-modal-nav button {
+	padding: var(--size-4-2) var(--size-4-4);
+}
+
+/* ===========================
+   Store Profile Modal
+   =========================== */
+
+/* Target the Modal Container (Outside) directly */
+.mise-modal-wide {
+	width: 750px !important;
+	/* Force width override */
+	max-width: 90vw !important;
+}
+
+.mise-store-profile-modal {
+	padding: var(--size-4-4);
+	/* Content fills the container */
+	width: 100%;
+}
+
+.mise-aisles-container {
+	max-height: 400px;
+	overflow-y: auto;
+	overflow-x: hidden;
+	padding-right: var(--size-4-2);
+	margin-bottom: var(--size-4-4);
+}
+
+.mise-aisle-item {
+	background: var(--background-secondary);
+	padding: var(--size-4-3);
+	border-radius: var(--radius-m);
+	margin-bottom: var(--size-4-3);
+	border: 1px solid var(--background-modifier-border);
+}
+
+/* Header for the Aisle (Number | Name | Delete) */
+.mise-aisle-header {
+	display: flex;
+	gap: var(--size-4-2);
+	align-items: center;
+	/* Center alignment (revert flex-start) */
+	margin-bottom: var(--size-4-2);
+}
+
+.mise-aisle-header .setting-item {
+	border: none;
+	padding: 0;
+	margin: 0;
+}
+
+/* Specific widths for inputs inside the header */
+.mise-aisle-number-setting {
+	width: 80px;
+	flex-shrink: 0;
+}
+
+.mise-aisle-number-setting input {
+	width: 100% !important;
+}
+
+.mise-aisle-name-setting {
+	flex-grow: 1;
+}
+
+.mise-aisle-name-setting input {
+	width: 100% !important;
+}
+
+
+.mise-aisle-main-row {
+	display: flex;
+	gap: var(--size-4-2);
+	align-items: flex-start;
+	/* Align to top to handle potential multi-line errors */
+}
+
+/* Ensure inputs in the row align nicely */
+.mise-aisle-main-row .setting-item {
+	border: none;
+	padding: 0;
+	margin: 0;
+}
+
+.mise-aisle-main-row input[type="text"] {
+	width: 100%;
+}
+
+.mise-aisle-delete-btn {
+	/* Center vertically relative to the input height (approx 30px) */
+	align-self: flex-start;
+	margin-top: 5px;
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.mise-aisle-delete-btn:hover {
+	color: var(--text-error);
+	background: transparent;
+}
+
+.mise-aisle-keywords {
+	margin-top: var(--size-4-2);
+}
+
+.mise-aisle-keywords span {
+	display: block;
+	font-size: 0.8em;
+	color: var(--text-muted);
+	margin-bottom: var(--size-4-1);
+}
+
+.mise-add-aisle-btn {
+	width: 100%;
+	display: flex;
+	justify-content: center;
+	margin-top: var(--size-4-2);
+}

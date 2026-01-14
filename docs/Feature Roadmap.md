@@ -484,32 +484,40 @@ interface ShoppingItem {
 
 ### Phase 12: Ingredient Aggregator
 - **Goal:** Combine ingredients from planned meals.
-- **Status:** `[ ]` Not Started
+- **Status:** `[x]` Complete
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Create `ShoppingListService` | `[ ]` | Service class |
-| Collect recipes from date range | `[ ]` | Week or custom |
-| Extract all ingredients | `[ ]` | From Recipe objects |
-| Group by aisle | `[ ]` | Inferred or configured |
-| Deduplicate items | `[ ]` | Basic string matching |
-| Track which recipes need each item | `[ ]` | For reference |
-
-**Aisle Inference Rules:**
-| Keywords | Aisle |
-|----------|-------|
-| milk, cheese, butter, cream, yogurt | Dairy |
-| chicken, beef, pork, steak, ground | Meat |
-| lettuce, tomato, onion, garlic, pepper, apple, lemon | Produce |
-| bread, buns, tortillas | Bakery |
-| pasta, rice, flour, sugar, oil, vinegar, sauce | Pantry |
-| (default) | Other |
+| Create `ShoppingListService` | `[x]` | Service class with full implementation |
+| Collect recipes from date range | `[x]` | Week number based (month/year aware) |
+| Extract all ingredients | `[x]` | From Recipe objects via RecipeIndexer |
+| Group by aisle | `[x]` | Keyword-based inference |
+| Deduplicate items | `[x]` | Normalized string matching |
+| Track which recipes need each item | `[x]` | Arrays of recipe names per item |
 
 **Acceptance Criteria:**
-- [ ] All planned recipes' ingredients collected
-- [ ] Items grouped by aisle
-- [ ] Duplicate items grouped together
-- [ ] Recipe source tracked per item
+- [x] All planned recipes' ingredients collected
+- [x] Items grouped by aisle  
+- [x] Duplicate items grouped together
+- [x] Recipe source tracked per item
+
+---
+
+### Phase 12.5: Store Profiles & Shopping List Refinement
+- **Goal:** Customizable aisle configurations and guided list generation.
+- **Status:** `[x]` Complete
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Define Store Profile models | `[x]` | `StoreProfile`, `AisleMapping` |
+| Settings UI for Profiles | `[x]` | Add/Edit/Delete profiles |
+| Shopping List Wizard | `[x]` | Time/Store/Item selection modal |
+| Store-specific generation logic | `[x]` | Prioritize profile mappings over defaults |
+
+**Acceptance Criteria:**
+- [x] Can create generic and store-specific profiles
+- [x] Wizard guides user through generation options
+- [x] Ingredients sort into correct aisles based on selected store
 
 ---
 
@@ -588,6 +596,25 @@ interface ShoppingItem {
 - [ ] Scaling math is accurate
 - [ ] UI shows scaled quantities clearly
 - [ ] Original recipe unchanged
+
+---
+
+### Phase 15.5: Ingredient Unit Standardization (New)
+- **Goal:** Normalize units for better shopping list consolidation.
+- **Status:** `[ ]` Not Started
+- **Notes:** Added per user feedback. "2 tsp" + "1 tbsp" should combine.
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Create `UnitConverter` module | `[ ]` | Define standard units (ml, g) |
+| Implement conversion logic | `[ ]` | `convert(val, from, to)` |
+| Add normalization to grouped items | `[ ]` | Sum up quantities in `ShoppingListService` |
+| Handle "clove" vs "head", "stick" vs "cup" | `[ ]` | Hardcoded equivalents table |
+
+**Acceptance Criteria:**
+- [ ] Shopping list combines "2 tsp" and "1 tbsp" into single line (e.g. "5 tsp" or "1.6 tbsp")
+- [ ] Consolidates diverse units into standard metric/imperial base
+
 
 ---
 
