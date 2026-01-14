@@ -12,7 +12,7 @@ tags:
 > This is a personal utility project with infinite runway. Features get done when they get done. Do not pressure the user with "we should do this after MVP" language.
 
 **Last Updated:** January 13, 2026
-**Current Phase:** Phase 0 - Documentation & Planning
+**Current Phase:** Phase 3 - The Ingredient Parser
 
 ---
 
@@ -171,65 +171,65 @@ interface ShoppingItem {
 
 ### Phase 0: Documentation & Planning
 - **Goal:** Establish project foundation and comprehensive documentation.
-- **Status:** `[/]` In Progress
+- **Status:** `[x]` Completed
 
 | Task | Status |
 |------|--------|
 | Discovery session with PM | `[x]` |
-| Create Feature Roadmap (this document) | `[/]` |
-| Update Project Summary | `[ ]` |
-| Update CLAUDE.md with dev workflow | `[ ]` |
-| Update Handoff Log structure | `[ ]` |
-| Create ADR-001-Architecture | `[ ]` |
+| Create Feature Roadmap (this document) | `[x]` |
+| Update Project Summary | `[x]` |
+| Update CLAUDE.md with dev workflow | `[x]` |
+| Update Handoff Log structure | `[x]` |
+| Create ADR-001-Architecture | `[x]` |
 
 ---
 
 ### Phase 1: Foundation & Configuration
 - **Goal:** Establish a compiling plugin skeleton with settings.
-- **Status:** `[ ]` Not Started
+- **Status:** `[x]` Completed
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Initialize npm project | `[ ]` | TypeScript + esbuild |
-| Create `manifest.json` | `[ ]` | Plugin metadata |
-| Create modular folder structure | `[ ]` | As defined in Architecture |
-| Implement `MisePlugin` class (thin) | `[ ]` | Wires up services only |
-| Implement `MiseSettingsTab` | `[ ]` | Settings UI |
-| Setting: Recipe Folder Path | `[ ]` | Default: `Life/Household/Kitchen/Recipes` |
-| Setting: Meal Plan Folder Path | `[ ]` | Default: `Life/Household/Kitchen/Meal Plans` |
-| Setting: Shopping List Folder Path | `[ ]` | Default: `Life/Household/Shopping Lists` |
-| Setting: Auto-archive shopping lists | `[ ]` | Default: OFF |
-| Setting: Aisle configuration | `[ ]` | Customizable list |
+| Initialize npm project | `[x]` | TypeScript + esbuild |
+| Create `manifest.json` | `[x]` | Plugin metadata |
+| Create modular folder structure | `[x]` | services/, parsers/, ui/, utils/, types/ |
+| Implement `MisePlugin` class (thin) | `[x]` | Wires up services only |
+| Implement `MiseSettingsTab` | `[x]` | Settings UI with folder autocomplete |
+| Setting: Recipe Folder Path | `[x]` | Default: `Life/Household/Kitchen/Recipes` |
+| Setting: Meal Plan Folder Path | `[x]` | Default: `Life/Household/Kitchen/Meal Plans` |
+| Setting: Shopping List Folder Path | `[x]` | Default: `Life/Household/Shopping Lists` |
+| Setting: Auto-archive shopping lists | `[x]` | Dropdown: on/off/ask |
+| Setting: Aisle configuration | `[x]` | Default aisle keywords defined |
 
 **Acceptance Criteria:**
-- [ ] Plugin loads in Obsidian without errors
-- [ ] Settings persist across restarts
-- [ ] Console shows "Mise loaded" message
+- [x] Plugin loads in Obsidian without errors
+- [x] Settings persist across restarts
+- [x] Console shows "Mise loaded" message
 
 ---
 
 ### Phase 2: The Silent Indexer
 - **Goal:** Real-time background indexing to replace Python script.
-- **Status:** `[ ]` Not Started
+- **Status:** `[x]` Completed
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Create `RecipeIndexer` service | `[ ]` | Singleton pattern |
-| Implement `scanVault()` | `[ ]` | Initial full scan |
-| Hook `vault.on('create')` | `[ ]` | Add new recipes |
-| Hook `vault.on('modify')` | `[ ]` | Update changed recipes |
-| Hook `vault.on('delete')` | `[ ]` | Remove deleted recipes |
-| Hook `vault.on('rename')` | `[ ]` | Handle file moves/renames |
-| Extract frontmatter via `metadataCache` | `[ ]` | Performance optimization |
-| In-memory recipe store | `[ ]` | Map<path, Recipe> |
-| Emit events on index changes | `[ ]` | For UI reactivity |
+| Create `RecipeIndexer` service | `[x]` | Uses Obsidian Events class |
+| Implement `scanVault()` | `[x]` | Recursive folder scan |
+| Hook `vault.on('create')` | `[x]` | Add new recipes |
+| Hook `vault.on('modify')` | `[x]` | Debounced (300ms) |
+| Hook `vault.on('delete')` | `[x]` | Remove deleted recipes |
+| Hook `vault.on('rename')` | `[x]` | Handle file moves/renames |
+| Extract frontmatter via `metadataCache` | `[x]` | Fast, no re-parsing |
+| In-memory recipe store | `[x]` | Map<path, Recipe> |
+| Emit events on index changes | `[x]` | recipe-added, recipe-updated, recipe-deleted, index-ready |
 
 **Acceptance Criteria:**
-- [ ] Initial scan completes in <500ms for 150+ recipes
-- [ ] Creating a new recipe file triggers index update
-- [ ] Modifying frontmatter triggers index update
-- [ ] Deleting a recipe removes it from index
-- [ ] Console logs confirm all operations
+- [x] Initial scan completes in <500ms for 150+ recipes
+- [x] Creating a new recipe file triggers index update
+- [x] Modifying frontmatter triggers index update
+- [x] Deleting a recipe removes it from index
+- [x] Console logs confirm operations (DEBUG mode available)
 
 ---
 

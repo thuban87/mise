@@ -60,10 +60,13 @@ export default class MisePlugin extends Plugin {
         // 	this.activateCookbookView();
         // });
 
-        // Initialize the indexer
-        await this.indexer.initialize();
+        // Wait for workspace layout to be ready before initializing indexer
+        // This ensures the vault is fully loaded
+        this.app.workspace.onLayoutReady(async () => {
+            await this.indexer.initialize();
+        });
 
-        console.log(`${PLUGIN_NAME}: Plugin loaded successfully!`);
+        console.log(`${PLUGIN_NAME}: Plugin loaded.`);
     }
 
     async onunload(): Promise<void> {
