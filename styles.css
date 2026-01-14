@@ -1185,3 +1185,134 @@
 	transform: scale(1.02);
 	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
+
+/* Drag and Drop */
+.mise-dragging {
+	opacity: 0.5;
+	cursor: grabbing;
+}
+
+.mise-day-dragover {
+	background: var(--interactive-accent-hover) !important;
+	box-shadow: inset 0 0 0 2px var(--interactive-accent);
+}
+
+/* Trash Zone - always visible but subtle */
+.mise-trash-zone {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	padding: 8px;
+	margin-bottom: var(--mise-spacing-sm);
+	background: transparent;
+	border: 1px dashed var(--background-modifier-border);
+	border-radius: 6px;
+	color: var(--text-faint);
+	font-size: 0.75em;
+	opacity: 0.5;
+	transition: all 0.2s ease;
+}
+
+.mise-trash-zone:hover {
+	opacity: 1;
+	background: rgba(255, 0, 0, 0.15);
+	border-color: rgba(255, 0, 0, 0.4);
+	color: var(--text-muted);
+}
+
+/* Meal Type Picker */
+.mise-picker-backdrop {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.3);
+	z-index: 999;
+}
+
+.mise-meal-picker {
+	position: fixed;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	padding: 8px;
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+	z-index: 1000;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	min-width: 160px;
+}
+
+/* Always centered on screen */
+.mise-picker-centered {
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+}
+
+.mise-picker-title {
+	font-size: 0.8em;
+	font-weight: 600;
+	color: var(--text-muted);
+	padding: 4px 8px;
+	text-align: center;
+}
+
+.mise-picker-btn {
+	background: var(--background-secondary);
+	border: none;
+	border-radius: 6px;
+	padding: 8px 12px;
+	cursor: pointer;
+	font-size: 0.9em;
+	text-align: left;
+	transition: all 0.15s;
+	color: var(--text-normal);
+}
+
+.mise-picker-btn:hover {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.mise-picker-breakfast {
+	border-left: 3px solid #f39c12;
+}
+
+.mise-picker-lunch {
+	border-left: 3px solid #2ecc71;
+}
+
+.mise-picker-dinner {
+	border-left: 3px solid #9b59b6;
+}
+
+.mise-picker-cancel {
+	border-left: 3px solid var(--text-muted);
+	margin-top: 4px;
+}
+
+.mise-picker-cancel:hover {
+	background: var(--background-modifier-error);
+}
+
+/* Draggable recipe cards */
+.mise-card-mini[draggable="true"] {
+	cursor: grab;
+}
+
+.mise-card-mini[draggable="true"]:active {
+	cursor: grabbing;
+}
+
+/* Draggable meal pills on calendar */
+.mise-meal-draggable {
+	cursor: grab !important;
+	user-select: none;
+}
+
+.mise-meal-draggable:active {
+	cursor: grabbing !important;
+}

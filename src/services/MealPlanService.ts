@@ -146,4 +146,183 @@ export class MealPlanService extends Events {
         const days = [...new Set(meals.map(m => m.day))];
         return days.join(', ');
     }
+
+    /**
+     * Get the current meal plan file path
+     */
+    getCurrentFilePath(): string | null {
+        return this.currentFilePath;
+    }
+
+    /**
+     * Add a meal to the meal plan file
+     */
+    async addMeal(
+        recipeTitle: string,
+        recipePath: string | null,
+        day: string,
+        weekNumber: number,
+        mealType: 'breakfast' | 'lunch' | 'dinner'
+    ): Promise<boolean> {
+        if (!this.currentFilePath) {
+            console.error('MealPlanService: No meal plan file loaded');
+            return false;
+        }
+
+        const file = this.app.vault.getAbstractFileByPath(this.currentFilePath);
+        if (!file || !(file instanceof TFile)) {
+            console.error('MealPlanService: Meal plan file not found');
+            return false;
+        }
+
+        try {
+            const content = await this.app.vault.read(file);
+            const newContent = this.insertMealIntoContent(
+                content, recipeTitle, recipePath, day, weekNumber, mealType
+            );
+
+            await this.app.vault.modify(file, newContent);
+            console.log(`MealPlanService: Added ${recipeTitle} to ${day} ${mealType} Week ${weekNumber}`);
+            return true;
+        } catch (error) {
+            console.error('MealPlanService: Error adding meal', error);
+            return false;
+        }
+    }
+
+    /**
+     * Remove a meal from the meal plan file
+     */
+    async removeMeal(
+        recipeTitle: string,
+        day: string,
+        weekNumber: number,
+        mealType: 'breakfast' | 'lunch' | 'dinner'
+    ): Promise<boolean> {
+        if (!this.currentFilePath) {
+            return false;
+        }
+
+        const file = this.app.vault.getAbstractFileByPath(this.currentFilePath);
+        if (!file || !(file instanceof TFile)) {
+            return false;
+        }
+
+        try {
+            const content = await this.app.vault.read(file);
+            const newContent = this.removeMealFromContent(
+                content, recipeTitle, day, weekNumber, mealType
+            );
+
+            await this.app.vault.modify(file, newContent);
+            console.log(`MealPlanService: Removed ${recipeTitle} from ${day} ${mealType} Week ${weekNumber}`);
+            return true;
+        } catch (error) {
+            console.error('MealPlanService: Error removing meal', error);
+            return false;
+        }
+    }
+
+    /**
+     * Insert a meal into the markdown content
+     * Finds the correct week and meal type table and adds a row
+     */
+    private insertMealIntoContent(
+        content: string,
+        recipeTitle: string,
+        recipePath: string | null,
+        day: string,
+        weekNumber: number,
+        mealType: 'breakfast' | 'lunch' | 'dinner'
+    ): string {
+        const lines = content.split('\n');
+        let currentWeek = 0;
+        let currentMealType: string | null = null;
+        let insertIndex = -1;
+
+        // Find the correct location to insert
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            // Check for week header
+            const weekMatch = line.match(/^##\s+Week\s+(\d+)/i);
+            if (weekMatch) {
+                currentWeek = parseInt(weekMatch[1], 10);
+            }
+
+            // Check for meal type header
+            if (line.toLowerCase().includes('breakfast')) currentMealType = 'breakfast';
+            else if (line.toLowerCase().includes('lunch')) currentMealType = 'lunch';
+            else if (line.toLowerCase().includes('dinner')) currentMealType = 'dinner';
+
+            // Check if we're in the right week and meal type
+            if (currentWeek === weekNumber && currentMealType === mealType) {
+                // Look for the end of the table (next section or blank line after table)
+                if (line.startsWith('|') && !line.includes('---') && !line.toLowerCase().includes('day')) {
+                    insertIndex = i + 1; // Keep updating to find last row
+                }
+            }
+        }
+
+        // Create the new row
+        const wikilink = recipePath ? `[[${recipeTitle}]]` : recipeTitle;
+        const newRow = `| ${day} | ${wikilink} | - | - | - | |`;
+
+        if (insertIndex > 0) {
+            lines.splice(insertIndex, 0, newRow);
+        } else {
+            // Fallback: append to end of file
+            console.warn('MealPlanService: Could not find correct table, appending to end');
+            lines.push(newRow);
+        }
+
+        return lines.join('\n');
+    }
+
+    /**
+     * Remove a meal from the markdown content
+     */
+    private removeMealFromContent(
+        content: string,
+        recipeTitle: string,
+        day: string,
+        weekNumber: number,
+        mealType: 'breakfast' | 'lunch' | 'dinner'
+    ): string {
+        const lines = content.split('\n');
+        let currentWeek = 0;
+        let currentMealType: string | null = null;
+
+        const result: string[] = [];
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            // Check for week header
+            const weekMatch = line.match(/^##\s+Week\s+(\d+)/i);
+            if (weekMatch) {
+                currentWeek = parseInt(weekMatch[1], 10);
+            }
+
+            // Check for meal type header
+            if (line.toLowerCase().includes('breakfast')) currentMealType = 'breakfast';
+            else if (line.toLowerCase().includes('lunch')) currentMealType = 'lunch';
+            else if (line.toLowerCase().includes('dinner')) currentMealType = 'dinner';
+
+            // Check if this is the row to remove
+            if (currentWeek === weekNumber &&
+                currentMealType === mealType &&
+                line.startsWith('|') &&
+                line.toLowerCase().includes(recipeTitle.toLowerCase()) &&
+                line.includes(day)) {
+                // Skip this line (remove it)
+                console.log(`MealPlanService: Removing line: ${line}`);
+                continue;
+            }
+
+            result.push(line);
+        }
+
+        return result.join('\n');
+    }
 }
