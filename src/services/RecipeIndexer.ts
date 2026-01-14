@@ -44,6 +44,9 @@ export class RecipeIndexer extends Events {
         const elapsed = (performance.now() - startTime).toFixed(0);
         console.log(`${PLUGIN_NAME}: Indexed ${this.recipes.size} recipes in ${elapsed}ms`);
 
+        // Export to JSON for external tools (Gemini CLI, etc.)
+        await this.exportToJson();
+
         // Emit ready event
         this.trigger('index-ready', { count: this.recipes.size });
     }
@@ -349,6 +352,46 @@ export class RecipeIndexer extends Events {
             this.recipes.clear();
             this.scanVault();
         }
+    }
+
+    /**
+     * Export the recipe index to a JSON file for external tools (e.g., Gemini CLI)
+     * Format: Array of simplified recipe objects with title, path, tags, ingredients
+     */
+    async exportToJson(): Promise<void> {
+        const exportPath = 'System/Mise/recipe-index.json';
+
+        // Build simplified export format
+        const exportData = this.getRecipes().map(recipe => ({
+            title: recipe.title,
+            path: recipe.path,
+            category: recipe.category,
+            tags: recipe.tags,
+            ingredients: recipe.ingredients,
+            prepTime: recipe.prepTime,
+            cookTime: recipe.cookTime,
+            servings: recipe.servings,
+            rating: recipe.rating,
+            dietaryFlags: recipe.dietaryFlags,
+        }));
+
+        // Ensure directory exists
+        const dir = 'System/Mise';
+        if (!this.app.vault.getAbstractFileByPath(dir)) {
+            await this.app.vault.createFolder(dir);
+        }
+
+        // Write or update the file
+        const existingFile = this.app.vault.getAbstractFileByPath(exportPath);
+        const jsonContent = JSON.stringify(exportData, null, 2);
+
+        if (existingFile) {
+            await this.app.vault.modify(existingFile as any, jsonContent);
+        } else {
+            await this.app.vault.create(exportPath, jsonContent);
+        }
+
+        console.log(`${PLUGIN_NAME}: Exported ${exportData.length} recipes to ${exportPath}`);
     }
 
     /**

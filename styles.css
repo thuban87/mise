@@ -1316,3 +1316,95 @@
 .mise-meal-draggable:active {
 	cursor: grabbing !important;
 }
+
+/* ===========================
+   Shopping List Modal
+   =========================== */
+.mise-shopping-modal {
+	padding: var(--size-4-4);
+	min-width: 400px;
+}
+
+.mise-shopping-modal h2 {
+	margin: 0 0 var(--size-4-4) 0;
+	font-size: 1.3em;
+	font-weight: 600;
+}
+
+.mise-modal-options {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+	margin-bottom: var(--size-4-4);
+}
+
+.mise-modal-options .setting-item {
+	border: none;
+	padding: var(--size-4-2) var(--size-4-3);
+	background: var(--background-secondary);
+	border-radius: var(--radius-s);
+}
+
+.mise-modal-options .setting-item:hover {
+	background: var(--background-modifier-hover);
+}
+
+.mise-modal-btn-row {
+	display: flex;
+	gap: var(--size-4-2);
+	margin-bottom: var(--size-4-3);
+}
+
+.mise-modal-btn-row button {
+	padding: var(--size-4-1) var(--size-4-3);
+	font-size: 0.85em;
+}
+
+.mise-modal-items {
+	max-height: 300px;
+	overflow-y: auto;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	padding: var(--size-4-2);
+	margin-bottom: var(--size-4-4);
+}
+
+.mise-modal-item {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding: var(--size-4-1) 0;
+	border-bottom: 1px solid var(--background-modifier-border-hover);
+}
+
+.mise-modal-item:last-child {
+	border-bottom: none;
+}
+
+.mise-modal-item input[type="checkbox"] {
+	flex-shrink: 0;
+}
+
+.mise-modal-item-recipes {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	margin-left: auto;
+}
+
+.mise-modal-nav {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--size-4-2);
+	margin-top: var(--size-4-4);
+	padding-top: var(--size-4-3);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.mise-modal-nav button {
+	padding: var(--size-4-2) var(--size-4-4);
+}
+
+.mise-modal-nav button:last-child {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}

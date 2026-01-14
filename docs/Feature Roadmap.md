@@ -484,32 +484,22 @@ interface ShoppingItem {
 
 ### Phase 12: Ingredient Aggregator
 - **Goal:** Combine ingredients from planned meals.
-- **Status:** `[ ]` Not Started
+- **Status:** `[x]` Complete
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Create `ShoppingListService` | `[ ]` | Service class |
-| Collect recipes from date range | `[ ]` | Week or custom |
-| Extract all ingredients | `[ ]` | From Recipe objects |
-| Group by aisle | `[ ]` | Inferred or configured |
-| Deduplicate items | `[ ]` | Basic string matching |
-| Track which recipes need each item | `[ ]` | For reference |
-
-**Aisle Inference Rules:**
-| Keywords | Aisle |
-|----------|-------|
-| milk, cheese, butter, cream, yogurt | Dairy |
-| chicken, beef, pork, steak, ground | Meat |
-| lettuce, tomato, onion, garlic, pepper, apple, lemon | Produce |
-| bread, buns, tortillas | Bakery |
-| pasta, rice, flour, sugar, oil, vinegar, sauce | Pantry |
-| (default) | Other |
+| Create `ShoppingListService` | `[x]` | Service class with full implementation |
+| Collect recipes from date range | `[x]` | Week number based (month/year aware) |
+| Extract all ingredients | `[x]` | From Recipe objects via RecipeIndexer |
+| Group by aisle | `[x]` | Keyword-based inference |
+| Deduplicate items | `[x]` | Normalized string matching |
+| Track which recipes need each item | `[x]` | Arrays of recipe names per item |
 
 **Acceptance Criteria:**
-- [ ] All planned recipes' ingredients collected
-- [ ] Items grouped by aisle
-- [ ] Duplicate items grouped together
-- [ ] Recipe source tracked per item
+- [x] All planned recipes' ingredients collected
+- [x] Items grouped by aisle  
+- [x] Duplicate items grouped together
+- [x] Recipe source tracked per item
 
 ---
 

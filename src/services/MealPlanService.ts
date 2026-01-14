@@ -155,6 +155,62 @@ export class MealPlanService extends Events {
     }
 
     /**
+     * Get info about available weeks (with date ranges if available in the file)
+     */
+    async getWeeksInfo(): Promise<{ weekNumber: number; startDate: string; endDate: string }[]> {
+        if (!this.currentFilePath) return [];
+
+        const file = this.app.vault.getAbstractFileByPath(this.currentFilePath);
+        if (!(file instanceof Object)) return [];
+
+        try {
+            const content = await this.app.vault.read(file as any);
+            const weeks: { weekNumber: number; startDate: string; endDate: string }[] = [];
+
+            // Parse week headers: ## Week 1 (Jan 6-12) or ## Week 1 (January 6-12)
+            const weekRegex = /^##\s+Week\s+(\d+)\s*\(?([^)]*)\)?/gmi;
+            let match;
+
+            while ((match = weekRegex.exec(content)) !== null) {
+                const weekNum = parseInt(match[1], 10);
+                const dateRange = match[2]?.trim() || '';
+
+                // Try to parse date range like "Jan 6-12" or "January 6 - January 12"
+                let startDate = '';
+                let endDate = '';
+
+                if (dateRange) {
+                    const rangeMatch = dateRange.match(/([A-Za-z]+)\s*(\d+)\s*[-–]\s*(?:([A-Za-z]+)\s*)?(\d+)/);
+                    if (rangeMatch) {
+                        const startMonth = rangeMatch[1];
+                        const startDay = rangeMatch[2];
+                        const endMonth = rangeMatch[3] || startMonth;
+                        const endDay = rangeMatch[4];
+                        startDate = `${startMonth} ${startDay}`;
+                        endDate = `${endMonth} ${endDay}`;
+                    }
+                }
+
+                weeks.push({ weekNumber: weekNum, startDate, endDate });
+            }
+
+            // If no weeks found with dates, create defaults based on unique week numbers from meals
+            if (weeks.length === 0) {
+                const weekNumbers = [...new Set(this.getAllMeals().map(m => m.weekNumber))].sort();
+                for (const num of weekNumbers) {
+                    weeks.push({ weekNumber: num, startDate: '', endDate: '' });
+                }
+            }
+
+            return weeks;
+        } catch (error) {
+            console.error('MealPlanService: Error getting weeks info', error);
+            return [];
+        }
+    }
+
+
+    /**
      * Add a meal to the meal plan file
      */
     async addMeal(
