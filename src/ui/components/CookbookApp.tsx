@@ -1,18 +1,19 @@
 /**
  * CookbookApp - Root React component for the cookbook view
  * 
- * Renders a list of recipes from the indexer. This is the proof-of-concept
- * for Phase 5 that demonstrates data flow from the indexer to React.
+ * Renders either a grid of recipe cards (full view) or a compact list (sidebar).
  */
 
 import { useRecipes } from './RecipeContext';
+import { RecipeGrid } from './RecipeGrid';
+import { RecipeCardMini } from './RecipeCardMini';
 
 interface CookbookAppProps {
     compact?: boolean; // For sidebar layout
 }
 
 export function CookbookApp({ compact = false }: CookbookAppProps) {
-    const { recipes, isLoading, openRecipe } = useRecipes();
+    const { recipes, isLoading } = useRecipes();
 
     if (isLoading) {
         return (
@@ -33,30 +34,33 @@ export function CookbookApp({ compact = false }: CookbookAppProps) {
         );
     }
 
+    // Compact view for sidebar - use mini cards
+    if (compact) {
+        return (
+            <div className="mise-cookbook mise-compact">
+                <header className="mise-header">
+                    <h2>🍳 Recipes</h2>
+                    <span className="mise-recipe-count">{recipes.length}</span>
+                </header>
+
+                <div className="mise-mini-list">
+                    {recipes.map((recipe) => (
+                        <RecipeCardMini key={recipe.path} recipe={recipe} />
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
+    // Full view - use card grid
     return (
-        <div className={`mise-cookbook ${compact ? 'mise-compact' : ''}`}>
+        <div className="mise-cookbook">
             <header className="mise-header">
                 <h2>🍳 Cookbook</h2>
                 <span className="mise-recipe-count">{recipes.length} recipes</span>
             </header>
 
-            <div className="mise-recipe-list">
-                {recipes.map((recipe) => (
-                    <div
-                        key={recipe.path}
-                        className="mise-recipe-item"
-                        onClick={() => openRecipe(recipe.path)}
-                    >
-                        <span className="mise-recipe-title">{recipe.title}</span>
-                        <span className="mise-recipe-category">{recipe.category}</span>
-                        {recipe.rating && (
-                            <span className="mise-recipe-rating">
-                                {'⭐'.repeat(recipe.rating)}
-                            </span>
-                        )}
-                    </div>
-                ))}
-            </div>
+            <RecipeGrid recipes={recipes} />
         </div>
     );
 }

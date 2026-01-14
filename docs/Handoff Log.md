@@ -10,8 +10,8 @@ tags:
 **Purpose:** Session-by-session implementation notes. Each development session appends a new entry with details of what was done, what was tested, and what's next.
 
 **Last Updated:** January 13, 2026
-**Current Phase:** Phase 6 - The Recipe Card
-**Current Branch:** feat/phase-5-cookbook-view (pending merge)
+**Current Phase:** Phase 7 - Recipe Quick Look Modal
+**Current Branch:** feat/phase-6-recipe-cards (pending merge)
 **Version:** 0.1.0
 
 ---
@@ -288,13 +288,61 @@ Implemented React-based UI skeleton for the Cookbook view. Added React 18 with t
 
 ---
 
+## Session: January 13, 2026 - The Recipe Card
+
+### Phase
+Phase 6: The Recipe Card
+
+### Session Summary
+Implemented beautiful recipe cards with hero images, metadata badges, and dietary pills. Created responsive CSS grid layout for the cookbook view. Added `RecipeCardMini` component for sidebar with compact thumbnail, title, rating, and time. All tests passed.
+
+### What Was Done
+
+| Task | Details |
+|------|---------|
+| RecipeCard.tsx | Full card with image, badges, dietary pills |
+| RecipeCardMini.tsx | Compact card for sidebar |
+| RecipeGrid.tsx | Responsive CSS grid container |
+| Helper functions | `formatTime()`, `formatTotalTime()`, `getCategoryEmoji()` |
+| RecipeContext update | Added `getImageUrl()` for vault path resolution |
+| CookbookApp update | Full view uses grid, sidebar uses mini cards |
+| CSS styles | Card, grid, badges, pills, hover effects, mini cards |
+
+### What Was Tested
+- [x] Cards render in responsive grid
+- [x] Images load from URLs and vault paths
+- [x] Placeholder shows gradient + emoji when no image
+- [x] Rating stars overlay on image
+- [x] Time, category, servings badges display
+- [x] Dietary pills show (max 3)
+- [x] Hover effects work (lift, shadow, image zoom)
+- [x] Click opens recipe file
+- [x] Sidebar shows mini cards with thumbnails
+
+### Issues Discovered
+- None
+
+### Files Created
+- `src/ui/components/RecipeCard.tsx` — Full recipe card component
+- `src/ui/components/RecipeCardMini.tsx` — Compact sidebar card
+- `src/ui/components/RecipeGrid.tsx` — Responsive grid container
+
+### Files Modified
+- `src/utils/helpers.ts` — Added time formatting and category emoji helpers
+- `src/ui/components/RecipeContext.tsx` — Added `getImageUrl()` method
+- `src/ui/components/CookbookApp.tsx` — Uses grid/mini cards based on mode
+- `src/ui/components/index.ts` — Added new exports
+- `styles.css` — Card, grid, badges, mini card styles
+
+---
+
 ## Next Session Prompt
 
 ```
-Mise - v0.1.0 → Phase 6: The Recipe Card
+Mise - v0.1.0 → Phase 7: Recipe Quick Look Modal
 
 **Project:** Culinary OS for Obsidian (recipe discovery, meal planning, shopping lists)
-**Status:** Phases 0-5 complete. UI skeleton ready. Time for beautiful cards!
+**Status:** Phases 0-6 complete. Beautiful cards ready. Time for the modal!
 
 ## Key Docs (READ FIRST)
 - docs/CLAUDE.md - Mandatory development workflow
@@ -303,26 +351,27 @@ Mise - v0.1.0 → Phase 6: The Recipe Card
 ## What's Already Built
 - RecipeIndexer with real-time vault events
 - React 18 UI with CookbookView and CookbookSidebar
-- RecipeContext for state management
-- Basic recipe list (proof of concept)
-- Ribbon icon and commands working
+- RecipeCard with images, badges, dietary pills
+- RecipeCardMini for sidebar
+- Responsive grid layout
 
-## Current Data Access
-- `useRecipes()` hook → { app, recipes, isLoading, openRecipe }
-- Recipes have: title, category, rating, prepTime, cookTime, image, ingredients, etc.
+## CRITICAL USER REQUIREMENT
+- Recipe Modal MUST have interactive ingredient checkboxes
+- User checks off ingredients while cooking
+- Session state only, don't dirty the file
+- This avoids needing source mode on mobile
 
-## Phase 6 Tasks
+## Phase 7 Tasks
 | Task | Notes |
 |------|-------|
-| Create RecipeCard component | React component |
-| Hero image display | From frontmatter |
-| Fallback placeholder image | When no image |
-| Rating as stars | ⭐⭐⭐⭐☆ |
-| Time badges | "⏱️ 20 min" format |
-| Category/servings badges | Colored pills |
-| Hover effect | Scale/shadow |
-| Grid layout | Responsive columns |
-| Click opens recipe | New tab |
+| Create RecipeModal component | Full recipe preview |
+| Hero image (large) | Full-width |
+| All metadata badges | Rating, time, servings, category |
+| Interactive ingredient checkboxes | **CRITICAL** |
+| "Open Recipe" button | Opens .md file |
+| Backdrop blur + glassmorphism | Modern aesthetic |
+| Click-outside/Escape to close | UX |
+| Mobile-friendly | Touch targets 44px+ |
 
 ## Dev Commands
 npm run build    # Production build
@@ -342,21 +391,11 @@ npm run deploy   # Build + copy to Obsidian
 | `npm run build` | Production build |
 | `npm run deploy` | Build + copy to Obsidian plugins folder |
 
-### Required Files in Deploy Directory
-| File | Purpose |
-|------|---------|
-| `manifest.json` | Plugin metadata |
-| `main.js` | Compiled plugin code |
-| `styles.css` | Plugin styles |
-
 ### Key Paths
 | Purpose | Path |
 |---------|------|
 | Source | `C:\Users\bwales\projects\obsidian-plugins\mise` |
 | Deploy | `G:\My Drive\IT\Obsidian Vault\My Notebooks\.obsidian\plugins\mise` |
-| Recipes | `Life/Household/Kitchen/Recipes/` |
-| Meal Plans | `Life/Household/Kitchen/Meal Plans/` |
-| Shopping Lists | `Life/Household/Shopping Lists/` |
 
 ---
 

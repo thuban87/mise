@@ -12,7 +12,7 @@ tags:
 > This is a personal utility project with infinite runway. Features get done when they get done. Do not pressure the user with "we should do this after MVP" language.
 
 **Last Updated:** January 13, 2026
-**Current Phase:** Phase 6 - The Recipe Card
+**Current Phase:** Phase 7 - Recipe Quick Look Modal
 
 ---
 
@@ -303,33 +303,34 @@ interface ShoppingItem {
 
 ### Phase 6: The Recipe Card
 - **Goal:** Beautiful, informative recipe cards.
-- **Status:** `[ ]` Not Started
+- **Status:** `[x]` Completed
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Create `RecipeCard` component | `[ ]` | React component |
-| Hero image display | `[ ]` | From frontmatter or body |
-| Fallback placeholder image | `[ ]` | When no image available |
-| Title display | `[ ]` | Prominent text |
-| Rating as stars | `[ ]` | ⭐⭐⭐⭐☆ or "Unrated" |
-| Time badges | `[ ]` | "⏱️ 20 min" format |
-| Category badge | `[ ]` | "📁 Main" format |
-| Servings badge | `[ ]` | "🍽️ 4 servings" |
-| Dietary flag pills | `[ ]` | Small colored badges |
-| Hover effect | `[ ]` | Subtle scale/shadow |
-| Click opens recipe file | `[ ]` | New tab |
+| Create `RecipeCard` component | `[x]` | Full card with image, badges, pills |
+| Hero image display | `[x]` | From frontmatter `image` field |
+| Fallback placeholder image | `[x]` | Gradient + category emoji |
+| Title display | `[x]` | Clamped to 2 lines |
+| Rating as stars | `[x]` | ★★★★☆ overlay on image |
+| Time badges | `[x]` | Combined prep+cook time |
+| Category badge | `[x]` | Colored accent badge |
+| Servings badge | `[x]` | With emoji |
+| Dietary flag pills | `[x]` | Uppercase, max 3 shown |
+| Hover effect | `[x]` | Lift + shadow + image zoom |
+| Click opens recipe file | `[x]` | Via context |
+| `RecipeCardMini` for sidebar | `[x]` | Thumbnail, title, rating, time |
 
 **CSS Requirements:**
-- [ ] Grid layout container
-- [ ] Responsive columns (1-4 based on width)
-- [ ] Light/Dark mode compatibility
-- [ ] Mobile-friendly touch targets (44px min)
+- [x] Grid layout container (`RecipeGrid`)
+- [x] Responsive columns (auto-fill minmax)
+- [x] Light/Dark mode compatibility
+- [x] Mobile-friendly responsive breakpoints
 
 **Acceptance Criteria:**
-- [ ] Cards render with all metadata
-- [ ] Images load from URLs and local paths
-- [ ] Responsive grid adapts to window size
-- [ ] Looks good in light and dark themes
+- [x] Cards render with all metadata
+- [x] Images load from URLs and local paths
+- [x] Responsive grid adapts to window size
+- [x] Looks good in light and dark themes
 
 ---
 

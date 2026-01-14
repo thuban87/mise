@@ -12,6 +12,7 @@ interface RecipeContextValue {
     recipes: Recipe[];
     isLoading: boolean;
     openRecipe: (path: string) => void;
+    getImageUrl: (imagePath: string | null) => string | null;
 }
 
 const RecipeContext = createContext<RecipeContextValue | null>(null);
@@ -69,8 +70,20 @@ export function RecipeProvider({ app, indexer, children }: RecipeProviderProps) 
         }
     };
 
+    const getImageUrl = (imagePath: string | null): string | null => {
+        if (!imagePath) return null;
+
+        // If it's already a URL, return as-is
+        if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+            return imagePath;
+        }
+
+        // Convert vault path to resource URL
+        return app.vault.adapter.getResourcePath(imagePath);
+    };
+
     return (
-        <RecipeContext.Provider value={{ app, recipes, isLoading, openRecipe }}>
+        <RecipeContext.Provider value={{ app, recipes, isLoading, openRecipe, getImageUrl }}>
             {children}
         </RecipeContext.Provider>
     );

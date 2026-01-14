@@ -34,3 +34,50 @@ export function generateId(): string {
 export function normalizePath(path: string): string {
     return path.replace(/\\/g, '/').replace(/\/+/g, '/');
 }
+
+/**
+ * Format time in minutes to human-readable string
+ * @param minutes - Time in minutes
+ * @returns Formatted string like "30 min" or "1h 30m"
+ */
+export function formatTime(minutes: number | null): string {
+    if (minutes === null || minutes === 0) return '';
+
+    if (minutes < 60) {
+        return `${minutes} min`;
+    }
+
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+
+    if (mins === 0) {
+        return `${hours}h`;
+    }
+
+    return `${hours}h ${mins}m`;
+}
+
+/**
+ * Format total time (prep + cook) to human-readable string
+ */
+export function formatTotalTime(prepTime: number | null, cookTime: number | null): string {
+    const total = (prepTime || 0) + (cookTime || 0);
+    return formatTime(total);
+}
+
+/**
+ * Get emoji for recipe category
+ */
+export function getCategoryEmoji(category: string): string {
+    const emojiMap: Record<string, string> = {
+        'Main': '🍖',
+        'Breakfast': '🍳',
+        'Appetizer': '🥗',
+        'Side': '🥔',
+        'Dessert': '🍰',
+        'Beverage': '🥤',
+        'Snack': '🍿',
+        'Uncategorized': '📝',
+    };
+    return emojiMap[category] || '📝';
+}

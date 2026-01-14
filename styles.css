@@ -165,19 +165,264 @@
 }
 
 /* ===========================
-   Recipe Cards (Phase 6)
+   Recipe Grid (Phase 6)
    =========================== */
-.mise-recipe-card {
+.mise-recipe-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	gap: var(--mise-spacing-md);
+	padding: var(--mise-spacing-sm) 0;
+}
+
+/* ===========================
+   Recipe Card (Phase 6)
+   =========================== */
+.mise-card {
 	background: var(--background-secondary);
 	border-radius: var(--mise-card-radius);
 	box-shadow: var(--mise-card-shadow);
 	overflow: hidden;
+	cursor: pointer;
 	transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.mise-recipe-card:hover {
-	transform: translateY(-2px);
-	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+.mise-card:hover {
+	transform: translateY(-4px);
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* Card Image Section */
+.mise-card-image {
+	position: relative;
+	width: 100%;
+	height: 160px;
+	overflow: hidden;
+	background: linear-gradient(135deg,
+			var(--interactive-accent) 0%,
+			var(--interactive-accent-hover) 100%);
+}
+
+.mise-card-image img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	transition: transform 0.3s ease;
+}
+
+.mise-card:hover .mise-card-image img {
+	transform: scale(1.05);
+}
+
+.mise-card-placeholder {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+	background: linear-gradient(135deg,
+			var(--background-secondary-alt) 0%,
+			var(--background-modifier-border) 100%);
+}
+
+.mise-placeholder-emoji {
+	font-size: 48px;
+	opacity: 0.6;
+}
+
+/* Card Rating Overlay */
+.mise-card-rating {
+	position: absolute;
+	top: var(--mise-spacing-sm);
+	right: var(--mise-spacing-sm);
+	background: rgba(0, 0, 0, 0.6);
+	color: #fbbf24;
+	padding: 4px 8px;
+	border-radius: 4px;
+	font-size: 12px;
+	letter-spacing: 1px;
+	backdrop-filter: blur(4px);
+}
+
+/* Card Content Section */
+.mise-card-content {
+	padding: var(--mise-spacing-md);
+}
+
+.mise-card-title {
+	margin: 0 0 var(--mise-spacing-sm);
+	font-size: 1.1em;
+	font-weight: 600;
+	color: var(--text-normal);
+	line-height: 1.3;
+	/* Clamp to 2 lines */
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+/* Card Badges */
+.mise-card-badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--mise-spacing-xs);
+	margin-bottom: var(--mise-spacing-sm);
+}
+
+.mise-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 8px;
+	border-radius: 4px;
+	font-size: 0.75em;
+	font-weight: 500;
+	background: var(--background-primary);
+	color: var(--text-muted);
+}
+
+.mise-badge-category {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.mise-badge-time {
+	background: var(--background-modifier-border);
+	color: var(--text-normal);
+}
+
+.mise-badge-servings {
+	background: var(--background-modifier-border);
+	color: var(--text-normal);
+}
+
+/* Dietary Pills */
+.mise-card-dietary {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+.mise-dietary-pill {
+	padding: 2px 6px;
+	border-radius: 3px;
+	font-size: 0.65em;
+	font-weight: 500;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	background: var(--background-modifier-success);
+	color: var(--text-on-accent);
+}
+
+.mise-dietary-more {
+	background: var(--background-modifier-border);
+	color: var(--text-muted);
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 600px) {
+	.mise-recipe-grid {
+		grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+		gap: var(--mise-spacing-sm);
+	}
+
+	.mise-card-image {
+		height: 120px;
+	}
+
+	.mise-card-content {
+		padding: var(--mise-spacing-sm);
+	}
+
+	.mise-card-title {
+		font-size: 1em;
+	}
+}
+
+/* ===========================
+   Mini Cards (Sidebar)
+   =========================== */
+.mise-mini-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--mise-spacing-sm);
+	overflow-y: auto;
+}
+
+.mise-card-mini {
+	display: flex;
+	align-items: center;
+	gap: var(--mise-spacing-sm);
+	padding: var(--mise-spacing-xs);
+	background: var(--background-secondary);
+	border-radius: var(--mise-card-radius);
+	cursor: pointer;
+	transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.mise-card-mini:hover {
+	background: var(--background-secondary-alt);
+	transform: translateX(2px);
+}
+
+.mise-mini-image {
+	flex-shrink: 0;
+	width: 48px;
+	height: 48px;
+	border-radius: 6px;
+	overflow: hidden;
+}
+
+.mise-mini-image img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.mise-mini-placeholder {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+	background: linear-gradient(135deg,
+			var(--background-secondary-alt) 0%,
+			var(--background-modifier-border) 100%);
+	font-size: 20px;
+}
+
+.mise-mini-content {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.mise-mini-title {
+	font-weight: 500;
+	font-size: 0.9em;
+	color: var(--text-normal);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.mise-mini-meta {
+	display: flex;
+	align-items: center;
+	gap: var(--mise-spacing-sm);
+	font-size: 0.75em;
+	color: var(--text-muted);
+}
+
+.mise-mini-rating {
+	color: #fbbf24;
+	letter-spacing: 1px;
+}
+
+.mise-mini-time {
+	color: var(--text-muted);
 }
 
 /* ===========================

@@ -24473,11 +24473,11 @@ var require_react_jsx_runtime_development = __commonJS({
             return jsxWithValidation(type, props, key, false);
           }
         }
-        var jsx5 = jsxWithValidationDynamic;
-        var jsxs2 = jsxWithValidationStatic;
+        var jsx8 = jsxWithValidationDynamic;
+        var jsxs4 = jsxWithValidationStatic;
         exports.Fragment = REACT_FRAGMENT_TYPE;
-        exports.jsx = jsx5;
-        exports.jsxs = jsxs2;
+        exports.jsx = jsx8;
+        exports.jsxs = jsxs4;
       })();
     }
   }
@@ -24698,6 +24698,35 @@ function debounce(func, wait) {
       func.apply(this, args);
     }, wait);
   };
+}
+function formatTime(minutes) {
+  if (minutes === null || minutes === 0) return "";
+  if (minutes < 60) {
+    return `${minutes} min`;
+  }
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  if (mins === 0) {
+    return `${hours}h`;
+  }
+  return `${hours}h ${mins}m`;
+}
+function formatTotalTime(prepTime, cookTime) {
+  const total = (prepTime || 0) + (cookTime || 0);
+  return formatTime(total);
+}
+function getCategoryEmoji(category) {
+  const emojiMap = {
+    "Main": "\u{1F356}",
+    "Breakfast": "\u{1F373}",
+    "Appetizer": "\u{1F957}",
+    "Side": "\u{1F954}",
+    "Dessert": "\u{1F370}",
+    "Beverage": "\u{1F964}",
+    "Snack": "\u{1F37F}",
+    "Uncategorized": "\u{1F4DD}"
+  };
+  return emojiMap[category] || "\u{1F4DD}";
 }
 
 // src/utils/constants.ts
@@ -25355,7 +25384,14 @@ function RecipeProvider({ app, indexer, children }) {
       app.workspace.getLeaf(false).openFile(file);
     }
   };
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RecipeContext.Provider, { value: { app, recipes, isLoading, openRecipe }, children });
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+      return imagePath;
+    }
+    return app.vault.adapter.getResourcePath(imagePath);
+  };
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RecipeContext.Provider, { value: { app, recipes, isLoading, openRecipe, getImageUrl }, children });
 }
 function useRecipes() {
   const context = (0, import_react.useContext)(RecipeContext);
@@ -25365,49 +25401,123 @@ function useRecipes() {
   return context;
 }
 
-// src/ui/components/CookbookApp.tsx
+// src/ui/components/RecipeCard.tsx
 var import_jsx_runtime2 = __toESM(require_jsx_runtime());
+function RecipeCard({ recipe }) {
+  const { openRecipe, getImageUrl } = useRecipes();
+  const imageUrl = getImageUrl(recipe.image);
+  const totalTime = formatTotalTime(recipe.prepTime, recipe.cookTime);
+  const categoryEmoji = getCategoryEmoji(recipe.category);
+  const handleClick = () => {
+    openRecipe(recipe.path);
+  };
+  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "mise-card", onClick: handleClick, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "mise-card-image", children: [
+      imageUrl ? /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("img", { src: imageUrl, alt: recipe.title, loading: "lazy" }) : /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "mise-card-placeholder", children: /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "mise-placeholder-emoji", children: categoryEmoji }) }),
+      recipe.rating && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "mise-card-rating", children: [
+        "\u2605".repeat(recipe.rating),
+        "\u2606".repeat(5 - recipe.rating)
+      ] })
+    ] }),
+    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "mise-card-content", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h3", { className: "mise-card-title", children: recipe.title }),
+      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "mise-card-badges", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { className: "mise-badge mise-badge-category", children: [
+          categoryEmoji,
+          " ",
+          recipe.category
+        ] }),
+        totalTime && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { className: "mise-badge mise-badge-time", children: [
+          "\u23F1\uFE0F ",
+          totalTime
+        ] }),
+        recipe.servings && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { className: "mise-badge mise-badge-servings", children: [
+          "\u{1F37D}\uFE0F ",
+          recipe.servings
+        ] })
+      ] }),
+      recipe.dietaryFlags.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "mise-card-dietary", children: [
+        recipe.dietaryFlags.slice(0, 3).map((flag) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "mise-dietary-pill", children: flag }, flag)),
+        recipe.dietaryFlags.length > 3 && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { className: "mise-dietary-pill mise-dietary-more", children: [
+          "+",
+          recipe.dietaryFlags.length - 3
+        ] })
+      ] })
+    ] })
+  ] });
+}
+
+// src/ui/components/RecipeGrid.tsx
+var import_jsx_runtime3 = __toESM(require_jsx_runtime());
+function RecipeGrid({ recipes }) {
+  return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)("div", { className: "mise-recipe-grid", children: recipes.map((recipe) => /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(RecipeCard, { recipe }, recipe.path)) });
+}
+
+// src/ui/components/RecipeCardMini.tsx
+var import_jsx_runtime4 = __toESM(require_jsx_runtime());
+function RecipeCardMini({ recipe }) {
+  const { openRecipe, getImageUrl } = useRecipes();
+  const imageUrl = getImageUrl(recipe.image);
+  const totalTime = formatTotalTime(recipe.prepTime, recipe.cookTime);
+  const categoryEmoji = getCategoryEmoji(recipe.category);
+  const handleClick = () => {
+    openRecipe(recipe.path);
+  };
+  return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "mise-card-mini", onClick: handleClick, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "mise-mini-image", children: imageUrl ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("img", { src: imageUrl, alt: recipe.title, loading: "lazy" }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "mise-mini-placeholder", children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { children: categoryEmoji }) }) }),
+    /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "mise-mini-content", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "mise-mini-title", children: recipe.title }),
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "mise-mini-meta", children: [
+        recipe.rating && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "mise-mini-rating", children: "\u2605".repeat(recipe.rating) }),
+        totalTime && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "mise-mini-time", children: [
+          "\u23F1\uFE0F ",
+          totalTime
+        ] })
+      ] })
+    ] })
+  ] });
+}
+
+// src/ui/components/CookbookApp.tsx
+var import_jsx_runtime5 = __toESM(require_jsx_runtime());
 function CookbookApp({ compact = false }) {
-  const { recipes, isLoading, openRecipe } = useRecipes();
+  const { recipes, isLoading } = useRecipes();
   if (isLoading) {
-    return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "mise-cookbook mise-loading", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "mise-loading-spinner" }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { children: "Loading recipes..." })
+    return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mise-cookbook mise-loading", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mise-loading-spinner" }),
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("p", { children: "Loading recipes..." })
     ] });
   }
   if (recipes.length === 0) {
-    return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "mise-cookbook mise-empty", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "mise-empty-icon", children: "\u{1F4DA}" }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h3", { children: "No recipes found" }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("p", { children: "Add recipes to your configured recipe folder to get started." })
+    return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mise-cookbook mise-empty", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mise-empty-icon", children: "\u{1F4DA}" }),
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("h3", { children: "No recipes found" }),
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("p", { children: "Add recipes to your configured recipe folder to get started." })
     ] });
   }
-  return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: `mise-cookbook ${compact ? "mise-compact" : ""}`, children: [
-    /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("header", { className: "mise-header", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("h2", { children: "\u{1F373} Cookbook" }),
-      /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("span", { className: "mise-recipe-count", children: [
+  if (compact) {
+    return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mise-cookbook mise-compact", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("header", { className: "mise-header", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("h2", { children: "\u{1F373} Recipes" }),
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "mise-recipe-count", children: recipes.length })
+      ] }),
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mise-mini-list", children: recipes.map((recipe) => /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(RecipeCardMini, { recipe }, recipe.path)) })
+    ] });
+  }
+  return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mise-cookbook", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("header", { className: "mise-header", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("h2", { children: "\u{1F373} Cookbook" }),
+      /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("span", { className: "mise-recipe-count", children: [
         recipes.length,
         " recipes"
       ] })
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("div", { className: "mise-recipe-list", children: recipes.map((recipe) => /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)(
-      "div",
-      {
-        className: "mise-recipe-item",
-        onClick: () => openRecipe(recipe.path),
-        children: [
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "mise-recipe-title", children: recipe.title }),
-          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "mise-recipe-category", children: recipe.category }),
-          recipe.rating && /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("span", { className: "mise-recipe-rating", children: "\u2B50".repeat(recipe.rating) })
-        ]
-      },
-      recipe.path
-    )) })
+    /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(RecipeGrid, { recipes })
   ] });
 }
 
 // src/ui/views/CookbookView.tsx
-var import_jsx_runtime3 = __toESM(require_jsx_runtime());
+var import_jsx_runtime6 = __toESM(require_jsx_runtime());
 var CookbookView = class extends import_obsidian5.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
@@ -25429,7 +25539,7 @@ var CookbookView = class extends import_obsidian5.ItemView {
     container.addClass("mise-cookbook-container");
     this.root = (0, import_client.createRoot)(container);
     this.root.render(
-      /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(RecipeProvider, { app: this.app, indexer: this.plugin.indexer, children: /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(CookbookApp, {}) })
+      /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(RecipeProvider, { app: this.app, indexer: this.plugin.indexer, children: /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(CookbookApp, {}) })
     );
   }
   async onClose() {
@@ -25443,7 +25553,7 @@ var CookbookView = class extends import_obsidian5.ItemView {
 // src/ui/views/CookbookSidebar.tsx
 var import_obsidian6 = require("obsidian");
 var import_client2 = __toESM(require_client());
-var import_jsx_runtime4 = __toESM(require_jsx_runtime());
+var import_jsx_runtime7 = __toESM(require_jsx_runtime());
 var CookbookSidebar = class extends import_obsidian6.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
@@ -25465,7 +25575,7 @@ var CookbookSidebar = class extends import_obsidian6.ItemView {
     container.addClass("mise-sidebar-container");
     this.root = (0, import_client2.createRoot)(container);
     this.root.render(
-      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(RecipeProvider, { app: this.app, indexer: this.plugin.indexer, children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(CookbookApp, { compact: true }) })
+      /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(RecipeProvider, { app: this.app, indexer: this.plugin.indexer, children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(CookbookApp, { compact: true }) })
     );
   }
   async onClose() {
