@@ -10,8 +10,8 @@ tags:
 **Purpose:** Session-by-session implementation notes. Each development session appends a new entry with details of what was done, what was tested, and what's next.
 
 **Last Updated:** January 13, 2026
-**Current Phase:** Phase 4 - Time Format Migration
-**Current Branch:** feat/phase-3-ingredient-parsing (pending merge)
+**Current Phase:** Phase 5 - The Cookbook View (UI Skeleton)
+**Current Branch:** feat/phase-4-time-migration (pending merge)
 **Version:** 0.1.0
 
 ---
@@ -199,28 +199,93 @@ Enhanced the IngredientParser with robust header detection supporting multiple p
 
 ---
 
+## Session: January 13, 2026 - Time Format Migration
+
+### Phase
+Phase 4: Time Format Migration
+
+### Session Summary
+Created `TimeMigrationService` to convert all time strings in recipe frontmatter to normalized integer minutes. Added preview and migrate commands. User ran migration successfully, converting all recipes to integer format.
+
+### What Was Done
+
+| Task | Details |
+|------|---------|
+| TimeMigrationService | New service with `migrateAll()` and `previewMigration()` |
+| Preview command | Shows what would change without modifying files |
+| Migrate command | Updates files and re-indexes |
+| parseTime() | Already existed, handles many formats |
+| formatTime() | Already existed, converts back to human-readable |
+
+### What Was Tested
+- [x] Preview shows correct changes
+- [x] Migration updates all recipe files
+- [x] Re-indexing works after migration
+
+### Issues Discovered
+- None
+
+### Files Created
+- `src/services/TimeMigrationService.ts` — Migration utility
+
+### Files Modified
+- `src/services/index.ts` — Added TimeMigrationService export
+- `src/main.ts` — Added migration commands
+
+---
+
 ## Next Session Prompt
 
 ```
-Mise - v0.1.0 → Phase 4: Time Format Migration
+Mise - v0.1.0 → Phase 5: The Cookbook View (UI Skeleton)
 
-**Project Goal:** Culinary OS for Obsidian (recipe discovery, meal planning, shopping lists)
-**Current Status:** Phases 0-3 complete. Parser working. Ready for time normalization.
+**Project:** Culinary OS for Obsidian (recipe discovery, meal planning, shopping lists)
+**Status:** Phases 0-4 complete. Backend ready. Time for UI!
 
-**Key Docs to Review:**
-- docs/Feature Roadmap.md - (Phase 4 tasks)
-- docs/CLAUDE.md - (Development workflow)
+## Key Docs (READ FIRST)
+- docs/CLAUDE.md - Mandatory development workflow
+- docs/Feature Roadmap.md - Phase tasks and full architecture
 
-**PRIORITY: Phase 4 - Time Format Migration**
+## What's Already Built
+- RecipeIndexer with real-time vault events (create/modify/delete/rename)
+- IngredientParser with quantity parsing
+- FrontmatterParser with time normalization
+- All recipes now use integer minutes (migration complete)
+- Settings tab with folder autocomplete
 
-| Task | Status |
-|------|--------|
-| Parse time strings to minutes | Pending |
-| Create migration script | Pending |
-| Update all recipe files | Pending |
-| Display formatter | Pending |
+## Current Data Access
+- `plugin.indexer.getRecipes()` → Recipe[]
+- `plugin.indexer.search(query)` → Recipe[]  
+- `plugin.indexer.filterByCategory(cat)` → Recipe[]
+- `plugin.indexer.on('recipe-added' | 'recipe-updated' | 'recipe-deleted' | 'index-ready')`
 
-**Note:** FrontmatterParser.ts already has parseTime(). May only need a migration script to update existing recipes.
+## Phase 5 Tasks
+| Task | Notes |
+|------|-------|
+| Create CookbookView (ItemView) | Full-tab view |
+| Create CookbookSidebar (View) | Right sidebar option |
+| Register view types | COOKBOOK_VIEW_TYPE, etc. |
+| Add ribbon icon | chef-hat or utensils |
+| Add "Open Cookbook" command | Already exists, wire it up |
+| Mount React root (or vanilla) | User preference: check before deciding |
+| Basic recipe list render | Just titles, proves data flow |
+
+## CRITICAL USER REQUIREMENTS (Phase 7)
+- Recipe Modal MUST have interactive ingredient checkboxes
+- User checks off ingredients while cooking
+- This avoids needing source mode on mobile
+- Session state only, don't dirty the file
+
+## Architecture Notes  
+- main.ts is THIN orchestrator only
+- All logic in services/
+- UI in src/ui/
+- Use Obsidian's ItemView for full views
+- Mobile-first modal design (touch targets 44px+)
+
+## Dev Commands
+npm run build    # Production build
+npm run deploy   # Build + copy to Obsidian
 ```
 
 ---
@@ -258,5 +323,6 @@ Mise - v0.1.0 → Phase 4: Time Format Migration
 *Sessions more than 10 entries old will be moved here to keep the main log manageable.*
 
 (No archived sessions yet)
+
 
 
