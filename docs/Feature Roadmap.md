@@ -12,7 +12,7 @@ tags:
 > This is a personal utility project with infinite runway. Features get done when they get done. Do not pressure the user with "we should do this after MVP" language.
 
 **Last Updated:** January 13, 2026
-**Current Phase:** Phase 3 - The Ingredient Parser
+**Current Phase:** Phase 4 - Time Format Migration
 
 ---
 
@@ -235,22 +235,26 @@ interface ShoppingItem {
 
 ### Phase 3: The Ingredient Parser
 - **Goal:** Extract and normalize ingredients from recipe bodies.
-- **Status:** `[ ]` Not Started
+- **Status:** `[x]` Completed
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Create `IngredientParser` module | `[ ]` | Pure functions |
-| Detect `## 🥘 Ingredients` header | `[ ]` | Case-insensitive, emoji-tolerant |
-| Extract lines until next header | `[ ]` | Handle `## Instructions` etc. |
-| Strip Markdown syntax | `[ ]` | Bullets, checkboxes, numbers |
-| Store clean ingredient array | `[ ]` | In Recipe object |
-| Handle missing header gracefully | `[ ]` | Log warning, continue |
+| Create `IngredientParser` module | `[x]` | Pure functions |
+| Detect `## 🥘 Ingredients` header | `[x]` | Multiple patterns, case-insensitive |
+| Extract lines until next header | `[x]` | Handles ## or HR |
+| Strip Markdown syntax | `[x]` | Bullets, checkboxes, numbers |
+| Store clean ingredient array | `[x]` | In Recipe object |
+| Handle missing header gracefully | `[x]` | Returns empty array |
+
+**Bonus implemented:**
+- `parseIngredientQuantity()` - Extracts quantity, unit, ingredient
+- `normalizeIngredient()` - For future deduplication
 
 **Acceptance Criteria:**
-- [ ] Standard ingredient lists parse correctly
-- [ ] Task-list format (`- [ ]`) parses correctly
-- [ ] Missing header doesn't crash indexer
-- [ ] Ingredients accessible in Recipe object
+- [x] Standard ingredient lists parse correctly
+- [x] Task-list format (`- [ ]`) parses correctly
+- [x] Missing header doesn't crash indexer
+- [x] Ingredients accessible in Recipe object
 
 ---
 

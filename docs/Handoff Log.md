@@ -10,8 +10,8 @@ tags:
 **Purpose:** Session-by-session implementation notes. Each development session appends a new entry with details of what was done, what was tested, and what's next.
 
 **Last Updated:** January 13, 2026
-**Current Phase:** Phase 3 - The Ingredient Parser
-**Current Branch:** feat/phase-2-silent-indexer (pending merge)
+**Current Phase:** Phase 4 - Time Format Migration
+**Current Branch:** feat/phase-3-ingredient-parsing (pending merge)
 **Version:** 0.1.0
 
 ---
@@ -166,28 +166,61 @@ Implemented real-time recipe indexing to replace the external Python script. Cre
 
 ---
 
+## Session: January 13, 2026 - The Ingredient Parser
+
+### Phase
+Phase 3: The Ingredient Parser
+
+### Session Summary
+Enhanced the IngredientParser with robust header detection supporting multiple patterns (emoji variations, case-insensitive). Added quantity parsing for future recipe scaling, and ingredient normalization for future shopping list deduplication.
+
+### What Was Done
+
+| Task | Details |
+|------|---------|
+| Header detection | Multiple regex patterns for `## Ingredients` variations |
+| Section extraction | Finds content between header and next ## or HR |
+| Line cleaning | Removes bullets, checkboxes, numbered lists |
+| Sub-header detection | Skips `**Bold**` style sub-headers |
+| Quantity parsing | New `parseIngredientQuantity()` extracts qty/unit/ingredient |
+| Normalization | New `normalizeIngredient()` for deduplication |
+
+### What Was Tested
+- [x] Plugin builds without errors
+- [x] Plugin loads and indexes all recipes
+- [x] Ingredients parsed correctly from example files
+
+### Issues Discovered
+- None
+
+### Files Modified
+- `src/parsers/IngredientParser.ts` — Complete rewrite with enhanced features
+- `src/parsers/index.ts` — Added new exports
+
+---
+
 ## Next Session Prompt
 
 ```
-Mise - v0.1.0 → Phase 3: The Ingredient Parser
+Mise - v0.1.0 → Phase 4: Time Format Migration
 
 **Project Goal:** Culinary OS for Obsidian (recipe discovery, meal planning, shopping lists)
-**Current Status:** Phases 0-2 complete. Indexer working. Ready to enhance ingredient parsing.
+**Current Status:** Phases 0-3 complete. Parser working. Ready for time normalization.
 
 **Key Docs to Review:**
-- docs/Feature Roadmap.md - (Phase 3 tasks)
+- docs/Feature Roadmap.md - (Phase 4 tasks)
 - docs/CLAUDE.md - (Development workflow)
 
-**PRIORITY: Phase 3 - The Ingredient Parser**
+**PRIORITY: Phase 4 - Time Format Migration**
 
 | Task | Status |
 |------|--------|
-| Detect `## 🥘 Ingredients` header reliably | Pending |
-| Handle case variations and emoji presence | Pending |
-| Strip Markdown syntax (bullets, checkboxes) | Partially done |
-| Unit tests for parser edge cases | Pending |
+| Parse time strings to minutes | Pending |
+| Create migration script | Pending |
+| Update all recipe files | Pending |
+| Display formatter | Pending |
 
-**Note:** Phase 3 is partially complete since `parseIngredients()` already exists in IngredientParser.ts. Focus on hardening and testing.
+**Note:** FrontmatterParser.ts already has parseTime(). May only need a migration script to update existing recipes.
 ```
 
 ---
@@ -225,4 +258,5 @@ Mise - v0.1.0 → Phase 3: The Ingredient Parser
 *Sessions more than 10 entries old will be moved here to keep the main log manageable.*
 
 (No archived sessions yet)
+
 
