@@ -618,7 +618,29 @@ interface ShoppingItem {
 
 ---
 
-### Phase 16: Polish & Error Handling
+### Phase 16: Inventory & Consumption Engine (New)
+- **Goal:** Track what you have and automate deduction based on meals eaten.
+- **Status:** `[ ]` Not Started
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Create `InventoryService` | `[ ]` | Manage stock in `Inventory.md` |
+| "Log Meal" Command | `[ ]` | QuickAdd-friendly modal |
+| "Did you eat [Last Meal]?" | `[ ]` | One-click logging for planned meals |
+| Ad-hoc Meal Logging | `[ ]` | Pick any recipe or "Something New" |
+| **Live Cooking Mode** | `[ ]` | **Critical:** Use `RecipeModal` to track ingredients live while cooking, then "Finish & Log" to deduct exact usage. |
+| Ingredient Deduction Logic | `[ ]` | Subtract recipe ingredients from inventory |
+| "Threw Away Food" Command | `[ ]` | For spoilage tracking |
+| "Pantry Check" Mode | `[ ]` | Periodic audit workflow (bi-weekly) |
+
+**Acceptance Criteria:**
+- [ ] Inventory updates automatically when meals are logged
+- [ ] Users can easily correct inventory counts (Pantry Check)
+- [ ] "Log Meal" flow is fast (<5 seconds) for planned meals
+
+---
+
+### Phase 17: Polish & Error Handling
 - **Goal:** Production-quality stability.
 - **Status:** `[ ]` Not Started
 
@@ -641,7 +663,7 @@ interface ShoppingItem {
 
 ---
 
-### Phase 17: Nutritional Info (Future)
+### Phase 18: Nutritional Info (Future)
 - **Goal:** Track and display nutritional data.
 - **Status:** `[ ]` Not Started (Stretch Goal)
 
@@ -655,7 +677,7 @@ interface ShoppingItem {
 
 ---
 
-### Phase 18: Chronos Integration (Future)
+### Phase 19: Chronos Integration (Future)
 - **Goal:** Sync meal plans with calendar.
 - **Status:** `[ ]` Not Started (If Needed)
 
@@ -693,7 +715,6 @@ Features that came up but aren't scheduled yet:
 - [ ] Grocery list export to Reminders/Todoist
 - [ ] Voice input for grocery items (requires separate app)
 - [ ] Calorie tracking dashboard
-- [ ] Pantry inventory management
 - [ ] "What can I make?" mode (based on available ingredients)
 - [ ] Recipe collections/favorites list
 - [ ] Cooking timers integration

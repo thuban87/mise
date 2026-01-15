@@ -27388,6 +27388,11 @@ function MealCalendar({ mealPlanService, app }) {
   const [pickerVisible, setPickerVisible] = (0, import_react4.useState)(false);
   const [dropTarget, setDropTarget] = (0, import_react4.useState)(null);
   const [draggedRecipe, setDraggedRecipe] = (0, import_react4.useState)(null);
+  const {
+    recipes,
+    openModal,
+    openRecipe
+  } = useRecipes();
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   const allMeals = (0, import_react4.useMemo)(() => {
@@ -27497,20 +27502,13 @@ function MealCalendar({ mealPlanService, app }) {
   };
   const handleMealClick = (meal, e) => {
     e.stopPropagation();
-    if (meal.recipePath) {
-      const file = app.vault.getAbstractFileByPath(meal.recipePath);
-      if (file) {
-        app.workspace.getLeaf().openFile(file);
-      } else {
-        const altPath = meal.recipePath.replace(".md", "");
-        const files = app.vault.getMarkdownFiles();
-        const match = files.find(
-          (f) => f.basename.toLowerCase() === altPath.toLowerCase() || f.basename.toLowerCase() === meal.recipeTitle.toLowerCase()
-        );
-        if (match) {
-          app.workspace.getLeaf().openFile(match);
-        }
-      }
+    const recipeMatch = recipes.find(
+      (r) => r.path === meal.recipePath || r.title === meal.recipeTitle
+    );
+    if (recipeMatch) {
+      openModal(recipeMatch);
+    } else if (meal.recipePath) {
+      openRecipe(meal.recipePath);
     }
   };
   const handleDragOver = (e, day) => {
@@ -27770,7 +27768,8 @@ function MealCalendar({ mealPlanService, app }) {
         onSelect: handleMealTypeSelect,
         onCancel: handlePickerCancel
       }
-    )
+    ),
+    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(RecipeModal, {})
   ] });
 }
 function getMealTooltip(meal) {
@@ -27895,10 +27894,18 @@ var MealPlanView = class extends import_obsidian9.ItemView {
     this.root = (0, import_client3.createRoot)(container);
     this.root.render(
       /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
-        MealCalendar,
+        RecipeProvider,
         {
+          app: this.app,
+          indexer: this.plugin.indexer,
           mealPlanService: this.plugin.mealPlanService,
-          app: this.app
+          children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+            MealCalendar,
+            {
+              mealPlanService: this.plugin.mealPlanService,
+              app: this.app
+            }
+          )
         }
       )
     );

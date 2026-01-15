@@ -8,6 +8,8 @@ import { App } from 'obsidian';
 import { PlannedMeal } from '../../types';
 import { MealPlanService } from '../../services';
 import { MealTypePicker, MealType } from './MealTypePicker';
+import { useRecipes } from './RecipeContext';
+import { RecipeModal } from './RecipeModal';
 
 interface MealCalendarProps {
     mealPlanService: MealPlanService;
@@ -55,6 +57,13 @@ export function MealCalendar({ mealPlanService, app }: MealCalendarProps) {
     const [pickerVisible, setPickerVisible] = useState(false);
     const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
     const [draggedRecipe, setDraggedRecipe] = useState<DraggedRecipe | null>(null);
+
+    // Context for modal
+    const {
+        recipes,
+        openModal,
+        openRecipe
+    } = useRecipes();
 
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -201,25 +210,22 @@ export function MealCalendar({ mealPlanService, app }: MealCalendarProps) {
         setViewMode('week');
     };
 
-    // Click a meal to open the recipe
+    // Click a meal to open the recipe modal (fallback to file if not in index)
     const handleMealClick = (meal: PlannedMeal, e: React.MouseEvent) => {
         e.stopPropagation();
-        if (meal.recipePath) {
-            const file = app.vault.getAbstractFileByPath(meal.recipePath);
-            if (file) {
-                app.workspace.getLeaf().openFile(file as any);
-            } else {
-                // Try without .md extension
-                const altPath = meal.recipePath.replace('.md', '');
-                const files = app.vault.getMarkdownFiles();
-                const match = files.find(f =>
-                    f.basename.toLowerCase() === altPath.toLowerCase() ||
-                    f.basename.toLowerCase() === meal.recipeTitle.toLowerCase()
-                );
-                if (match) {
-                    app.workspace.getLeaf().openFile(match);
-                }
-            }
+
+        // Try to find the full recipe object in our index
+        const recipeMatch = recipes.find(r =>
+            r.path === meal.recipePath ||
+            r.title === meal.recipeTitle
+        );
+
+        if (recipeMatch) {
+            // Open the pretty modal!
+            openModal(recipeMatch);
+        } else if (meal.recipePath) {
+            // Fallback: Open file directly if we can't find it in index (rare)
+            openRecipe(meal.recipePath);
         }
     };
 
@@ -518,6 +524,9 @@ export function MealCalendar({ mealPlanService, app }: MealCalendarProps) {
                 onSelect={handleMealTypeSelect}
                 onCancel={handlePickerCancel}
             />
+
+            {/* Recipe Preview Modal */}
+            <RecipeModal />
         </div>
     );
 }
