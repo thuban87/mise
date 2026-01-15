@@ -4,7 +4,7 @@
 
 import { ItemView, WorkspaceLeaf } from 'obsidian';
 import { createRoot, Root } from 'react-dom/client';
-import { MealCalendar } from '../components/MealCalendar';
+import { MealCalendar, RecipeProvider } from '../components';
 import type MisePlugin from '../../main';
 
 export const MISE_MEAL_PLAN_VIEW_TYPE = 'mise-meal-plan-view';
@@ -38,10 +38,16 @@ export class MealPlanView extends ItemView {
         // Create React root and render calendar
         this.root = createRoot(container);
         this.root.render(
-            <MealCalendar
-                mealPlanService={this.plugin.mealPlanService}
+            <RecipeProvider
                 app={this.app}
-            />
+                indexer={this.plugin.indexer}
+                mealPlanService={this.plugin.mealPlanService}
+            >
+                <MealCalendar
+                    mealPlanService={this.plugin.mealPlanService}
+                    app={this.app}
+                />
+            </RecipeProvider>
         );
     }
 

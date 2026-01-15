@@ -5,7 +5,8 @@
    =========================== */
 .mise-container,
 .mise-cookbook-container,
-.mise-sidebar-container {
+.mise-sidebar-container,
+.mise-meal-plan-container {
 	--mise-card-radius: 8px;
 	--mise-card-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 	--mise-spacing-xs: 4px;
