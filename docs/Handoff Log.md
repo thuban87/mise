@@ -87,56 +87,6 @@ Phase 13: Shopping List Writer - Implement `ShoppingListService.writeListToFile(
 
 ---
 
-## Session: January 14, 2026 - Phase 11 Drag-and-Drop Complete
-
-### Phase
-Phase 11: Drag-and-Drop Assignment
-
-### Session Summary
-Implemented comprehensive drag-and-drop functionality for the meal plan calendar. Users can now drag recipes from the sidebar cookbook onto calendar days to add them as meals, drag existing meals between days to move them, and drag meals to a trash zone to delete them. A centered meal type picker modal allows selecting Breakfast/Lunch/Dinner when dropping a recipe.
-
-### What Was Done
-
-| Task | Details |
-|------|--------|
-| `RecipeCardMini.tsx` | Added `draggable`, `onDragStart`, `onDragEnd` with data transfer |
-| `MealCalendar.tsx` | Drop handlers for recipes and meals, drag handlers for meal pills |
-| `MealTypePicker.tsx` | New centered modal component for meal type selection |
-| `MealPlanService.ts` | Added `addMeal()` and `removeMeal()` methods to modify markdown file |
-| `styles.css` | Added drag-over effects, picker styling, subtle trash zone |
-
-### Key Technical Discoveries
-
-| Issue | Solution |
-|-------|----------|
-| Drag immediately cancelled | Accessing `calendarRef.current` during drag handlers caused issues; use minimal handlers |
-| Drop effect mismatch | Changed `dropEffect` to 'move' for meals, 'copy' for new recipes |
-
-### What Was Tested
-- ✅ Drag recipe from sidebar to calendar - shows picker, adds meal
-- ✅ Meal type picker centered and working
-- ✅ Click meals to open recipe file
-- ✅ Drag meals between days on calendar
-- ✅ Delete meals by dragging to trash zone
-
-### Recommended Commit
-```
-feat(calendar): implement drag-and-drop meal assignment
-
-- Add drag from RecipeCardMini sidebar to calendar days
-- MealTypePicker modal for choosing breakfast/lunch/dinner
-- Drag meals between days to move them
-- Trash zone for deleting meals
-- MealPlanService.addMeal() and removeMeal() methods
-
-Closes Phase 11
-```
-
-### Next Session Prompt
-Phase 12: Ingredient Aggregator - Create ShoppingListService to collect ingredients from planned meals across a date range.
-
----
-
 ## Session: January 13, 2026 - Project Inception & Documentation
 
 ### Phase
@@ -515,6 +465,7 @@ Implemented comprehensive search and filtering for the cookbook. Added FilterBar
 - `src/ui/components/RecipeContext.tsx` — Filter state
 - `src/ui/components/CookbookApp.tsx` — Filter integration
 - `src/ui/components/index.ts` — Exports
+
 ---
 
 ## Session: January 14, 2026 - Meal Plan Reader
@@ -553,6 +504,22 @@ Implemented meal plan file parsing with support for custom table format includin
 - `src/ui/views/CookbookSidebar.tsx` — Pass mealPlanService
 - `styles.css` — Planned badge styles
 
+### Recommended Commit
+```
+feat(meal-plans): implement meal plan reader and planned badge
+
+- Add MealPlanParser for parsing meal plan markdown tables
+- MealPlanService watches for file changes and emits events
+- Recipe cards show "Planned: Mon, Wed" badge
+- Support for Protein/Sides/Notes columns
+- Month/year awareness for multi-month support
+
+Closes Phase 9
+```
+
+### Next Session Prompt
+Phase 10: Meal Plan Calendar UI - Build visual calendar for viewing and navigating meal plans.
+
 ---
 
 ## Session: January 14, 2026 - Meal Plan Calendar UI
@@ -588,6 +555,182 @@ Created visual calendar for meal plans with month/week views, navigation, clicka
 - `src/types/index.ts` — planMonth, planYear fields
 - `src/main.ts` — Register view and command
 - `styles.css` — Calendar and clickable styles
+
+### Recommended Commit
+```
+feat(calendar): implement meal plan calendar with month/week views
+
+- Add MealCalendar component with 7x6 grid layout
+- Month and week view toggles
+- Navigate between months/weeks
+- Click meals to open recipes
+- Proper meal filtering by day+week+month
+
+Closes Phase 10
+```
+
+### Next Session Prompt
+Phase 11: Drag-and-Drop Assignment - Implement drag-and-drop for assigning recipes to calendar days.
+
+---
+
+## Session: January 14, 2026 - Drag-and-Drop Assignment
+
+### Phase
+Phase 11: Drag-and-Drop Assignment
+
+### Session Summary
+Implemented comprehensive drag-and-drop functionality for the meal plan calendar. Users can now drag recipes from the sidebar cookbook onto calendar days to add them as meals, drag existing meals between days to move them, and drag meals to a trash zone to delete them. A centered meal type picker modal allows selecting Breakfast/Lunch/Dinner when dropping a recipe.
+
+### What Was Done
+
+| Task | Details |
+|------|--------|
+| RecipeCardMini.tsx | Added `draggable`, `onDragStart`, `onDragEnd` with data transfer |
+| MealCalendar.tsx | Drop handlers for recipes and meals, drag handlers for meal pills |
+| MealTypePicker.tsx | New centered modal component for meal type selection |
+| MealPlanService.ts | Added `addMeal()` and `removeMeal()` methods to modify markdown file |
+| styles.css | Added drag-over effects, picker styling, subtle trash zone |
+
+### Key Technical Discoveries
+
+| Issue | Solution |
+|-------|----------|
+| Drag immediately cancelled | Accessing `calendarRef.current` during drag handlers caused issues; use minimal handlers |
+| Drop effect mismatch | Changed `dropEffect` to 'move' for meals, 'copy' for new recipes |
+
+### What Was Tested
+- [x] Drag recipe from sidebar to calendar - shows picker, adds meal
+- [x] Meal type picker centered and working
+- [x] Click meals to open recipe file
+- [x] Drag meals between days on calendar
+- [x] Delete meals by dragging to trash zone
+
+### Files Created
+- `src/ui/components/MealTypePicker.tsx` — Centered modal for meal type selection
+
+### Files Modified
+- `src/ui/components/RecipeCardMini.tsx` — Added draggable functionality
+- `src/ui/components/MealCalendar.tsx` — Drop handlers for recipes and meals
+- `src/services/MealPlanService.ts` — Added `addMeal()` and `removeMeal()` methods
+- `styles.css` — Drag-over effects, picker styling, trash zone
+
+### Recommended Commit
+```
+feat(calendar): implement drag-and-drop meal assignment
+
+- Add drag from RecipeCardMini sidebar to calendar days
+- MealTypePicker modal for choosing breakfast/lunch/dinner
+- Drag meals between days to move them
+- Trash zone for deleting meals
+- MealPlanService.addMeal() and removeMeal() methods
+
+Closes Phase 11
+```
+
+### Next Session Prompt
+Phase 12: Ingredient Aggregator - Create ShoppingListService to collect ingredients from planned meals across a date range.
+
+---
+
+## Session: January 14, 2026 - Ingredient Aggregator
+
+### Phase
+Phase 12: Ingredient Aggregator
+
+### Session Summary
+Built `ShoppingListService` to collect and consolidate ingredients from planned meals across date ranges. Implemented aisle-based grouping with keyword inference, deduplication logic, and recipe source tracking. Service generates shopping lists for week or month ranges with proper consolidation.
+
+### What Was Done
+
+| Task | Details |
+|------|---------|
+| ShoppingListService.ts | Complete service with generateListForWeek/Month methods |
+| Aisle grouping | AISLE_RULES mapping with keyword-based inference |
+| Deduplication | normalizeIngredient() consolidation |
+| Recipe tracking | fromRecipes array for each shopping item |
+| Week-based collection | getWeekNumber() and date range filtering |
+
+### What Was Tested
+- [x] Collect all ingredients from week's meals
+- [x] Collect all ingredients from month's meals
+- [x] Ingredients grouped by aisle correctly
+- [x] Duplicates consolidated (e.g., "2 onions" + "1 onion" → "onion x3")
+- [x] Recipe source tracked per item
+
+### Files Created
+- `src/services/ShoppingListService.ts` — Shopping list generation service
+
+### Files Modified
+- `src/main.ts` — Added generate-shopping-list command with console output
+- `src/types/index.ts` — Added Aisle, ShoppingItem types
+
+### Recommended Commit
+```
+feat(shopping): implement ingredient aggregator service
+
+- Add ShoppingListService with week/month generation
+- Aisle-based grouping with keyword inference
+- Ingredient deduplication and consolidation
+- Track recipe sources for each item
+- Command to generate and log shopping list
+
+Closes Phase 12
+```
+
+### Next Session Prompt
+Phase 12.5: Store Profiles & Shopping List Refinement - Add customizable store layouts and guided wizard for list generation.
+
+---
+
+## Session: January 16, 2026 - Calendar Modal Integration
+
+### Phase
+Phase 12.6: UI Consistency Enhancement (Post-12.5)
+
+### Session Summary
+Improved UI consistency by integrating `RecipeModal` into the meal plan calendar view. Previously, clicking meals on the calendar opened the recipe file directly, while clicking recipes in the cookbook opened the preview modal. Now both views use the same modal interface, providing a consistent experience. Also documented the upcoming "Live Cooking Mode" feature for Phase 16 inventory tracking.
+
+### What Was Done
+
+| Task | Details |
+|------|---------|
+| MealPlanView.tsx | Wrapped MealCalendar in RecipeProvider for context access |
+| MealCalendar.tsx | Updated to use RecipeModal instead of direct file opening |
+| Modal click handler | Searches recipe index, opens modal if found, falls back to file |
+| RecipeModal rendering | Added RecipeModal component to calendar view |
+| styles.css | Added mise-meal-plan-container to CSS variable scope for proper modal padding |
+| Feature Roadmap | Added "Live Cooking Mode" to Phase 16 as critical feature |
+
+### What Was Tested
+- [x] Click meal on calendar opens RecipeModal
+- [x] Modal displays with full recipe details
+- [x] Modal padding matches cookbook view
+- [x] Ingredient checkboxes work in calendar-opened modals
+- [x] Fallback to file opening works for recipes not in index
+- [x] "Open Recipe" button works from modal
+
+### Files Modified
+- `src/ui/views/MealPlanView.tsx` — Added RecipeProvider wrapper
+- `src/ui/components/MealCalendar.tsx` — Integrated useRecipes context and RecipeModal
+- `styles.css` — Added .mise-meal-plan-container to variable scope
+- `docs/Feature Roadmap.md` — Added Live Cooking Mode to Phase 16
+
+### Recommended Commit
+```
+feat(calendar): integrate recipe preview modal
+
+- Wrap MealPlanView in RecipeProvider
+- Click meals opens RecipeModal instead of file
+- Consistent UX across cookbook and calendar views
+- Fix modal padding for calendar context
+- Document Live Cooking Mode for Phase 16
+
+Sets foundation for inventory tracking via modal
+```
+
+### Next Session Prompt
+Phase 13: Shopping List Writer - Implement `writeListToFile()` method to generate formatted markdown shopping lists.
 
 ---
 
