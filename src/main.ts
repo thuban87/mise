@@ -8,7 +8,7 @@
  * - Wires dependencies together
  */
 
-import { Plugin, WorkspaceLeaf } from 'obsidian';
+import { Plugin, WorkspaceLeaf, Notice } from 'obsidian';
 import { MiseSettings, DEFAULT_SETTINGS } from './types';
 import { RecipeIndexer, MealPlanService, ShoppingListService, TimeMigrationService } from './services';
 import { MiseSettingsTab } from './ui/settings/MiseSettingsTab';
@@ -110,12 +110,23 @@ export default class MisePlugin extends Plugin {
                     async (result) => {
                         console.log(`${PLUGIN_NAME}: Generating shopping list with:`, result);
 
+                        // Handle Quick Trip (placeholder - Phase 16 will implement)
+                        if (result.quickTrip) {
+                            new Notice('Quick Trip requires Inventory System (Phase 16)');
+                            return;
+                        }
+
                         // Generate based on time range
                         let list;
                         if (result.timeRange.type === 'month') {
                             list = await this.shoppingListService.generateListForMonth(undefined, undefined, result.storeId || undefined);
                         } else {
                             list = await this.shoppingListService.generateListForWeek(result.timeRange.weekNumber, undefined, undefined, result.storeId || undefined);
+                        }
+
+                        // Filter by categories if bulk buy mode
+                        if (result.bulkBuyMode && result.selectedCategories) {
+                            list = this.shoppingListService.filterByCategories(list, result.selectedCategories);
                         }
 
                         // Filter items if user selected specific ones
@@ -128,10 +139,15 @@ export default class MisePlugin extends Plugin {
                             list.aisles = list.aisles.filter(a => a.items.length > 0);
                         }
 
-                        // Log results (Phase 13 will write to file)
-                        console.log(`${PLUGIN_NAME}: Generated list for ${result.timeRange.label}:`);
-                        console.log(`${PLUGIN_NAME}: Store: ${result.storeId || 'General'}`);
-                        console.log(`${PLUGIN_NAME}: Aisles:`, list.aisles.map(a => `${a.name} (${a.items.length} items)`));
+                        // Write to file
+                        const filePath = await this.shoppingListService.writeListToFile(list, result.dateRangeLabel);
+
+                        // Show success and open file
+                        new Notice(`✅ Shopping list created!`);
+                        const file = this.app.vault.getAbstractFileByPath(filePath);
+                        if (file) {
+                            await this.app.workspace.getLeaf('tab').openFile(file as any);
+                        }
                     }
                 );
                 modal.open();
@@ -185,6 +201,8 @@ export default class MisePlugin extends Plugin {
         // This ensures the vault is fully loaded
         this.app.workspace.onLayoutReady(async () => {
             await this.indexer.initialize();
+            // Check for old shopping lists to archive
+            await this.shoppingListService.checkAndPromptArchive();
         });
 
         console.log(`${PLUGIN_NAME}: Plugin loaded.`);

@@ -11,8 +11,8 @@ tags:
 > **No MVP. No Launch Date. No Rush.**
 > This is a personal utility project with infinite runway. Features get done when they get done. Do not pressure the user with "we should do this after MVP" language.
 
-**Last Updated:** January 13, 2026
-**Current Phase:** Phase 11 - Drag-and-Drop Assignment
+**Last Updated:** January 16, 2026
+**Current Phase:** Phase 13 - Shopping List Writer ✅
 
 ---
 
@@ -523,31 +523,25 @@ interface ShoppingItem {
 
 ### Phase 13: Shopping List Writer
 - **Goal:** Generate formatted shopping list files.
-- **Status:** `[ ]` Not Started
+- **Status:** `[x]` Complete
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Generate markdown file | `[ ]` | `Grocery List - January Week 2.md` |
-| Header with date range | `[ ]` | For reference |
-| Aisle sections with headers | `[ ]` | `## 🥬 Produce` |
-| Checkbox items | `[ ]` | `- [ ] Onion (from: Fajitas, Stew)` |
-| List mode support | `[ ]` | Normal, Bulk Buy, Pantry, Quick Trip |
-| Auto-archive setting | `[ ]` | Move old lists to Archive/ |
-| "Generate Shopping List" command | `[ ]` | With date range picker |
-| "Generate Shopping List" button in UI | `[ ]` | Quick access |
-
-**Shopping List Modes:**
-| Mode | Behavior |
-|------|----------|
-| Normal | Group by aisle |
-| Bulk Buy | Group by protein type (Beef, Chicken, Pork, etc.) |
-| Pantry | Only show pantry/shelf-stable items |
-| Quick Trip | Only show perishables |
+| Generate markdown file | `[x]` | `Grocery List - January 19-25.md` |
+| YAML frontmatter with created date | `[x]` | `created: 2026-01-16` |
+| Aisle sections with emoji headers | `[x]` | Parsed from item categories |
+| Checkbox items with recipe sources | `[x]` | Optional wikilinks via setting |
+| Bulk Buy mode with category picker | `[x]` | Filter by aisle categories |
+| Quick Trip placeholder | `[x]` | Disabled until Inventory (Phase 16) |
+| Auto-archive with age detection | `[x]` | On/Off/Ask setting |
+| Archive folder setting | `[x]` | With folder autocomplete |
+| Open generated file automatically | `[x]` | Opens in new tab |
 
 **Acceptance Criteria:**
-- [ ] Shopping list file created with correct format
-- [ ] All modes produce correctly grouped lists
-- [ ] Old lists archived (if setting enabled)
+- [x] Shopping list file created with correct format
+- [x] Week/Month modes work correctly
+- [x] Bulk buy filters by selected categories
+- [x] Recipe sources show as wikilinks (optional)
 - [ ] List is usable on mobile Obsidian
 
 ---
