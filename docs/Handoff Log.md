@@ -9,9 +9,9 @@ tags:
 
 **Purpose:** Session-by-session implementation notes. Each development session appends a new entry with details of what was done, what was tested, and what's next.
 
-**Last Updated:** January 14, 2026
-**Current Phase:** Phase 12 - Ingredient Aggregator
-**Current Branch:** feat/phase-11-drag-drop (pending merge)
+**Last Updated:** January 16, 2026
+**Current Phase:** Phase 13 - Shopping List Writer ✅
+**Current Branch:** feat/phase-13-list-writer
 **Version:** 0.1.0
 
 ---
@@ -34,6 +34,55 @@ Each session should include:
 - **Be specific** — Reference file paths, function names, and line numbers
 - **Test results are mandatory** — Every session must document testing
 - **Suggest commits** — Include recommended commit message at session end
+
+---
+
+## Session: January 16, 2026 - Shopping List Writer
+
+### Phase
+Phase 13: Shopping List Writer
+
+### Session Summary
+Implemented complete shopping list file generation. Refactored `ShoppingListModal.ts` with a new 4-step flow: Time Selection (with Quick Trip placeholder), Category Selection (for Bulk Buy mode), Store Selection, and optional Item Selection. Added `writeListToFile()` to `ShoppingListService.ts` that generates markdown files with YAML frontmatter, emoji aisle headers, and checkbox items with optional wikilinks. Implemented age-based auto-archive detection on plugin startup. Added settings for archive folder path and recipe source wikilinks toggle.
+
+### What Was Done
+
+| Task | Details |
+|------|---------|
+| `types/index.ts` | Added `shoppingListArchiveFolder`, `showRecipeSourceLinks` settings |
+| `MiseSettingsTab.ts` | Archive folder with FolderSuggest, recipe source wikilinks toggle |
+| `ShoppingListModal.ts` | Complete rewrite with 4-step flow, Bulk Buy category picker, Quick Trip placeholder |
+| `ShoppingListService.ts` | `writeListToFile()`, `filterByCategories()`, `checkAndPromptArchive()` |
+| `main.ts` | Updated command to write file and open it, added archive check on startup |
+| `styles.css` | Added Quick Trip, category grid, modal container styles |
+
+### Key Technical Discoveries
+- Obsidian's Toggle component doesn't re-render parent - requires explicit `renderStep()` call
+- Date range labels need smart formatting: "January 19-25" for same month, "January 27 - February 2" for split weeks
+- Week scoping is by month file - intentional design for month-based meal planning
+
+### What Was Tested
+- ✅ Weekly list generation with date range in title
+- ✅ Monthly list generation
+- ✅ Bulk buy mode with category filtering
+- ✅ Recipe source wikilinks toggle (on/off)
+- ✅ Button text switching (Generate → Next when selecting items)
+- ⏭️ Auto-archive (code complete, deferred manual testing)
+
+### Issues Discovered
+- Split weeks don't cross month boundaries (by design for month-scoped meal plans)
+
+### Recommended Commit
+```
+feat(phase-13): Shopping List Writer complete
+
+- Refactored ShoppingListModal with 4-step flow
+- Added writeListToFile() with YAML frontmatter
+- Bulk Buy mode with category picker
+- Quick Trip placeholder for Phase 16 inventory integration
+- Auto-archive with age detection
+- Settings: archive folder, recipe source wikilinks toggle
+```
 
 ---
 

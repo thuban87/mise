@@ -24526,7 +24526,9 @@ var DEFAULT_SETTINGS = {
     includeIngredientsInline: false,
     includeIngredientsCallout: false,
     includeSource: false
-  }
+  },
+  shoppingListArchiveFolder: "Life/Household/Shopping Lists/Archive",
+  showRecipeSourceLinks: true
 };
 
 // src/services/RecipeIndexer.ts
@@ -26215,11 +26217,191 @@ var ShoppingListService = class {
     return months[monthIndex];
   }
   /**
-   * Write shopping list to a file (Phase 13)
+   * Write shopping list to a markdown file
    */
-  async writeListToFile(list) {
-    console.log("ShoppingListService.writeListToFile: Will be implemented in Phase 13");
-    return "";
+  async writeListToFile(list, dateRangeLabel) {
+    const { vault } = this.app;
+    const displayLabel = dateRangeLabel || list.dateRange.start;
+    const filename = this.generateFilename(displayLabel);
+    const folderPath = this.settings.shoppingListFolder;
+    const filePath = `${folderPath}/${filename}`;
+    const content = this.formatListAsMarkdown(list, displayLabel);
+    try {
+      const folder = vault.getAbstractFileByPath(folderPath);
+      if (!folder) {
+        await vault.createFolder(folderPath);
+      }
+    } catch (e) {
+    }
+    const existingFile = vault.getAbstractFileByPath(filePath);
+    if (existingFile) {
+      await vault.modify(existingFile, content);
+    } else {
+      await vault.create(filePath, content);
+    }
+    console.log(`ShoppingListService: Created shopping list at ${filePath}`);
+    return filePath;
+  }
+  /**
+   * Generate filename for shopping list
+   */
+  generateFilename(dateRangeLabel) {
+    return `Grocery List - ${dateRangeLabel}.md`;
+  }
+  /**
+   * Format shopping list as markdown
+   */
+  formatListAsMarkdown(list, dateRangeLabel) {
+    const lines = [];
+    const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+    const showLinks = this.settings.showRecipeSourceLinks;
+    lines.push("---");
+    lines.push(`created: ${today}`);
+    lines.push("---");
+    lines.push("");
+    lines.push(`# Grocery List - ${dateRangeLabel}`);
+    lines.push("");
+    for (const aisle of list.aisles) {
+      lines.push(`## ${aisle.name}`);
+      for (const item of aisle.items) {
+        let line = `- [ ] ${item.ingredient}`;
+        if (item.fromRecipes.length > 0) {
+          if (showLinks) {
+            const links = item.fromRecipes.map((r) => `[[${r}]]`).join(", ");
+            line += ` (from: ${links})`;
+          } else {
+            line += ` (from: ${item.fromRecipes.join(", ")})`;
+          }
+        }
+        lines.push(line);
+      }
+      lines.push("");
+    }
+    return lines.join("\n");
+  }
+  /**
+   * Filter a shopping list to only include specified categories/aisles
+   */
+  filterByCategories(list, categories) {
+    const categorySet = new Set(categories.map((c) => c.toLowerCase()));
+    const filteredAisles = list.aisles.filter((aisle) => {
+      const aisleName = aisle.name.replace(/^[^\w]*/, "").trim().toLowerCase();
+      return categories.some((cat) => aisleName.includes(cat.toLowerCase()));
+    });
+    return {
+      ...list,
+      aisles: filteredAisles
+    };
+  }
+  /**
+   * Check for old shopping lists and prompt for archiving
+   */
+  async checkAndPromptArchive() {
+    if (this.settings.autoArchiveShoppingLists === "off") {
+      return;
+    }
+    const { vault } = this.app;
+    const folderPath = this.settings.shoppingListFolder;
+    const archivePath = this.settings.shoppingListArchiveFolder;
+    const folder = vault.getAbstractFileByPath(folderPath);
+    if (!folder || !folder.children) {
+      return;
+    }
+    const now = /* @__PURE__ */ new Date();
+    const currentMonth = this.getMonthName(now.getMonth());
+    const currentYear = now.getFullYear();
+    const currentWeek = this.getWeekNumber(now);
+    const filesToArchive = [];
+    for (const file of folder.children) {
+      if (file.extension !== "md") continue;
+      if (file.name.startsWith("Grocery List -")) {
+        const match = file.name.match(/Grocery List - (\w+)(?: (\d{4}))?(?: Week (\d+))?\.md/);
+        if (match) {
+          const fileMonth = match[1];
+          const fileYear = match[2] ? parseInt(match[2]) : currentYear;
+          const fileWeek = match[3] ? parseInt(match[3]) : null;
+          const monthIndex = this.getMonthIndex(fileMonth);
+          const currentMonthIndex = now.getMonth();
+          let shouldArchive = false;
+          if (fileYear < currentYear) {
+            shouldArchive = true;
+          } else if (fileYear === currentYear && monthIndex < currentMonthIndex) {
+            shouldArchive = true;
+          } else if (fileYear === currentYear && monthIndex === currentMonthIndex && fileWeek && fileWeek < currentWeek) {
+            shouldArchive = true;
+          }
+          if (shouldArchive) {
+            filesToArchive.push(file.path);
+          }
+        }
+      }
+    }
+    if (filesToArchive.length === 0) {
+      return;
+    }
+    if (this.settings.autoArchiveShoppingLists === "on") {
+      await this.archiveFiles(filesToArchive);
+    } else if (this.settings.autoArchiveShoppingLists === "ask") {
+      const { Notice: Notice3 } = require("obsidian");
+      const notice = new Notice3(
+        `\u{1F4CB} ${filesToArchive.length} old shopping list(s) found. Archive them?`,
+        0
+        // Don't auto-hide
+      );
+      console.log("ShoppingListService: Old lists found:", filesToArchive);
+    }
+  }
+  /**
+   * Move files to archive folder
+   */
+  async archiveFiles(filePaths) {
+    const { vault } = this.app;
+    const archivePath = this.settings.shoppingListArchiveFolder;
+    try {
+      const folder = vault.getAbstractFileByPath(archivePath);
+      if (!folder) {
+        await vault.createFolder(archivePath);
+      }
+    } catch (e) {
+    }
+    for (const filePath of filePaths) {
+      const file = vault.getAbstractFileByPath(filePath);
+      if (file) {
+        const newPath = `${archivePath}/${file.name}`;
+        await vault.rename(file, newPath);
+        console.log(`ShoppingListService: Archived ${filePath} -> ${newPath}`);
+      }
+    }
+  }
+  /**
+   * Get week number for a date (ISO week number)
+   */
+  getWeekNumber(date) {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil(((d.getTime() - yearStart.getTime()) / 864e5 + 1) / 7);
+  }
+  /**
+   * Get month index from name
+   */
+  getMonthIndex(monthName) {
+    const months = [
+      "january",
+      "february",
+      "march",
+      "april",
+      "may",
+      "june",
+      "july",
+      "august",
+      "september",
+      "october",
+      "november",
+      "december"
+    ];
+    return months.indexOf(monthName.toLowerCase());
   }
 };
 
@@ -26542,6 +26724,17 @@ var MiseSettingsTab = class extends import_obsidian6.PluginSettingTab {
     containerEl.createEl("h2", { text: "\u{1F6D2} Shopping Lists" });
     new import_obsidian6.Setting(containerEl).setName("Auto-archive Shopping Lists").setDesc("What to do with old shopping lists when generating new ones.").addDropdown((dropdown) => dropdown.addOption("off", "Off - Keep all lists in place").addOption("on", "On - Automatically archive").addOption("ask", "Ask every time").setValue(this.plugin.settings.autoArchiveShoppingLists).onChange(async (value) => {
       this.plugin.settings.autoArchiveShoppingLists = value;
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian6.Setting(containerEl).setName("Archive Folder").setDesc("Where to move old shopping lists when archiving.").addText((text) => {
+      text.setPlaceholder("Type to search folders...").setValue(this.plugin.settings.shoppingListArchiveFolder).onChange(async (value) => {
+        this.plugin.settings.shoppingListArchiveFolder = value;
+        await this.plugin.saveSettings();
+      });
+      new FolderSuggest(this.app, text.inputEl);
+    });
+    new import_obsidian6.Setting(containerEl).setName("Show Recipe Source Links").setDesc("Display recipe names as [[wikilinks]] in shopping lists for easy navigation.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showRecipeSourceLinks).onChange(async (value) => {
+      this.plugin.settings.showRecipeSourceLinks = value;
       await this.plugin.saveSettings();
     }));
     containerEl.createEl("h2", { text: "\u{1F4C5} Meal Plan Insertion" });
@@ -27920,8 +28113,18 @@ var MealPlanView = class extends import_obsidian9.ItemView {
 
 // src/ui/components/ShoppingListModal.ts
 var import_obsidian10 = require("obsidian");
+var AISLE_CATEGORIES = [
+  "Produce",
+  "Meat",
+  "Dairy",
+  "Bakery",
+  "Frozen",
+  "Pantry",
+  "Beverages",
+  "Other"
+];
 var ShoppingListModal = class extends import_obsidian10.Modal {
-  constructor(app, settings, weeks, allItems, onGenerate) {
+  constructor(app, settings, weeks, allItems, onGenerate, inventoryEnabled = false) {
     super(app);
     // State
     this.step = 1;
@@ -27929,15 +28132,22 @@ var ShoppingListModal = class extends import_obsidian10.Modal {
     this.selectedStoreId = null;
     this.selectSpecificItems = false;
     this.itemSelections = /* @__PURE__ */ new Map();
+    // New state for bulk buy and quick trip
+    this.bulkBuyMode = false;
+    this.selectedCategories = new Set(AISLE_CATEGORIES);
+    this.quickTrip = false;
+    this.quickTripDays = 3;
     this.settings = settings;
     this.weeks = weeks;
     this.allItems = allItems;
     this.onGenerate = onGenerate;
+    this.inventoryEnabled = inventoryEnabled;
     for (const item of allItems) {
       this.itemSelections.set(item.ingredient, true);
     }
   }
   onOpen() {
+    this.modalEl.addClass("mise-shopping-modal-container");
     this.renderStep();
   }
   renderStep() {
@@ -27949,46 +28159,153 @@ var ShoppingListModal = class extends import_obsidian10.Modal {
         this.renderTimeRangeStep();
         break;
       case 2:
-        this.renderStoreStep();
+        this.renderCategoryStep();
         break;
       case 3:
+        this.renderStoreStep();
+        break;
+      case 4:
         this.renderItemsStep();
         break;
     }
   }
   renderTimeRangeStep() {
+    var _a;
     const { contentEl } = this;
-    contentEl.createEl("h2", { text: "Select Time Range" });
+    contentEl.createEl("h2", { text: "Generate Shopping List" });
+    const quickTripSetting = new import_obsidian10.Setting(contentEl).setName("\u{1F680} Quick Trip (Perishables)").setClass("mise-quick-trip-setting");
+    if (this.inventoryEnabled) {
+      quickTripSetting.setDesc("Generate a list of items expiring soon").addToggle((toggle) => {
+        toggle.setValue(this.quickTrip).onChange((value) => {
+          this.quickTrip = value;
+          this.renderStep();
+        });
+      });
+      if (this.quickTrip) {
+        new import_obsidian10.Setting(contentEl).setName("Expiring within").setClass("mise-quick-trip-days").addDropdown((dropdown) => {
+          dropdown.addOption("1", "1 day").addOption("2", "2 days").addOption("3", "3 days").addOption("5", "5 days").addOption("7", "1 week").setValue(String(this.quickTripDays)).onChange((value) => {
+            this.quickTripDays = parseInt(value);
+          });
+        });
+      }
+    } else {
+      quickTripSetting.setDesc("\u{1F512} Requires Inventory System (Phase 16)").addToggle((toggle) => {
+        toggle.setValue(false).setDisabled(true);
+      });
+      quickTripSetting.settingEl.addClass("mise-disabled-setting");
+    }
+    contentEl.createEl("hr");
+    contentEl.createEl("h3", { text: "Time Range" });
     const container = contentEl.createDiv("mise-modal-options");
     for (const week of this.weeks) {
       const label = `Week ${week.weekNumber} (${week.startDate} - ${week.endDate})`;
       new import_obsidian10.Setting(container).setName(label).addToggle((toggle) => {
-        var _a;
-        toggle.setValue(((_a = this.selectedTimeRange) == null ? void 0 : _a.type) === "week" && this.selectedTimeRange.weekNumber === week.weekNumber).onChange(() => {
+        var _a2;
+        toggle.setValue(((_a2 = this.selectedTimeRange) == null ? void 0 : _a2.type) === "week" && this.selectedTimeRange.weekNumber === week.weekNumber).onChange(() => {
           this.selectedTimeRange = {
             type: "week",
             weekNumber: week.weekNumber,
-            label
+            label,
+            startDate: week.startDate,
+            endDate: week.endDate
           };
+          this.bulkBuyMode = false;
           this.renderStep();
         });
       });
     }
     new import_obsidian10.Setting(container).setName("Entire Month").addToggle((toggle) => {
-      var _a;
-      toggle.setValue(((_a = this.selectedTimeRange) == null ? void 0 : _a.type) === "month").onChange(() => {
-        this.selectedTimeRange = { type: "month", label: "Entire Month" };
+      var _a2;
+      toggle.setValue(((_a2 = this.selectedTimeRange) == null ? void 0 : _a2.type) === "month").onChange(() => {
+        const now = /* @__PURE__ */ new Date();
+        const monthName = now.toLocaleString("default", { month: "long" });
+        const year = now.getFullYear();
+        const firstDay = 1;
+        const lastDay = new Date(year, now.getMonth() + 1, 0).getDate();
+        this.selectedTimeRange = {
+          type: "month",
+          label: monthName,
+          startDate: `${monthName} ${firstDay}`,
+          endDate: `${monthName} ${lastDay}`
+        };
         this.renderStep();
       });
     });
+    if (((_a = this.selectedTimeRange) == null ? void 0 : _a.type) === "month") {
+      contentEl.createEl("hr");
+      new import_obsidian10.Setting(contentEl).setName("\u{1F6D2} Bulk Buy Mode").setDesc("Filter by category (e.g., Costco run for meat + pantry)").addToggle((toggle) => {
+        toggle.setValue(this.bulkBuyMode).onChange((value) => {
+          this.bulkBuyMode = value;
+          if (!value) {
+            this.selectedCategories = new Set(AISLE_CATEGORIES);
+          }
+        });
+      });
+    }
     const navDiv = contentEl.createDiv("mise-modal-nav");
-    const nextBtn = navDiv.createEl("button", { text: "Next \u2192" });
-    nextBtn.disabled = !this.selectedTimeRange;
+    const nextBtn = navDiv.createEl("button", { text: "Next \u2192", cls: "mod-cta" });
+    nextBtn.disabled = !this.selectedTimeRange && !this.quickTrip;
     nextBtn.onclick = () => {
+      if (this.quickTrip) {
+        this.complete();
+        return;
+      }
       if (this.selectedTimeRange) {
-        this.step = 2;
+        if (this.selectedTimeRange.type === "month" && this.bulkBuyMode) {
+          this.step = 2;
+        } else {
+          this.step = 3;
+        }
         this.renderStep();
       }
+    };
+  }
+  renderCategoryStep() {
+    const { contentEl } = this;
+    contentEl.createEl("h2", { text: "Select Categories" });
+    contentEl.createEl("p", {
+      text: "Choose which categories to include in your bulk buy list.",
+      cls: "mise-modal-description"
+    });
+    const btnRow = contentEl.createDiv("mise-modal-btn-row");
+    const selectAllBtn = btnRow.createEl("button", { text: "Select All" });
+    selectAllBtn.onclick = () => {
+      this.selectedCategories = new Set(AISLE_CATEGORIES);
+      this.renderStep();
+    };
+    const selectNoneBtn = btnRow.createEl("button", { text: "Select None" });
+    selectNoneBtn.onclick = () => {
+      this.selectedCategories.clear();
+      this.renderStep();
+    };
+    const container = contentEl.createDiv("mise-category-grid");
+    for (const category of AISLE_CATEGORIES) {
+      const itemDiv = container.createDiv("mise-category-item");
+      const checkbox = itemDiv.createEl("input", { type: "checkbox" });
+      checkbox.id = `cat-${category}`;
+      checkbox.checked = this.selectedCategories.has(category);
+      checkbox.onchange = () => {
+        if (checkbox.checked) {
+          this.selectedCategories.add(category);
+        } else {
+          this.selectedCategories.delete(category);
+        }
+      };
+      const label = itemDiv.createEl("label");
+      label.htmlFor = `cat-${category}`;
+      label.setText(category);
+    }
+    const navDiv = contentEl.createDiv("mise-modal-nav");
+    const backBtn = navDiv.createEl("button", { text: "\u2190 Back" });
+    backBtn.onclick = () => {
+      this.step = 1;
+      this.renderStep();
+    };
+    const nextBtn = navDiv.createEl("button", { text: "Next \u2192", cls: "mod-cta" });
+    nextBtn.disabled = this.selectedCategories.size === 0;
+    nextBtn.onclick = () => {
+      this.step = 3;
+      this.renderStep();
     };
   }
   renderStoreStep() {
@@ -28013,20 +28330,26 @@ var ShoppingListModal = class extends import_obsidian10.Modal {
     new import_obsidian10.Setting(contentEl).setName("Select specific items").setDesc("Choose which items to include in this list").addToggle((toggle) => {
       toggle.setValue(this.selectSpecificItems).onChange((value) => {
         this.selectSpecificItems = value;
+        this.renderStep();
       });
     });
     const navDiv = contentEl.createDiv("mise-modal-nav");
     const backBtn = navDiv.createEl("button", { text: "\u2190 Back" });
     backBtn.onclick = () => {
-      this.step = 1;
+      if (this.bulkBuyMode) {
+        this.step = 2;
+      } else {
+        this.step = 1;
+      }
       this.renderStep();
     };
     const nextBtn = navDiv.createEl("button", {
-      text: this.selectSpecificItems ? "Next \u2192" : "Generate"
+      text: this.selectSpecificItems ? "Next \u2192" : "Generate",
+      cls: "mod-cta"
     });
     nextBtn.onclick = () => {
       if (this.selectSpecificItems) {
-        this.step = 3;
+        this.step = 4;
         this.renderStep();
       } else {
         this.complete();
@@ -28069,18 +28392,67 @@ var ShoppingListModal = class extends import_obsidian10.Modal {
     const navDiv = contentEl.createDiv("mise-modal-nav");
     const backBtn = navDiv.createEl("button", { text: "\u2190 Back" });
     backBtn.onclick = () => {
-      this.step = 2;
+      this.step = 3;
       this.renderStep();
     };
-    const generateBtn = navDiv.createEl("button", { text: "Generate" });
+    const generateBtn = navDiv.createEl("button", { text: "Generate", cls: "mod-cta" });
     generateBtn.onclick = () => this.complete();
   }
   complete() {
     const selectedItems = this.selectSpecificItems ? this.allItems.filter((item) => this.itemSelections.get(item.ingredient)) : null;
+    const selectedCategories = this.bulkBuyMode ? Array.from(this.selectedCategories) : null;
+    let dateRangeLabel = "";
+    if (this.selectedTimeRange) {
+      const startDate = this.selectedTimeRange.startDate;
+      const endDate = this.selectedTimeRange.endDate;
+      if (startDate && endDate) {
+        const startMatch = startDate.match(/([A-Za-z]+)\s*(\d+)/);
+        const endMatch = endDate.match(/([A-Za-z]+)\s*(\d+)/);
+        if (startMatch && endMatch) {
+          const startMonth = startMatch[1];
+          const startDay = startMatch[2];
+          const endMonth = endMatch[1];
+          const endDay = endMatch[2];
+          const expandMonth = (m) => {
+            const months = {
+              "jan": "January",
+              "feb": "February",
+              "mar": "March",
+              "apr": "April",
+              "may": "May",
+              "jun": "June",
+              "jul": "July",
+              "aug": "August",
+              "sep": "September",
+              "oct": "October",
+              "nov": "November",
+              "dec": "December"
+            };
+            return months[m.toLowerCase().substring(0, 3)] || m;
+          };
+          const fullStartMonth = expandMonth(startMonth);
+          const fullEndMonth = expandMonth(endMonth);
+          if (fullStartMonth === fullEndMonth) {
+            dateRangeLabel = `${fullStartMonth} ${startDay}-${endDay}`;
+          } else {
+            dateRangeLabel = `${fullStartMonth} ${startDay} - ${fullEndMonth} ${endDay}`;
+          }
+        } else {
+          dateRangeLabel = `${startDate} - ${endDate}`;
+        }
+      } else {
+        dateRangeLabel = this.selectedTimeRange.label;
+      }
+    }
     this.onGenerate({
       timeRange: this.selectedTimeRange,
       storeId: this.selectedStoreId,
-      selectedItems
+      selectedItems,
+      bulkBuyMode: this.bulkBuyMode,
+      selectedCategories,
+      quickTrip: this.quickTrip,
+      quickTripDays: this.quickTripDays,
+      dateRangeLabel
     });
     this.close();
   }
@@ -28151,11 +28523,18 @@ var MisePlugin = class extends import_obsidian11.Plugin {
           allItems,
           async (result) => {
             console.log(`${PLUGIN_NAME}: Generating shopping list with:`, result);
+            if (result.quickTrip) {
+              new import_obsidian11.Notice("Quick Trip requires Inventory System (Phase 16)");
+              return;
+            }
             let list;
             if (result.timeRange.type === "month") {
               list = await this.shoppingListService.generateListForMonth(void 0, void 0, result.storeId || void 0);
             } else {
               list = await this.shoppingListService.generateListForWeek(result.timeRange.weekNumber, void 0, void 0, result.storeId || void 0);
+            }
+            if (result.bulkBuyMode && result.selectedCategories) {
+              list = this.shoppingListService.filterByCategories(list, result.selectedCategories);
             }
             if (result.selectedItems) {
               const selectedSet = new Set(result.selectedItems.map((i) => i.ingredient));
@@ -28164,9 +28543,12 @@ var MisePlugin = class extends import_obsidian11.Plugin {
               }
               list.aisles = list.aisles.filter((a) => a.items.length > 0);
             }
-            console.log(`${PLUGIN_NAME}: Generated list for ${result.timeRange.label}:`);
-            console.log(`${PLUGIN_NAME}: Store: ${result.storeId || "General"}`);
-            console.log(`${PLUGIN_NAME}: Aisles:`, list.aisles.map((a) => `${a.name} (${a.items.length} items)`));
+            const filePath = await this.shoppingListService.writeListToFile(list, result.dateRangeLabel);
+            new import_obsidian11.Notice(`\u2705 Shopping list created!`);
+            const file = this.app.vault.getAbstractFileByPath(filePath);
+            if (file) {
+              await this.app.workspace.getLeaf("tab").openFile(file);
+            }
           }
         );
         modal.open();
@@ -28211,6 +28593,7 @@ var MisePlugin = class extends import_obsidian11.Plugin {
     });
     this.app.workspace.onLayoutReady(async () => {
       await this.indexer.initialize();
+      await this.shoppingListService.checkAndPromptArchive();
     });
     console.log(`${PLUGIN_NAME}: Plugin loaded.`);
   }

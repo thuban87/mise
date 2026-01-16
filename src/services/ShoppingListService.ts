@@ -445,11 +445,237 @@ export class ShoppingListService {
     }
 
     /**
-     * Write shopping list to a file (Phase 13)
+     * Write shopping list to a markdown file
      */
-    async writeListToFile(list: ShoppingList): Promise<string> {
-        // TODO: Phase 13 - Implement file writing
-        console.log('ShoppingListService.writeListToFile: Will be implemented in Phase 13');
-        return '';
+    async writeListToFile(list: ShoppingList, dateRangeLabel?: string): Promise<string> {
+        const { vault } = this.app;
+
+        // Use provided dateRangeLabel or fall back to list.dateRange.start
+        const displayLabel = dateRangeLabel || list.dateRange.start;
+
+        // Generate filename based on date range
+        const filename = this.generateFilename(displayLabel);
+        const folderPath = this.settings.shoppingListFolder;
+        const filePath = `${folderPath}/${filename}`;
+
+        // Generate content
+        const content = this.formatListAsMarkdown(list, displayLabel);
+
+        // Ensure folder exists
+        try {
+            const folder = vault.getAbstractFileByPath(folderPath);
+            if (!folder) {
+                await vault.createFolder(folderPath);
+            }
+        } catch (e) {
+            // Folder might already exist
+        }
+
+        // Create or overwrite file
+        const existingFile = vault.getAbstractFileByPath(filePath);
+        if (existingFile) {
+            await vault.modify(existingFile as any, content);
+        } else {
+            await vault.create(filePath, content);
+        }
+
+        console.log(`ShoppingListService: Created shopping list at ${filePath}`);
+        return filePath;
+    }
+
+    /**
+     * Generate filename for shopping list
+     */
+    private generateFilename(dateRangeLabel: string): string {
+        // e.g., "Grocery List - Jan 6 - Jan 12.md"
+        return `Grocery List - ${dateRangeLabel}.md`;
+    }
+
+    /**
+     * Format shopping list as markdown
+     */
+    private formatListAsMarkdown(list: ShoppingList, dateRangeLabel: string): string {
+        const lines: string[] = [];
+        const today = new Date().toISOString().split('T')[0];
+        const showLinks = this.settings.showRecipeSourceLinks;
+
+        // YAML frontmatter
+        lines.push('---');
+        lines.push(`created: ${today}`);
+        lines.push('---');
+        lines.push('');
+
+        // Title
+        lines.push(`# Grocery List - ${dateRangeLabel}`);
+        lines.push('');
+
+        // Aisle sections
+        for (const aisle of list.aisles) {
+            lines.push(`## ${aisle.name}`);
+
+            for (const item of aisle.items) {
+                let line = `- [ ] ${item.ingredient}`;
+
+                // Add recipe sources
+                if (item.fromRecipes.length > 0) {
+                    if (showLinks) {
+                        const links = item.fromRecipes.map(r => `[[${r}]]`).join(', ');
+                        line += ` (from: ${links})`;
+                    } else {
+                        line += ` (from: ${item.fromRecipes.join(', ')})`;
+                    }
+                }
+
+                lines.push(line);
+            }
+
+            lines.push('');
+        }
+
+        return lines.join('\n');
+    }
+
+    /**
+     * Filter a shopping list to only include specified categories/aisles
+     */
+    filterByCategories(list: ShoppingList, categories: string[]): ShoppingList {
+        const categorySet = new Set(categories.map(c => c.toLowerCase()));
+
+        const filteredAisles = list.aisles.filter(aisle => {
+            // Extract base category from aisle name (remove emoji prefix if present)
+            const aisleName = aisle.name.replace(/^[^\w]*/, '').trim().toLowerCase();
+
+            // Check if any category matches
+            return categories.some(cat => aisleName.includes(cat.toLowerCase()));
+        });
+
+        return {
+            ...list,
+            aisles: filteredAisles,
+        };
+    }
+
+    /**
+     * Check for old shopping lists and prompt for archiving
+     */
+    async checkAndPromptArchive(): Promise<void> {
+        if (this.settings.autoArchiveShoppingLists === 'off') {
+            return;
+        }
+
+        const { vault } = this.app;
+        const folderPath = this.settings.shoppingListFolder;
+        const archivePath = this.settings.shoppingListArchiveFolder;
+
+        const folder = vault.getAbstractFileByPath(folderPath);
+        if (!folder || !(folder as any).children) {
+            return;
+        }
+
+        const now = new Date();
+        const currentMonth = this.getMonthName(now.getMonth());
+        const currentYear = now.getFullYear();
+        const currentWeek = this.getWeekNumber(now);
+
+        const filesToArchive: string[] = [];
+
+        for (const file of (folder as any).children) {
+            if (file.extension !== 'md') continue;
+            if (file.name.startsWith('Grocery List -')) {
+                // Parse the filename to extract date info
+                // e.g., "Grocery List - January Week 2.md"
+                const match = file.name.match(/Grocery List - (\w+)(?: (\d{4}))?(?: Week (\d+))?\.md/);
+                if (match) {
+                    const fileMonth = match[1];
+                    const fileYear = match[2] ? parseInt(match[2]) : currentYear;
+                    const fileWeek = match[3] ? parseInt(match[3]) : null;
+
+                    // Check if this list is from a past time period
+                    const monthIndex = this.getMonthIndex(fileMonth);
+                    const currentMonthIndex = now.getMonth();
+
+                    let shouldArchive = false;
+
+                    if (fileYear < currentYear) {
+                        shouldArchive = true;
+                    } else if (fileYear === currentYear && monthIndex < currentMonthIndex) {
+                        shouldArchive = true;
+                    } else if (fileYear === currentYear && monthIndex === currentMonthIndex && fileWeek && fileWeek < currentWeek) {
+                        shouldArchive = true;
+                    }
+
+                    if (shouldArchive) {
+                        filesToArchive.push(file.path);
+                    }
+                }
+            }
+        }
+
+        if (filesToArchive.length === 0) {
+            return;
+        }
+
+        if (this.settings.autoArchiveShoppingLists === 'on') {
+            await this.archiveFiles(filesToArchive);
+        } else if (this.settings.autoArchiveShoppingLists === 'ask') {
+            // Show a notice with action button
+            const { Notice } = require('obsidian');
+            const notice = new Notice(
+                `📋 ${filesToArchive.length} old shopping list(s) found. Archive them?`,
+                0  // Don't auto-hide
+            );
+
+            // Note: Obsidian's Notice doesn't support buttons directly
+            // So we just show the message and let user manually archive
+            // In a future enhancement, we could use a modal for this
+            console.log('ShoppingListService: Old lists found:', filesToArchive);
+        }
+    }
+
+    /**
+     * Move files to archive folder
+     */
+    private async archiveFiles(filePaths: string[]): Promise<void> {
+        const { vault } = this.app;
+        const archivePath = this.settings.shoppingListArchiveFolder;
+
+        // Ensure archive folder exists
+        try {
+            const folder = vault.getAbstractFileByPath(archivePath);
+            if (!folder) {
+                await vault.createFolder(archivePath);
+            }
+        } catch (e) {
+            // Folder might already exist
+        }
+
+        for (const filePath of filePaths) {
+            const file = vault.getAbstractFileByPath(filePath);
+            if (file) {
+                const newPath = `${archivePath}/${file.name}`;
+                await vault.rename(file, newPath);
+                console.log(`ShoppingListService: Archived ${filePath} -> ${newPath}`);
+            }
+        }
+    }
+
+    /**
+     * Get week number for a date (ISO week number)
+     */
+    private getWeekNumber(date: Date): number {
+        const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        const dayNum = d.getUTCDay() || 7;
+        d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+        return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    }
+
+    /**
+     * Get month index from name
+     */
+    private getMonthIndex(monthName: string): number {
+        const months = ['january', 'february', 'march', 'april', 'may', 'june',
+            'july', 'august', 'september', 'october', 'november', 'december'];
+        return months.indexOf(monthName.toLowerCase());
     }
 }

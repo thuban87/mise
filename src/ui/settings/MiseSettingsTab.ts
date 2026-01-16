@@ -99,6 +99,32 @@ export class MiseSettingsTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
+        // Archive folder path
+        new Setting(containerEl)
+            .setName('Archive Folder')
+            .setDesc('Where to move old shopping lists when archiving.')
+            .addText(text => {
+                text
+                    .setPlaceholder('Type to search folders...')
+                    .setValue(this.plugin.settings.shoppingListArchiveFolder)
+                    .onChange(async (value) => {
+                        this.plugin.settings.shoppingListArchiveFolder = value;
+                        await this.plugin.saveSettings();
+                    });
+                new FolderSuggest(this.app, text.inputEl);
+            });
+
+        // Recipe source wikilinks toggle
+        new Setting(containerEl)
+            .setName('Show Recipe Source Links')
+            .setDesc('Display recipe names as [[wikilinks]] in shopping lists for easy navigation.')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.showRecipeSourceLinks)
+                .onChange(async (value) => {
+                    this.plugin.settings.showRecipeSourceLinks = value;
+                    await this.plugin.saveSettings();
+                }));
+
         // ========================================
         // Meal Plan Insert Options
         // ========================================

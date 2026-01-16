@@ -1405,6 +1405,68 @@
 	padding: var(--size-4-2) var(--size-4-4);
 }
 
+/* Quick Trip Setting */
+.mise-quick-trip-setting {
+	background: var(--background-secondary);
+	border-radius: var(--radius-s);
+	padding: var(--size-4-2) var(--size-4-3);
+	margin-bottom: var(--size-4-2);
+}
+
+.mise-quick-trip-days {
+	padding-left: var(--size-4-6);
+	margin-bottom: var(--size-4-2);
+}
+
+.mise-disabled-setting {
+	opacity: 0.5;
+}
+
+.mise-disabled-setting .checkbox-container {
+	cursor: not-allowed;
+}
+
+/* Modal Description */
+.mise-modal-description {
+	color: var(--text-muted);
+	font-size: 0.9em;
+	margin-bottom: var(--size-4-3);
+}
+
+/* Category Grid */
+.mise-category-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+	gap: var(--size-4-2);
+	margin-bottom: var(--size-4-4);
+}
+
+.mise-category-item {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding: var(--size-4-2) var(--size-4-3);
+	background: var(--background-secondary);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+	transition: background 0.15s;
+}
+
+.mise-category-item:hover {
+	background: var(--background-modifier-hover);
+}
+
+.mise-category-item label {
+	cursor: pointer;
+	flex: 1;
+}
+
+/* Shopping Modal Container width */
+.mise-shopping-modal-container {
+	width: 500px !important;
+	max-width: 90vw !important;
+}
+
 /* ===========================
    Store Profile Modal
    =========================== */

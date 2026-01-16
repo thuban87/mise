@@ -261,6 +261,12 @@ export interface MiseSettings {
 
     /** What to insert when dropping a recipe on a meal plan */
     mealPlanInsertOptions: MealPlanInsertOptions;
+
+    /** Path to archive folder for old shopping lists (vault-relative) */
+    shoppingListArchiveFolder: string;
+
+    /** Show recipe source as wikilinks in shopping list */
+    showRecipeSourceLinks: boolean;
 }
 
 /**
@@ -358,6 +364,8 @@ export const DEFAULT_SETTINGS: MiseSettings = {
         includeIngredientsCallout: false,
         includeSource: false,
     },
+    shoppingListArchiveFolder: 'Life/Household/Shopping Lists/Archive',
+    showRecipeSourceLinks: true,
 };
 
 // ============================================================================
