@@ -27306,6 +27306,395 @@ ${newLines.join("\n")}---${body}`;
 
 // src/services/ImporterService.ts
 var import_obsidian5 = require("obsidian");
+
+// src/utils/IngredientNormalizer.ts
+var UNICODE_FRACTIONS = {
+  "\xBD": "1/2",
+  "\u2153": "1/3",
+  "\xBC": "1/4",
+  "\u2154": "2/3",
+  "\xBE": "3/4",
+  "\u215B": "1/8",
+  "\u215C": "3/8",
+  "\u215D": "5/8",
+  "\u215E": "7/8",
+  "\u2155": "1/5",
+  "\u2156": "2/5",
+  "\u2157": "3/5",
+  "\u2158": "4/5",
+  "\u2159": "1/6",
+  "\u215A": "5/6"
+};
+function normalizeUnicodeFractions(text) {
+  let result = text;
+  for (const [unicode, ascii] of Object.entries(UNICODE_FRACTIONS)) {
+    result = result.replace(new RegExp(unicode, "g"), ascii);
+  }
+  return result;
+}
+var DECIMAL_CONVERSIONS = {
+  "cup": [
+    [0.05, "2 tsp"],
+    // 0.03 cup ≈ 2 tsp
+    [0.0833, "1 tbsp"],
+    // 1/12 cup
+    [0.125, "2 tbsp"],
+    // 1/8 cup
+    [0.167, "2 1/2 tbsp"],
+    // ~1/6 cup
+    [0.25, "1/4 cup"],
+    [0.333, "1/3 cup"],
+    [0.5, "1/2 cup"],
+    [0.667, "2/3 cup"],
+    [0.75, "3/4 cup"],
+    [0.875, "7/8 cup"]
+  ],
+  "tbsp": [
+    [0.5, "1 1/2 tsp"],
+    [0.333, "1 tsp"],
+    [0.667, "2 tsp"]
+  ]
+};
+function convertDecimalMeasurement(value, unit) {
+  const lowerUnit = unit.toLowerCase();
+  const conversions = DECIMAL_CONVERSIONS[lowerUnit];
+  if (!conversions) return null;
+  if (value >= 1) return null;
+  for (const [threshold, replacement] of conversions) {
+    if (Math.abs(value - threshold) < 0.03) {
+      return replacement;
+    }
+  }
+  if (value < 0.1 && lowerUnit === "cup") {
+    const tbsp = value * 16;
+    if (tbsp < 1) {
+      const tsp = tbsp * 3;
+      return `${Math.round(tsp)} tsp`;
+    }
+    return `${Math.round(tbsp)} tbsp`;
+  }
+  return null;
+}
+function fixLeadingZeroDecimal(text) {
+  const leadingZeroPattern = /^0(\d+)\s+(cup|cups|tbsp|tsp|oz|lb|lbs)/i;
+  const match = text.match(leadingZeroPattern);
+  if (match) {
+    const digits = match[1];
+    const unit = match[2];
+    const decimalValue = parseFloat(`0.${digits}`);
+    const rest = text.slice(match[0].length);
+    const converted = convertDecimalMeasurement(decimalValue, unit);
+    if (converted) {
+      return converted + rest;
+    }
+    return `0.${digits} ${unit}${rest}`;
+  }
+  return text;
+}
+var UNIT_ALIASES2 = {
+  // Volume - cups
+  "c.": "cup",
+  "c": "cup",
+  "C": "cup",
+  "cups": "cup",
+  // Volume - tablespoons
+  "tablespoon": "tbsp",
+  "tablespoons": "tbsp",
+  "Tbsp": "tbsp",
+  "T": "tbsp",
+  "tbsp.": "tbsp",
+  "tbs": "tbsp",
+  "tbs.": "tbsp",
+  // Volume - teaspoons
+  "teaspoon": "tsp",
+  "teaspoons": "tsp",
+  "tsp.": "tsp",
+  "t": "tsp",
+  // Weight - ounces
+  "ounce": "oz",
+  "ounces": "oz",
+  "oz.": "oz",
+  // Weight - pounds
+  "pound": "lb",
+  "pounds": "lb",
+  "lb.": "lb",
+  "lbs.": "lb",
+  "lbs": "lb",
+  // Weight - grams
+  "gram": "g",
+  "grams": "g",
+  "g.": "g",
+  // Weight - kilograms
+  "kilogram": "kg",
+  "kilograms": "kg",
+  "kg.": "kg",
+  // Volume - ml/l
+  "milliliter": "ml",
+  "milliliters": "ml",
+  "ml.": "ml",
+  "liter": "l",
+  "liters": "l",
+  "l.": "l",
+  // Count units
+  "clove": "cloves",
+  "slice": "slices",
+  "piece": "pieces",
+  "can": "cans",
+  "package": "packages",
+  "pkg": "packages",
+  "bunch": "bunches",
+  "head": "heads",
+  "stalk": "stalks",
+  "sprig": "sprigs"
+};
+function normalizeUnit2(unit) {
+  return UNIT_ALIASES2[unit] || UNIT_ALIASES2[unit.toLowerCase()] || unit.toLowerCase();
+}
+var INGREDIENT_GROUPS = [
+  // Oils
+  ["olive oil", "extra virgin olive oil", "extra-virgin olive oil", "evoo", "olive oil (extra virgin)"],
+  ["vegetable oil", "cooking oil"],
+  // Butter
+  ["unsalted butter", "butter, unsalted", "butter (unsalted)"],
+  ["salted butter", "butter, salted", "butter (salted)"],
+  // Salt
+  ["kosher salt", "coarse salt"],
+  ["sea salt", "fine sea salt"],
+  // Pepper
+  ["black pepper", "ground black pepper", "freshly ground black pepper", "ground pepper"],
+  // Garlic
+  ["garlic", "fresh garlic"],
+  // Cheese
+  ["parmesan cheese", "parmesan", "parmigiano-reggiano", "parmigiano reggiano"],
+  ["mozzarella cheese", "mozzarella", "fresh mozzarella"],
+  // Onions
+  ["yellow onion", "onion", "cooking onion"],
+  ["red onion", "purple onion"],
+  ["white onion"],
+  ["green onion", "scallion", "scallions", "green onions"],
+  // Flour
+  ["all-purpose flour", "all purpose flour", "ap flour", "plain flour"],
+  // Sugar
+  ["granulated sugar", "white sugar", "sugar"],
+  ["brown sugar", "light brown sugar"],
+  ["dark brown sugar"],
+  ["powdered sugar", "confectioners sugar", "icing sugar"]
+];
+var INGREDIENT_ALIAS_MAP = /* @__PURE__ */ new Map();
+for (const group of INGREDIENT_GROUPS) {
+  const canonical = group[0];
+  for (const alias of group) {
+    INGREDIENT_ALIAS_MAP.set(alias.toLowerCase(), canonical);
+  }
+}
+function normalizeIngredientName2(name) {
+  const lower = name.toLowerCase().trim();
+  return INGREDIENT_ALIAS_MAP.get(lower) || name;
+}
+var PREP_WORDS = [
+  "minced",
+  "diced",
+  "chopped",
+  "sliced",
+  "crushed",
+  "grated",
+  "shredded",
+  "peeled",
+  "cubed",
+  "halved",
+  "quartered",
+  "julienned",
+  "thinly sliced",
+  "finely chopped",
+  "finely diced",
+  "finely minced",
+  "coarsely chopped",
+  "melted",
+  "softened",
+  "room temperature",
+  "cold",
+  "frozen",
+  "thawed",
+  "drained",
+  "rinsed",
+  "squeezed",
+  "zested",
+  "juiced",
+  "divided",
+  "plus more for serving",
+  "for garnish",
+  "optional"
+];
+function extractPreparation(text) {
+  const commaMatch = text.match(/^(.+?),\s*(.+)$/);
+  if (commaMatch) {
+    const afterComma = commaMatch[2].toLowerCase();
+    for (const prep of PREP_WORDS) {
+      if (afterComma.startsWith(prep.toLowerCase())) {
+        return [commaMatch[1].trim(), commaMatch[2].trim()];
+      }
+    }
+  }
+  for (const prep of PREP_WORDS) {
+    const pattern = new RegExp(`^${prep}\\s+(.+)$`, "i");
+    const match = text.match(pattern);
+    if (match) {
+      return [match[1].trim(), prep];
+    }
+  }
+  return [text, null];
+}
+function reorderPreparation(text) {
+  for (const prep of PREP_WORDS) {
+    const pattern = new RegExp(`^${prep}\\s+(.+?)\\s+(\\d+(?:\\.\\d+)?(?:\\s*[-\u2013]\\s*\\d+)?(?:\\s+\\d+\\/\\d+)?)\\s+(\\w+)(.*)$`, "i");
+    const match = text.match(pattern);
+    if (match) {
+      const [, ingredient, qty, unit, rest] = match;
+      return `${qty} ${unit} ${ingredient}, ${prep}${rest}`;
+    }
+  }
+  for (const prep of PREP_WORDS) {
+    const pattern = new RegExp(`^${prep}\\s+(\\d+(?:\\.\\d+)?(?:\\s*[-\u2013]\\s*\\d+)?(?:\\s+\\d+\\/\\d+)?)\\s+(\\w+)\\s+(.+)$`, "i");
+    const match = text.match(pattern);
+    if (match) {
+      const [, qty, unit, ingredient] = match;
+      return `${qty} ${unit} ${ingredient}, ${prep}`;
+    }
+  }
+  return text;
+}
+var VAGUE_PATTERNS = [
+  { pattern: /^chicken$/i, warning: "Specify cut (breasts, thighs, drumsticks, etc.)" },
+  { pattern: /^butter$/i, warning: "Consider specifying salted or unsalted" },
+  { pattern: /^oil$/i, warning: "Specify type (olive, vegetable, canola, etc.)" },
+  { pattern: /^salt$/i, warning: "Consider specifying type (kosher, sea, table)" },
+  { pattern: /^onion$/i, warning: "Consider specifying type (yellow, white, red)" },
+  { pattern: /^pepper$/i, warning: "Specify type (black pepper, bell pepper, etc.)" },
+  { pattern: /^flour$/i, warning: "Consider specifying type (all-purpose, bread, etc.)" },
+  { pattern: /^sugar$/i, warning: "Consider specifying type (granulated, brown, etc.)" },
+  { pattern: /^cheese$/i, warning: "Specify type of cheese" },
+  { pattern: /^wine$/i, warning: "Specify type (red, white, dry, etc.)" },
+  { pattern: /^broth$/i, warning: "Specify type (chicken, beef, vegetable)" },
+  { pattern: /^stock$/i, warning: "Specify type (chicken, beef, vegetable)" }
+];
+function detectVagueIngredient(ingredientName) {
+  const warnings = [];
+  const name = ingredientName.toLowerCase().trim();
+  for (const { pattern, warning } of VAGUE_PATTERNS) {
+    if (pattern.test(name)) {
+      warnings.push(warning);
+    }
+  }
+  return warnings;
+}
+function parseQuantity(text) {
+  const trimmed = text.trim();
+  const mixedMatch = trimmed.match(/^(\d+)\s+(\d+)\/(\d+)\s+(.*)$/);
+  if (mixedMatch) {
+    const whole = parseInt(mixedMatch[1]);
+    const num = parseInt(mixedMatch[2]);
+    const denom = parseInt(mixedMatch[3]);
+    return [whole + num / denom, mixedMatch[4]];
+  }
+  const fractionMatch = trimmed.match(/^(\d+)\/(\d+)\s+(.*)$/);
+  if (fractionMatch) {
+    const num = parseInt(fractionMatch[1]);
+    const denom = parseInt(fractionMatch[2]);
+    return [num / denom, fractionMatch[3]];
+  }
+  const numberMatch = trimmed.match(/^(\d+(?:\.\d+)?)\s+(.*)$/);
+  if (numberMatch) {
+    return [parseFloat(numberMatch[1]), numberMatch[2]];
+  }
+  return [null, trimmed];
+}
+function parseUnit(text) {
+  const trimmed = text.trim();
+  const allUnits = Object.keys(UNIT_ALIASES2).concat(["cup", "tbsp", "tsp", "oz", "lb", "g", "kg", "ml", "l", "cloves", "slices", "pieces", "cans", "packages", "bunches", "heads", "stalks", "sprigs"]);
+  const sortedUnits = [...new Set(allUnits)].sort((a, b) => b.length - a.length);
+  for (const unit of sortedUnits) {
+    const pattern = new RegExp(`^${unit}(?:\\s+|$)`, "i");
+    if (pattern.test(trimmed)) {
+      return [normalizeUnit2(unit), trimmed.slice(unit.length).trim()];
+    }
+  }
+  return [null, trimmed];
+}
+function normalizeIngredient2(raw) {
+  const original = raw;
+  let text = raw.trim();
+  const warnings = [];
+  text = normalizeUnicodeFractions(text);
+  text = fixLeadingZeroDecimal(text);
+  text = reorderPreparation(text);
+  let [quantity, remaining] = parseQuantity(text);
+  let [unit, afterUnit] = parseUnit(remaining);
+  if (quantity !== null && unit && quantity < 1) {
+    const converted = convertDecimalMeasurement(quantity, unit);
+    if (converted) {
+      [quantity, remaining] = parseQuantity(converted);
+      [unit, afterUnit] = parseUnit(remaining);
+    }
+  }
+  const [nameWithoutPrep, preparation] = extractPreparation(afterUnit);
+  const normalizedName = normalizeIngredientName2(nameWithoutPrep);
+  const vagueWarnings = detectVagueIngredient(normalizedName);
+  warnings.push(...vagueWarnings);
+  let formatted = "";
+  if (quantity !== null) {
+    formatted = formatQuantity(quantity);
+    if (unit) {
+      formatted += ` ${unit}`;
+    }
+    formatted += ` ${normalizedName}`;
+  } else {
+    formatted = normalizedName;
+  }
+  if (preparation) {
+    formatted += `, ${preparation}`;
+  }
+  if (warnings.length > 0) {
+    console.log(`IngredientNormalizer: "${original}" \u2192 warnings: ${warnings.join("; ")}`);
+  }
+  return {
+    formatted,
+    quantity,
+    unit,
+    name: normalizedName,
+    preparation,
+    warnings,
+    original
+  };
+}
+function formatQuantity(num) {
+  if (Number.isInteger(num)) {
+    return num.toString();
+  }
+  const whole = Math.floor(num);
+  const decimal = num - whole;
+  const fractions = [
+    [0.125, "1/8"],
+    [0.25, "1/4"],
+    [0.333, "1/3"],
+    [0.375, "3/8"],
+    [0.5, "1/2"],
+    [0.625, "5/8"],
+    [0.667, "2/3"],
+    [0.75, "3/4"],
+    [0.875, "7/8"]
+  ];
+  for (const [value, fraction] of fractions) {
+    if (Math.abs(decimal - value) < 0.03) {
+      return whole > 0 ? `${whole} ${fraction}` : fraction;
+    }
+  }
+  return num.toFixed(2).replace(/\.?0+$/, "");
+}
+function normalizeIngredients(ingredients) {
+  return ingredients.map((i) => normalizeIngredient2(i).formatted);
+}
+
+// src/services/ImporterService.ts
 var ImporterService = class {
   constructor(app, settings) {
     this.app = app;
@@ -27495,10 +27884,12 @@ var ImporterService = class {
   }
   /**
    * Extract and clean ingredients array
+   * Applies normalization to standardize units, convert decimals, etc.
    */
   extractIngredients(ingredients) {
     if (!ingredients || !Array.isArray(ingredients)) return [];
-    return ingredients.map((i) => this.cleanString(i)).filter(Boolean);
+    const cleaned = ingredients.map((i) => this.cleanString(i)).filter(Boolean);
+    return normalizeIngredients(cleaned);
   }
   /**
    * Extract instructions from various formats
