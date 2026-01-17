@@ -56,6 +56,13 @@ export class InventoryService {
     }
 
     /**
+     * Reload inventory from files (useful for getting fresh data)
+     */
+    async reload(): Promise<void> {
+        await this.loadAllInventory();
+    }
+
+    /**
      * Check if service is ready
      */
     isReady(): boolean {

@@ -24501,7 +24501,7 @@ __export(main_exports, {
   default: () => MisePlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian17 = require("obsidian");
+var import_obsidian19 = require("obsidian");
 
 // src/types/index.ts
 var DEFAULT_SETTINGS = {
@@ -27186,8 +27186,8 @@ var ShoppingListService = class {
     if (this.settings.autoArchiveShoppingLists === "on") {
       await this.archiveFiles(filesToArchive);
     } else if (this.settings.autoArchiveShoppingLists === "ask") {
-      const { Notice: Notice5 } = require("obsidian");
-      const notice = new Notice5(
+      const { Notice: Notice7 } = require("obsidian");
+      const notice = new Notice7(
         `\u{1F4CB} ${filesToArchive.length} old shopping list(s) found. Archive them?`,
         0
         // Don't auto-hide
@@ -28367,6 +28367,12 @@ var InventoryService = class {
    */
   updateSettings(settings) {
     this.settings = settings;
+  }
+  /**
+   * Reload inventory from files (useful for getting fresh data)
+   */
+  async reload() {
+    await this.loadAllInventory();
   }
   /**
    * Check if service is ready
@@ -30939,8 +30945,339 @@ var ScaleRecipeModal = class extends import_obsidian16.Modal {
   }
 };
 
+// src/ui/components/AddInventoryModal.ts
+var import_obsidian17 = require("obsidian");
+var CATEGORIES = ["Pantry", "Fridge", "Freezer"];
+var COMMON_UNITS = [
+  "count",
+  "oz",
+  "lb",
+  "g",
+  "kg",
+  "cup",
+  "cups",
+  "tbsp",
+  "tsp",
+  "ml",
+  "L",
+  "gal",
+  "qt",
+  "pint",
+  "can",
+  "box",
+  "bag",
+  "bottle",
+  "jar"
+];
+var AddInventoryModal = class extends import_obsidian17.Modal {
+  constructor(app, settings, inventoryService, onSuccess) {
+    super(app);
+    // Form state
+    this.itemName = "";
+    this.quantity = 1;
+    this.unit = "count";
+    this.category = "Pantry";
+    this.location = "Pantry";
+    this.purchaseDate = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+    this.expirationDate = "";
+    this.expirationType = "";
+    this.settings = settings;
+    this.inventoryService = inventoryService;
+    this.onSuccess = onSuccess;
+  }
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("mise-add-inventory-modal");
+    contentEl.createEl("h2", { text: "\u{1F4E6} Add Inventory Item" });
+    contentEl.createEl("p", {
+      text: "Add a new item to your kitchen inventory.",
+      cls: "mise-modal-description"
+    });
+    new import_obsidian17.Setting(contentEl).setName("Item Name").setDesc("What are you adding?").addText((text) => {
+      text.setPlaceholder("e.g., Flour, Milk, Chicken Breast").onChange((value) => {
+        this.itemName = value.trim();
+      });
+      text.inputEl.style.width = "100%";
+    });
+    const qtyUnitRow = new import_obsidian17.Setting(contentEl).setName("Quantity");
+    qtyUnitRow.addText((text) => {
+      text.setPlaceholder("1").setValue(String(this.quantity)).onChange((value) => {
+        const num = parseFloat(value);
+        if (!isNaN(num) && num > 0) {
+          this.quantity = num;
+        }
+      });
+      text.inputEl.type = "number";
+      text.inputEl.style.width = "80px";
+      text.inputEl.min = "0.1";
+      text.inputEl.step = "0.1";
+    });
+    qtyUnitRow.addDropdown((dropdown) => {
+      for (const u of COMMON_UNITS) {
+        dropdown.addOption(u, u);
+      }
+      dropdown.setValue(this.unit);
+      dropdown.onChange((value) => {
+        this.unit = value;
+      });
+    });
+    new import_obsidian17.Setting(contentEl).setName("Category").setDesc("Where is this item stored?").addDropdown((dropdown) => {
+      for (const cat of CATEGORIES) {
+        dropdown.addOption(cat, cat);
+      }
+      dropdown.setValue(this.category);
+      dropdown.onChange((value) => {
+        this.category = value;
+        this.location = value;
+      });
+    });
+    new import_obsidian17.Setting(contentEl).setName("Location").setDesc("Specific storage location").addDropdown((dropdown) => {
+      for (const loc of this.settings.storageLocations) {
+        dropdown.addOption(loc, loc);
+      }
+      dropdown.setValue(this.location);
+      dropdown.onChange((value) => {
+        this.location = value;
+      });
+    });
+    new import_obsidian17.Setting(contentEl).setName("Purchase Date").addText((text) => {
+      text.setValue(this.purchaseDate).onChange((value) => {
+        this.purchaseDate = value;
+      });
+      text.inputEl.type = "date";
+    });
+    contentEl.createEl("h4", { text: "Expiration (Optional)" });
+    new import_obsidian17.Setting(contentEl).setName("Expires").addText((text) => {
+      text.setPlaceholder("").setValue(this.expirationDate).onChange((value) => {
+        this.expirationDate = value;
+      });
+      text.inputEl.type = "date";
+    });
+    new import_obsidian17.Setting(contentEl).setName("Expiry Type").addDropdown((dropdown) => {
+      dropdown.addOption("", "-- Select --");
+      for (const type of this.settings.expirationTypes) {
+        dropdown.addOption(type, type);
+      }
+      dropdown.setValue(this.expirationType);
+      dropdown.onChange((value) => {
+        this.expirationType = value;
+      });
+    });
+    const buttonContainer = contentEl.createDiv("mise-modal-nav");
+    const cancelBtn = buttonContainer.createEl("button", { text: "Cancel" });
+    cancelBtn.onclick = () => this.close();
+    const addBtn = buttonContainer.createEl("button", {
+      text: "Add Item",
+      cls: "mod-cta"
+    });
+    addBtn.onclick = () => this.doAdd(addBtn);
+  }
+  async doAdd(button) {
+    if (!this.itemName) {
+      new import_obsidian17.Notice("Please enter an item name");
+      return;
+    }
+    if (this.quantity <= 0) {
+      new import_obsidian17.Notice("Please enter a valid quantity");
+      return;
+    }
+    const item = {
+      name: this.itemName,
+      quantity: this.quantity,
+      unit: this.unit,
+      category: this.category,
+      location: this.location || this.category,
+      purchaseDate: this.purchaseDate,
+      expirationDate: this.expirationDate || void 0,
+      expirationType: this.expirationType ? this.expirationType : void 0
+    };
+    const originalText = button.textContent;
+    button.textContent = "Adding...";
+    button.disabled = true;
+    try {
+      await this.inventoryService.addStock(item);
+      new import_obsidian17.Notice(`\u2705 Added ${this.quantity} ${this.unit} ${this.itemName}`);
+      this.close();
+      this.onSuccess();
+    } catch (error) {
+      console.error("AddInventoryModal: Failed to add item", error);
+      new import_obsidian17.Notice(`\u274C Failed to add item: ${error.message || "Unknown error"}`);
+      button.textContent = originalText;
+      button.disabled = false;
+    }
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+};
+
+// src/ui/components/PantryCheckModal.ts
+var import_obsidian18 = require("obsidian");
+var PantryCheckModal = class extends import_obsidian18.Modal {
+  constructor(app, settings, inventoryService) {
+    super(app);
+    this.items = [];
+    this.changes = /* @__PURE__ */ new Map();
+    this.filterCategory = "All";
+    this.settings = settings;
+    this.inventoryService = inventoryService;
+  }
+  async onOpen() {
+    await this.inventoryService.reload();
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("mise-pantry-check-modal");
+    contentEl.createEl("h2", { text: "\u{1F4CB} Pantry Check" });
+    contentEl.createEl("p", {
+      text: "Review and update your inventory. Adjust quantities or mark items as used.",
+      cls: "mise-modal-description"
+    });
+    new import_obsidian18.Setting(contentEl).setName("Filter by").addDropdown((dropdown) => {
+      dropdown.addOption("All", "All Categories");
+      dropdown.addOption("Pantry", "\u{1F3E0} Pantry");
+      dropdown.addOption("Fridge", "\u2744\uFE0F Fridge");
+      dropdown.addOption("Freezer", "\u{1F9CA} Freezer");
+      dropdown.setValue(this.filterCategory);
+      dropdown.onChange(async (value) => {
+        this.filterCategory = value;
+        await this.renderItems();
+      });
+    });
+    const itemsContainer = contentEl.createDiv("mise-pantry-items");
+    itemsContainer.id = "pantry-items-container";
+    await this.renderItems();
+    const buttonContainer = contentEl.createDiv("mise-modal-nav");
+    const cancelBtn = buttonContainer.createEl("button", { text: "Cancel" });
+    cancelBtn.onclick = () => this.close();
+    const saveBtn = buttonContainer.createEl("button", {
+      text: "Save Changes",
+      cls: "mod-cta"
+    });
+    saveBtn.onclick = () => this.saveChanges(saveBtn);
+  }
+  async renderItems() {
+    const container = this.contentEl.querySelector("#pantry-items-container");
+    if (!container) return;
+    container.empty();
+    if (this.filterCategory === "All") {
+      this.items = this.inventoryService.getStock();
+    } else {
+      this.items = this.inventoryService.getStock(this.filterCategory);
+    }
+    if (this.items.length === 0) {
+      container.createEl("p", {
+        text: 'No inventory items found. Use "Add Inventory Item" to add some!',
+        cls: "mise-text-muted"
+      });
+      return;
+    }
+    const byLocation = /* @__PURE__ */ new Map();
+    for (const item of this.items) {
+      const loc = item.location || item.category;
+      if (!byLocation.has(loc)) {
+        byLocation.set(loc, []);
+      }
+      byLocation.get(loc).push(item);
+    }
+    for (const [location, locationItems] of byLocation.entries()) {
+      const locationDiv = container.createDiv("mise-location-group");
+      locationDiv.createEl("h4", { text: location });
+      for (const item of locationItems) {
+        this.renderItemRow(locationDiv, item);
+      }
+    }
+  }
+  renderItemRow(container, item) {
+    var _a;
+    const itemKey = `${item.category}::${item.name}`;
+    const existingChange = this.changes.get(itemKey);
+    const rowDiv = container.createDiv("mise-inventory-item-row");
+    rowDiv.style.display = "flex";
+    rowDiv.style.alignItems = "center";
+    rowDiv.style.gap = "10px";
+    rowDiv.style.marginBottom = "8px";
+    rowDiv.style.padding = "6px 8px";
+    rowDiv.style.borderRadius = "4px";
+    rowDiv.style.background = "var(--background-secondary)";
+    const nameSpan = rowDiv.createEl("span", { text: item.name });
+    nameSpan.style.flex = "1";
+    nameSpan.style.fontWeight = "500";
+    const qtyInput = rowDiv.createEl("input", { type: "number" });
+    qtyInput.value = String((_a = existingChange == null ? void 0 : existingChange.quantity) != null ? _a : item.quantity);
+    qtyInput.style.width = "60px";
+    qtyInput.style.textAlign = "center";
+    qtyInput.min = "0";
+    qtyInput.step = "0.1";
+    qtyInput.onchange = () => {
+      const newQty = parseFloat(qtyInput.value) || 0;
+      this.changes.set(itemKey, {
+        quantity: newQty,
+        delete: newQty <= 0
+      });
+    };
+    rowDiv.createEl("span", { text: item.unit, cls: "mise-text-muted" });
+    const deleteBtn = rowDiv.createEl("button", { text: "\u{1F5D1}\uFE0F" });
+    deleteBtn.title = "Remove item";
+    deleteBtn.style.background = "transparent";
+    deleteBtn.style.border = "none";
+    deleteBtn.style.cursor = "pointer";
+    deleteBtn.onclick = () => {
+      this.changes.set(itemKey, { quantity: 0, delete: true });
+      rowDiv.style.opacity = "0.4";
+      rowDiv.style.textDecoration = "line-through";
+      qtyInput.disabled = true;
+    };
+    if (item.expirationDate) {
+      const expDate = new Date(item.expirationDate);
+      const today = /* @__PURE__ */ new Date();
+      const daysUntilExpiry = Math.ceil((expDate.getTime() - today.getTime()) / (1e3 * 60 * 60 * 24));
+      if (daysUntilExpiry <= 0) {
+        rowDiv.style.borderLeft = "3px solid var(--color-red)";
+        rowDiv.createEl("span", { text: "\u26A0\uFE0F Expired", cls: "mise-text-muted" });
+      } else if (daysUntilExpiry <= 7) {
+        rowDiv.style.borderLeft = "3px solid var(--color-yellow)";
+        rowDiv.createEl("span", { text: `\u23F0 ${daysUntilExpiry}d`, cls: "mise-text-muted" });
+      }
+    }
+  }
+  async saveChanges(button) {
+    if (this.changes.size === 0) {
+      new import_obsidian18.Notice("No changes to save");
+      this.close();
+      return;
+    }
+    button.textContent = "Saving...";
+    button.disabled = true;
+    let updated = 0;
+    let deleted = 0;
+    try {
+      for (const [itemKey, change] of this.changes.entries()) {
+        const [category, name] = itemKey.split("::");
+        if (change.delete || change.quantity <= 0) {
+          await this.inventoryService.removeItem(name);
+          deleted++;
+        } else {
+          await this.inventoryService.setStock(name, change.quantity);
+          updated++;
+        }
+      }
+      new import_obsidian18.Notice(`\u2705 Updated ${updated} items, removed ${deleted} items`);
+      this.close();
+    } catch (error) {
+      console.error("PantryCheckModal: Error saving changes", error);
+      new import_obsidian18.Notice(`\u274C Error saving: ${error.message || "Unknown error"}`);
+      button.textContent = "Save Changes";
+      button.disabled = false;
+    }
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+};
+
 // src/main.ts
-var MisePlugin = class extends import_obsidian17.Plugin {
+var MisePlugin = class extends import_obsidian19.Plugin {
   async onload() {
     console.log(`${PLUGIN_NAME}: Loading plugin...`);
     await this.loadSettings();
@@ -31023,7 +31360,7 @@ var MisePlugin = class extends import_obsidian17.Plugin {
           async (result) => {
             console.log(`${PLUGIN_NAME}: Generating shopping list with:`, result);
             if (result.quickTrip) {
-              new import_obsidian17.Notice("Quick Trip requires Inventory System (Phase 16)");
+              new import_obsidian19.Notice("Quick Trip requires Inventory System (Phase 16)");
               return;
             }
             let list;
@@ -31043,7 +31380,7 @@ var MisePlugin = class extends import_obsidian17.Plugin {
               list.aisles = list.aisles.filter((a) => a.items.length > 0);
             }
             const filePath = await this.shoppingListService.writeListToFile(list, result.dateRangeLabel);
-            new import_obsidian17.Notice(`\u2705 Shopping list created!`);
+            new import_obsidian19.Notice(`\u2705 Shopping list created!`);
             const file = this.app.vault.getAbstractFileByPath(filePath);
             if (file) {
               await this.app.workspace.getLeaf("tab").openFile(file);
@@ -31094,12 +31431,36 @@ var MisePlugin = class extends import_obsidian17.Plugin {
         await this.generateMealPlanFiles();
       }
     });
+    this.addCommand({
+      id: "add-inventory-item",
+      name: "Add Inventory Item",
+      callback: () => {
+        new AddInventoryModal(
+          this.app,
+          this.settings,
+          this.inventoryService,
+          () => {
+          }
+        ).open();
+      }
+    });
+    this.addCommand({
+      id: "pantry-check",
+      name: "Pantry Check (Bulk Edit Inventory)",
+      callback: () => {
+        new PantryCheckModal(
+          this.app,
+          this.settings,
+          this.inventoryService
+        ).open();
+      }
+    });
     this.addRibbonIcon("book-open", "Open Mise Cookbook", () => {
       this.activateCookbookView();
     });
     this.registerEvent(
       this.app.workspace.on("file-menu", (menu, file) => {
-        if (file instanceof import_obsidian17.TFile && this.isRecipeFile(file)) {
+        if (file instanceof import_obsidian19.TFile && this.isRecipeFile(file)) {
           menu.addItem((item) => {
             item.setTitle("\u2696\uFE0F Scale Recipe...").setIcon("scale").onClick(() => this.openScaleModal(file));
           });
@@ -31184,7 +31545,7 @@ var MisePlugin = class extends import_obsidian17.Plugin {
   openScaleModal(file) {
     const recipe = this.indexer.getRecipe(file.path);
     if (!recipe) {
-      new import_obsidian17.Notice("Recipe not found in index. Try reloading the plugin.");
+      new import_obsidian19.Notice("Recipe not found in index. Try reloading the plugin.");
       return;
     }
     new ScaleRecipeModal(this.app, recipe, this.scalingService).open();
@@ -31196,7 +31557,7 @@ var MisePlugin = class extends import_obsidian17.Plugin {
   async generateMealPlanFiles() {
     const folder = this.settings.mealPlanFolder;
     if (!folder) {
-      new import_obsidian17.Notice("Please configure a meal plan folder in settings first.");
+      new import_obsidian19.Notice("Please configure a meal plan folder in settings first.");
       return;
     }
     const MONTHS2 = [
@@ -31248,7 +31609,7 @@ var MisePlugin = class extends import_obsidian17.Plugin {
         }
       }
     }
-    new import_obsidian17.Notice(`Created ${filesCreated} meal plan files. Check ${folder}/${startYear}/ to verify format.`);
+    new import_obsidian19.Notice(`Created ${filesCreated} meal plan files. Check ${folder}/${startYear}/ to verify format.`);
   }
   /**
    * Generate markdown content for a month

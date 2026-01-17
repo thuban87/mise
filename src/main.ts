@@ -19,6 +19,8 @@ import { PLUGIN_NAME, MISE_COOKBOOK_VIEW_TYPE, MISE_SIDEBAR_VIEW_TYPE } from './
 import { ShoppingListModal } from './ui/components/ShoppingListModal';
 import { RecipeImportModal } from './ui/components/RecipeImportModal';
 import { ScaleRecipeModal } from './ui/components/ScaleRecipeModal';
+import { AddInventoryModal } from './ui/components/AddInventoryModal';
+import { PantryCheckModal } from './ui/components/PantryCheckModal';
 
 export default class MisePlugin extends Plugin {
     settings: MiseSettings;
@@ -228,6 +230,34 @@ export default class MisePlugin extends Plugin {
             name: 'Generate Meal Plan Files',
             callback: async () => {
                 await this.generateMealPlanFiles();
+            }
+        });
+
+        // Inventory commands
+        this.addCommand({
+            id: 'add-inventory-item',
+            name: 'Add Inventory Item',
+            callback: () => {
+                new AddInventoryModal(
+                    this.app,
+                    this.settings,
+                    this.inventoryService,
+                    () => {
+                        // Refresh callback - could update any open inventory views
+                    }
+                ).open();
+            }
+        });
+
+        this.addCommand({
+            id: 'pantry-check',
+            name: 'Pantry Check (Bulk Edit Inventory)',
+            callback: () => {
+                new PantryCheckModal(
+                    this.app,
+                    this.settings,
+                    this.inventoryService
+                ).open();
             }
         });
 
