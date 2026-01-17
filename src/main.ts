@@ -8,14 +8,16 @@
  * - Wires dependencies together
  */
 
-import { Plugin, WorkspaceLeaf, Notice } from 'obsidian';
+import { Plugin, WorkspaceLeaf, Notice, TFile, Menu } from 'obsidian';
 import { MiseSettings, DEFAULT_SETTINGS } from './types';
 import { RecipeIndexer, MealPlanService, ShoppingListService, TimeMigrationService, ImporterService } from './services';
+import { RecipeScalingService } from './services/RecipeScalingService';
 import { MiseSettingsTab } from './ui/settings/MiseSettingsTab';
 import { CookbookView, CookbookSidebar, MealPlanView, MISE_MEAL_PLAN_VIEW_TYPE } from './ui/views';
 import { PLUGIN_NAME, MISE_COOKBOOK_VIEW_TYPE, MISE_SIDEBAR_VIEW_TYPE } from './utils/constants';
 import { ShoppingListModal } from './ui/components/ShoppingListModal';
 import { RecipeImportModal } from './ui/components/RecipeImportModal';
+import { ScaleRecipeModal } from './ui/components/ScaleRecipeModal';
 
 export default class MisePlugin extends Plugin {
     settings: MiseSettings;
@@ -26,6 +28,7 @@ export default class MisePlugin extends Plugin {
     shoppingListService: ShoppingListService;
     timeMigration: TimeMigrationService;
     importerService: ImporterService;
+    scalingService: RecipeScalingService;
 
     async onload(): Promise<void> {
         console.log(`${PLUGIN_NAME}: Loading plugin...`);
@@ -39,6 +42,7 @@ export default class MisePlugin extends Plugin {
         this.shoppingListService = new ShoppingListService(this.app, this.settings, this.indexer);
         this.timeMigration = new TimeMigrationService(this.app, this.settings);
         this.importerService = new ImporterService(this.app, this.settings);
+        this.scalingService = new RecipeScalingService(this.app, this.settings, this.indexer);
 
         // Wire up service dependencies
         this.shoppingListService.setMealPlanService(this.mealPlanService);
@@ -219,6 +223,19 @@ export default class MisePlugin extends Plugin {
             this.activateCookbookView();
         });
 
+        // Register file-menu event for recipe scaling
+        this.registerEvent(
+            this.app.workspace.on('file-menu', (menu: Menu, file) => {
+                if (file instanceof TFile && this.isRecipeFile(file)) {
+                    menu.addItem((item) => {
+                        item.setTitle('⚖️ Scale Recipe...')
+                            .setIcon('scale')
+                            .onClick(() => this.openScaleModal(file));
+                    });
+                }
+            })
+        );
+
         // Wait for workspace layout to be ready before initializing indexer
         // This ensures the vault is fully loaded
         this.app.workspace.onLayoutReady(async () => {
@@ -315,5 +332,25 @@ export default class MisePlugin extends Plugin {
 
     async saveSettings(): Promise<void> {
         await this.saveData(this.settings);
+    }
+
+    /**
+     * Check if a file is in the recipes folder
+     */
+    private isRecipeFile(file: TFile): boolean {
+        const recipesFolder = this.settings.recipesFolder;
+        return file.extension === 'md' && file.path.startsWith(recipesFolder);
+    }
+
+    /**
+     * Open the scale recipe modal for a file
+     */
+    private openScaleModal(file: TFile): void {
+        const recipe = this.indexer.getRecipe(file.path);
+        if (!recipe) {
+            new Notice('Recipe not found in index. Try reloading the plugin.');
+            return;
+        }
+        new ScaleRecipeModal(this.app, recipe, this.scalingService).open();
     }
 }

@@ -313,6 +313,36 @@ export class MiseSettingsTab extends PluginSettingTab {
                 }));
 
         // ========================================
+        // AI Cleanup (Gemini)
+        // ========================================
+        containerEl.createEl('h2', { text: '🤖 AI Cleanup (Gemini)' });
+        containerEl.createEl('p', {
+            text: 'Use Google\'s Gemini AI to intelligently clean up and consolidate shopping lists.',
+            cls: 'setting-item-description'
+        });
+
+        new Setting(containerEl)
+            .setName('Enable Gemini Cleanup')
+            .setDesc('When enabled, shopping lists will be cleaned up by Gemini before saving.')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.enableGeminiCleanup)
+                .onChange(async (value) => {
+                    this.plugin.settings.enableGeminiCleanup = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('Gemini API Key')
+            .setDesc('Your Google AI Studio API key. Get one free at ai.google.dev')
+            .addText(text => text
+                .setPlaceholder('AIza...')
+                .setValue(this.plugin.settings.geminiApiKey)
+                .onChange(async (value) => {
+                    this.plugin.settings.geminiApiKey = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        // ========================================
         // Reset to Defaults
         // ========================================
         containerEl.createEl('h2', { text: '⚙️ Advanced' });

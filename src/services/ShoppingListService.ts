@@ -9,7 +9,10 @@ import { App } from 'obsidian';
 import { ShoppingList, ShoppingMode, MiseSettings, Aisle, ShoppingItem, PlannedMeal, Recipe, StoreProfile } from '../types';
 import { RecipeIndexer } from './RecipeIndexer';
 import { MealPlanService } from './MealPlanService';
+import { GeminiService } from './GeminiService';
 import { parseIngredientQuantity, normalizeIngredient, ParsedIngredient } from '../parsers/IngredientParser';
+import { parseIngredient, ParsedQuantity } from '../utils/QuantityParser';
+import { combineQuantities, CombinedQuantity, getUnitFamily } from '../utils/UnitConverter';
 
 // Aisle inference rules - keywords that suggest an aisle
 // Order matters! More specific matches should come first
@@ -130,9 +133,38 @@ const AISLE_RULES: { aisle: string; keywords: string[]; emoji: string }[] = [
 
 interface AggregatedIngredient {
     normalized: string;
+    /** Combined display text (e.g., "1 tbsp 2 tsp olive oil") */
+    displayText: string;
+    /** original first ingredient string for backwards compat */
     original: string;
     parsed: ParsedIngredient;
     fromRecipes: string[];
+    /** Source breakdown for collapsible display */
+    sources: { recipe: string; original: string }[];
+    /** Whether there's a unit conflict */
+    hasConflict: boolean;
+    /** Conflict note */
+    conflictNote?: string;
+}
+
+/**
+ * Enhanced shopping item with combined quantity support
+ */
+interface EnhancedShoppingItem {
+    /** Combined display string (e.g., "1 tbsp 2 tsp olive oil") */
+    displayText: string;
+
+    /** The ingredient name */
+    ingredient: string;
+
+    /** Source breakdown */
+    sources: { recipe: string; original: string }[];
+
+    /** Whether there are unit conflicts for this ingredient */
+    hasConflict: boolean;
+
+    /** Linked conflict items (if hasConflict) */
+    conflictNote?: string;
 }
 
 export class ShoppingListService {
@@ -318,31 +350,103 @@ export class ShoppingListService {
     }
 
     /**
-     * Aggregate ingredients, deduplicating similar items
+     * Aggregate ingredients, deduplicating and combining quantities using the QuantityParser
      */
     private aggregateIngredients(ingredients: { ingredient: string; recipeName: string }[]): AggregatedIngredient[] {
-        const map = new Map<string, AggregatedIngredient>();
+        // Parse each ingredient using the new QuantityParser
+        const parsed: { parsed: ParsedQuantity; recipe: string; original: string }[] = ingredients.map(item => ({
+            parsed: parseIngredient(item.ingredient),
+            recipe: item.recipeName,
+            original: item.ingredient,
+        }));
 
-        for (const { ingredient, recipeName } of ingredients) {
-            const parsed = parseIngredientQuantity(ingredient);
-            const normalized = normalizeIngredient(parsed.ingredient);
+        // Use combineQuantities to intelligently merge
+        const combined = combineQuantities(parsed.map(p => ({
+            parsed: p.parsed,
+            recipe: p.recipe,
+        })));
 
-            if (map.has(normalized)) {
-                const existing = map.get(normalized)!;
-                if (!existing.fromRecipes.includes(recipeName)) {
-                    existing.fromRecipes.push(recipeName);
-                }
-            } else {
-                map.set(normalized, {
-                    normalized,
-                    original: ingredient,
-                    parsed,
-                    fromRecipes: [recipeName],
-                });
+        // Build a reverse lookup for original strings
+        const originalByRecipe = new Map<string, Map<string, string>>();
+        for (const item of parsed) {
+            const key = item.parsed.ingredient.toLowerCase();
+            if (!originalByRecipe.has(key)) {
+                originalByRecipe.set(key, new Map());
             }
+            originalByRecipe.get(key)!.set(item.recipe, item.original);
         }
 
-        return Array.from(map.values());
+        // Convert to AggregatedIngredient format
+        return combined.map(item => {
+            const key = item.ingredient.toLowerCase();
+            const origMap = originalByRecipe.get(key);
+
+            // Build sources array
+            const sources = item.sources.map(s => ({
+                recipe: s.recipe,
+                original: s.original,
+            }));
+
+            // Build conflict note
+            let conflictNote: string | undefined;
+            if (item.hasConflict && item.conflictsWith) {
+                const otherUnits = item.conflictsWith
+                    .map(c => c.formatted)
+                    .join(', ');
+                conflictNote = `⚠️ Also: ${otherUnits}`;
+            }
+
+            return {
+                normalized: key,
+                displayText: `${item.formatted} ${item.ingredient}`,
+                original: sources[0]?.original || item.ingredient,
+                parsed: parseIngredientQuantity(sources[0]?.original || item.ingredient),
+                fromRecipes: sources.map(s => s.recipe),
+                sources,
+                hasConflict: item.hasConflict,
+                conflictNote,
+            };
+        });
+    }
+
+    /**
+     * Aggregate ingredients with quantity combination
+     * Uses the QuantityParser and UnitConverter for intelligent merging
+     */
+    private aggregateWithCombineQuantities(
+        ingredients: { ingredient: string; recipeName: string }[]
+    ): EnhancedShoppingItem[] {
+        // Parse each ingredient
+        const parsed: { parsed: ParsedQuantity; recipe: string }[] = ingredients.map(item => ({
+            parsed: parseIngredient(item.ingredient),
+            recipe: item.recipeName,
+        }));
+
+        // Combine quantities using the UnitConverter
+        const combined = combineQuantities(parsed);
+
+        // Convert to EnhancedShoppingItem format
+        return combined.map(item => {
+            // Build display text
+            let displayText = `${item.formatted} ${item.ingredient}`;
+
+            // Add conflict note if needed
+            let conflictNote: string | undefined;
+            if (item.hasConflict && item.conflictsWith) {
+                const otherUnits = item.conflictsWith
+                    .map(c => c.formatted)
+                    .join(', ');
+                conflictNote = `⚠️ Also listed as: ${otherUnits}`;
+            }
+
+            return {
+                displayText,
+                ingredient: item.ingredient,
+                sources: item.sources,
+                hasConflict: item.hasConflict,
+                conflictNote,
+            };
+        });
     }
 
     /**
@@ -396,10 +500,13 @@ export class ShoppingListService {
             }
 
             aisleMap.get(aisleName)!.items.push({
-                ingredient: ing.original,
+                ingredient: ing.displayText,
                 quantity: ing.parsed.quantity || undefined,
                 fromRecipes: ing.fromRecipes,
                 checked: false,
+                sourceBreakdown: ing.sources,
+                hasConflict: ing.hasConflict,
+                conflictNote: ing.conflictNote,
             });
         }
 
@@ -459,7 +566,27 @@ export class ShoppingListService {
         const filePath = `${folderPath}/${filename}`;
 
         // Generate content
-        const content = this.formatListAsMarkdown(list, displayLabel);
+        let content = this.formatListAsMarkdown(list, displayLabel);
+
+        // Optionally clean up with Gemini AI
+        if (this.settings.enableGeminiCleanup && this.settings.geminiApiKey) {
+            console.log('ShoppingListService: Running Gemini cleanup...');
+            try {
+                const gemini = new GeminiService(this.settings.geminiApiKey);
+                const result = await gemini.cleanupShoppingList(content);
+
+                if (result.success && result.cleanedList) {
+                    console.log(`ShoppingListService: Gemini cleanup successful (${result.tokensUsed} tokens)`);
+                    content = result.cleanedList;
+                } else {
+                    console.warn('ShoppingListService: Gemini cleanup failed:', result.error);
+                    // Continue with original content
+                }
+            } catch (error) {
+                console.error('ShoppingListService: Gemini cleanup error:', error);
+                // Continue with original content
+            }
+        }
 
         // Ensure folder exists
         try {
@@ -514,19 +641,42 @@ export class ShoppingListService {
             lines.push(`## ${aisle.name}`);
 
             for (const item of aisle.items) {
+                // Main item line
                 let line = `- [ ] ${item.ingredient}`;
 
-                // Add recipe sources
-                if (item.fromRecipes.length > 0) {
-                    if (showLinks) {
-                        const links = item.fromRecipes.map(r => `[[${r}]]`).join(', ');
-                        line += ` (from: ${links})`;
-                    } else {
-                        line += ` (from: ${item.fromRecipes.join(', ')})`;
-                    }
+                // Add conflict warning if present
+                if (item.hasConflict && item.conflictNote) {
+                    line += ` ${item.conflictNote}`;
                 }
 
                 lines.push(line);
+
+                // Add collapsible breakdown if there are multiple sources
+                if (item.sourceBreakdown && item.sourceBreakdown.length > 1) {
+                    lines.push('  <details>');
+                    lines.push(`  <summary>from ${item.sourceBreakdown.length} recipes</summary>`);
+                    lines.push('');
+                    for (const source of item.sourceBreakdown) {
+                        if (showLinks) {
+                            lines.push(`  - [[${source.recipe}]]: ${source.original}`);
+                        } else {
+                            lines.push(`  - ${source.recipe}: ${source.original}`);
+                        }
+                    }
+                    lines.push('  </details>');
+                } else if (item.fromRecipes.length > 0 && (!item.sourceBreakdown || item.sourceBreakdown.length <= 1)) {
+                    // Single source - use inline format
+                    // This handles the legacy case where sourceBreakdown isn't populated
+                    if (!item.sourceBreakdown) {
+                        if (showLinks) {
+                            const links = item.fromRecipes.map(r => `[[${r}]]`).join(', ');
+                            // Re-emit the line with source
+                            lines[lines.length - 1] = `- [ ] ${item.ingredient} *(from: ${links})*`;
+                        } else {
+                            lines[lines.length - 1] = `- [ ] ${item.ingredient} *(from: ${item.fromRecipes.join(', ')})*`;
+                        }
+                    }
+                }
             }
 
             lines.push('');
