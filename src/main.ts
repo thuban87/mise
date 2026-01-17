@@ -12,6 +12,7 @@ import { Plugin, WorkspaceLeaf, Notice, TFile, Menu } from 'obsidian';
 import { MiseSettings, DEFAULT_SETTINGS } from './types';
 import { RecipeIndexer, MealPlanService, ShoppingListService, TimeMigrationService, ImporterService } from './services';
 import { RecipeScalingService } from './services/RecipeScalingService';
+import { InventoryService } from './services/InventoryService';
 import { MiseSettingsTab } from './ui/settings/MiseSettingsTab';
 import { CookbookView, CookbookSidebar, MealPlanView, MISE_MEAL_PLAN_VIEW_TYPE } from './ui/views';
 import { PLUGIN_NAME, MISE_COOKBOOK_VIEW_TYPE, MISE_SIDEBAR_VIEW_TYPE } from './utils/constants';
@@ -29,6 +30,7 @@ export default class MisePlugin extends Plugin {
     timeMigration: TimeMigrationService;
     importerService: ImporterService;
     scalingService: RecipeScalingService;
+    inventoryService: InventoryService;
 
     async onload(): Promise<void> {
         console.log(`${PLUGIN_NAME}: Loading plugin...`);
@@ -43,6 +45,7 @@ export default class MisePlugin extends Plugin {
         this.timeMigration = new TimeMigrationService(this.app, this.settings);
         this.importerService = new ImporterService(this.app, this.settings);
         this.scalingService = new RecipeScalingService(this.app, this.settings, this.indexer);
+        this.inventoryService = new InventoryService(this.app, this.settings);
 
         // Wire up service dependencies
         this.shoppingListService.setMealPlanService(this.mealPlanService);
@@ -50,9 +53,10 @@ export default class MisePlugin extends Plugin {
         // Initialize indexer immediately
         this.indexer.initialize();
 
-        // Initialize meal plan after layout is ready (vault files are loaded)
+        // Initialize meal plan and inventory after layout is ready (vault files are loaded)
         this.app.workspace.onLayoutReady(() => {
             this.mealPlanService.initialize();
+            this.inventoryService.initialize();
         });
 
         // Register views

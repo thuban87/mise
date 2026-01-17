@@ -63,8 +63,6 @@ export function parseMealPlan(content: string): ParsedMealPlan {
         }
     }
 
-    console.log(`MealPlanParser: Parsing meal plan for ${month} ${year}`);
-
     // Current context
     let currentMealType: MealType | null = null;
     let currentWeekNumber = 1;
@@ -103,7 +101,6 @@ export function parseMealPlan(content: string): ParsedMealPlan {
         }
     }
 
-    console.log(`MealPlanParser: Parsed ${meals.length} meals across ${currentWeekNumber} weeks for ${month} ${year}`);
     return { month, meals, recipeMap };
 }
 
