@@ -126,6 +126,56 @@ export class MiseSettingsTab extends PluginSettingTab {
                 }));
 
         // ========================================
+        // Recipe Import
+        // ========================================
+        containerEl.createEl('h2', { text: '📥 Recipe Import' });
+        containerEl.createEl('p', {
+            text: 'Configure how recipes are imported from URLs.',
+            cls: 'mise-settings-description'
+        });
+
+        // Import inbox folder
+        new Setting(containerEl)
+            .setName('Import Inbox Folder')
+            .setDesc('Where newly imported recipes are saved. Review and move them to your main folder.')
+            .addText(text => {
+                text
+                    .setPlaceholder('Type to search folders...')
+                    .setValue(this.plugin.settings.importInboxFolder)
+                    .onChange(async (value) => {
+                        this.plugin.settings.importInboxFolder = value;
+                        await this.plugin.saveSettings();
+                    });
+                new FolderSuggest(this.app, text.inputEl);
+            });
+
+        // Image folder setting
+        new Setting(containerEl)
+            .setName('Image Folder')
+            .setDesc('Where downloaded recipe images are saved.')
+            .addText(text => {
+                text
+                    .setPlaceholder('Type to search folders...')
+                    .setValue(this.plugin.settings.importImageFolder)
+                    .onChange(async (value) => {
+                        this.plugin.settings.importImageFolder = value;
+                        await this.plugin.saveSettings();
+                    });
+                new FolderSuggest(this.app, text.inputEl);
+            });
+
+        // Download images toggle
+        new Setting(containerEl)
+            .setName('Download Images')
+            .setDesc('Download recipe images to your vault instead of linking to external URLs.')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.downloadImagesOnImport)
+                .onChange(async (value) => {
+                    this.plugin.settings.downloadImagesOnImport = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        // ========================================
         // Meal Plan Insert Options
         // ========================================
         containerEl.createEl('h2', { text: '📅 Meal Plan Insertion' });

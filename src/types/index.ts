@@ -267,6 +267,15 @@ export interface MiseSettings {
 
     /** Show recipe source as wikilinks in shopping list */
     showRecipeSourceLinks: boolean;
+
+    /** Folder for newly imported recipes (vault-relative) */
+    importInboxFolder: string;
+
+    /** Folder for downloaded recipe images (vault-relative) */
+    importImageFolder: string;
+
+    /** Whether to download images locally on import */
+    downloadImagesOnImport: boolean;
 }
 
 /**
@@ -366,6 +375,9 @@ export const DEFAULT_SETTINGS: MiseSettings = {
     },
     shoppingListArchiveFolder: 'Life/Household/Shopping Lists/Archive',
     showRecipeSourceLinks: true,
+    importInboxFolder: 'Life/Household/Kitchen/Recipes/Inbox',
+    importImageFolder: 'Resources/Imports/Recipe-Images',
+    downloadImagesOnImport: false,
 };
 
 // ============================================================================
