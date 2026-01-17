@@ -1051,10 +1051,17 @@
 	min-height: 200px;
 }
 
+/* Calendar Container - ensures weekday headers align with grid */
+.mise-calendar-container {
+	width: 100%;
+	max-width: 100%;
+	overflow-x: auto;
+}
+
 /* Weekday Headers */
 .mise-calendar-weekdays {
 	display: grid;
-	grid-template-columns: repeat(7, 1fr);
+	grid-template-columns: repeat(7, minmax(0, 1fr));
 	gap: 2px;
 	margin-bottom: 4px;
 }
@@ -1065,22 +1072,26 @@
 	font-size: 0.8em;
 	color: var(--text-muted);
 	padding: 8px 0;
+	min-width: 0;
 }
 
 /* Calendar Grid */
 .mise-calendar-grid {
 	display: grid;
-	grid-template-columns: repeat(7, 1fr);
+	grid-template-columns: repeat(7, minmax(0, 1fr));
 	gap: 2px;
 }
 
 .mise-calendar-day {
 	min-height: 100px;
+	max-width: 100%;
+	min-width: 0;
 	background: var(--background-secondary);
 	border-radius: 4px;
 	padding: 6px;
 	display: flex;
 	flex-direction: column;
+	overflow: hidden;
 }
 
 .mise-day-other-month {

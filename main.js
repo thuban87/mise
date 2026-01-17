@@ -25168,9 +25168,27 @@ var import_obsidian2 = require("obsidian");
 function parseMealPlan(content) {
   const meals = [];
   const recipeMap = /* @__PURE__ */ new Map();
-  const monthMatch = content.match(/^#\s+Meal Plan\s*[-–—]?\s*\[?(\w+)[,\s]+(\d{4})\]?/m);
-  const month = monthMatch ? monthMatch[1].trim() : "Unknown";
-  const year = monthMatch ? parseInt(monthMatch[2], 10) : (/* @__PURE__ */ new Date()).getFullYear();
+  let month = "Unknown";
+  let year = (/* @__PURE__ */ new Date()).getFullYear();
+  const monthMatch1 = content.match(/^#\s+Meal Plan\s*[-–—]?\s*\[?(\w+)[,\s]+(\d{4})\]?/m);
+  if (monthMatch1) {
+    month = monthMatch1[1].trim();
+    year = parseInt(monthMatch1[2], 10);
+  }
+  if (month === "Unknown") {
+    const monthMatch2 = content.match(/^#\s+(\w+)\s+(\d{4})\s+Meal Plan/m);
+    if (monthMatch2) {
+      month = monthMatch2[1].trim();
+      year = parseInt(monthMatch2[2], 10);
+    }
+  }
+  if (month === "Unknown") {
+    const fmMatch = content.match(/^---[\s\S]*?month:\s*(\w+)[\s\S]*?year:\s*(\d+)[\s\S]*?---/m);
+    if (fmMatch) {
+      month = fmMatch[1].trim();
+      year = parseInt(fmMatch[2], 10);
+    }
+  }
   console.log(`MealPlanParser: Parsing meal plan for ${month} ${year}`);
   let currentMealType = null;
   let currentWeekNumber = 1;
@@ -25349,10 +25367,11 @@ var MealPlanService = class extends import_obsidian2.Events {
     const allFiles = this.app.vault.getFiles();
     console.log(`MealPlanService: Total files in vault: ${allFiles.length}`);
     const files = allFiles.filter((f) => {
-      const inFolder = f.path.startsWith(normalizedFolder + "/") || f.path.startsWith(normalizedFolder + "\\");
+      const inFolderOrSubfolder = f.path.startsWith(normalizedFolder + "/") || f.path.startsWith(normalizedFolder + "\\");
       const isMd = f.extension === "md";
+      const hasMonthName = /january|february|march|april|may|june|july|august|september|october|november|december/i.test(f.name);
       const hasMealOrPlan = f.name.toLowerCase().includes("meal") || f.name.toLowerCase().includes("plan");
-      return inFolder && isMd && hasMealOrPlan;
+      return inFolderOrSubfolder && isMd && (hasMonthName || hasMealOrPlan);
     });
     console.log(`MealPlanService: Found ${files.length} meal plan files`);
     files.forEach((f) => console.log(`  - ${f.path}`));
@@ -25361,20 +25380,25 @@ var MealPlanService = class extends import_obsidian2.Events {
       this.mealPlan = null;
       return;
     }
-    const file = files.sort((a, b) => b.stat.mtime - a.stat.mtime)[0];
-    this.currentFilePath = file.path;
-    try {
-      const content = await this.app.vault.read(file);
-      this.mealPlan = parseMealPlan(content);
-      console.log(`MealPlanService: Loaded ${this.mealPlan.meals.length} meals from ${file.path}`);
-      if (this.mealPlan.meals.length > 0) {
-        console.log(`MealPlanService: First few meals:`, this.mealPlan.meals.slice(0, 3));
+    const allMeals = [];
+    for (const file of files) {
+      try {
+        const content = await this.app.vault.read(file);
+        const parsed = parseMealPlan(content);
+        allMeals.push(...parsed.meals);
+        console.log(`MealPlanService: Loaded ${parsed.meals.length} meals from ${file.name}`);
+      } catch (error) {
+        console.error(`MealPlanService: Error loading ${file.path}:`, error);
       }
-      this.trigger("meal-plan-updated");
-    } catch (error) {
-      console.error("MealPlanService: Error loading meal plan", error);
-      this.mealPlan = null;
     }
+    const mostRecentFile = files.sort((a, b) => b.stat.mtime - a.stat.mtime)[0];
+    this.currentFilePath = mostRecentFile.path;
+    this.mealPlan = { meals: allMeals, month: "aggregated", recipeMap: /* @__PURE__ */ new Map() };
+    console.log(`MealPlanService: Total ${allMeals.length} meals aggregated from ${files.length} files`);
+    if (allMeals.length > 0) {
+      console.log(`MealPlanService: First few meals:`, allMeals.slice(0, 3));
+    }
+    this.trigger("meal-plan-updated");
   }
   /**
    * Watch for changes to meal plan files
@@ -25473,15 +25497,26 @@ var MealPlanService = class extends import_obsidian2.Events {
   }
   /**
    * Add a meal to the meal plan file
+   * @param month - Optional month name (e.g., "January", "February")
+   * @param year - Optional year (e.g., 2026)
    */
-  async addMeal(recipeTitle, recipePath, day, weekNumber, mealType) {
-    if (!this.currentFilePath) {
+  async addMeal(recipeTitle, recipePath, day, weekNumber, mealType, month, year) {
+    let targetFilePath = this.currentFilePath;
+    if (month && year) {
+      const monthFile = await this.findMealPlanFileForMonth(month, year);
+      if (monthFile) {
+        targetFilePath = monthFile;
+      } else {
+        console.warn(`MealPlanService: No meal plan file found for ${month} ${year}, using current file`);
+      }
+    }
+    if (!targetFilePath) {
       console.error("MealPlanService: No meal plan file loaded");
       return false;
     }
-    const file = this.app.vault.getAbstractFileByPath(this.currentFilePath);
+    const file = this.app.vault.getAbstractFileByPath(targetFilePath);
     if (!file || !(file instanceof import_obsidian2.TFile)) {
-      console.error("MealPlanService: Meal plan file not found");
+      console.error("MealPlanService: Meal plan file not found:", targetFilePath);
       return false;
     }
     try {
@@ -25495,12 +25530,35 @@ var MealPlanService = class extends import_obsidian2.Events {
         mealType
       );
       await this.app.vault.modify(file, newContent);
-      console.log(`MealPlanService: Added ${recipeTitle} to ${day} ${mealType} Week ${weekNumber}`);
+      console.log(`MealPlanService: Added ${recipeTitle} to ${day} ${mealType} Week ${weekNumber} in ${file.name}`);
       return true;
     } catch (error) {
       console.error("MealPlanService: Error adding meal", error);
       return false;
     }
+  }
+  /**
+   * Find the meal plan file for a specific month and year
+   * Searches in subfolders like /2026/, /2027/ etc.
+   */
+  async findMealPlanFileForMonth(month, year) {
+    const folder = this.settings.mealPlanFolder;
+    if (!folder) return null;
+    const normalizedFolder = folder.replace(/\/$/, "");
+    const allFiles = this.app.vault.getFiles();
+    const monthFiles = allFiles.filter((f) => {
+      const inFolderOrSubfolder = f.path.startsWith(normalizedFolder + "/") || f.path.startsWith(normalizedFolder + "\\");
+      const isMd = f.extension === "md";
+      const hasMonth = f.name.toLowerCase().includes(month.toLowerCase());
+      return inFolderOrSubfolder && isMd && hasMonth;
+    });
+    if (monthFiles.length > 0) {
+      const withYear = monthFiles.find(
+        (f) => f.name.includes(year.toString()) || f.path.includes(`/${year}/`) || f.path.includes(`\\${year}\\`)
+      );
+      return (withYear == null ? void 0 : withYear.path) || monthFiles[0].path;
+    }
+    return null;
   }
   /**
    * Remove a meal from the meal plan file
@@ -25532,33 +25590,53 @@ var MealPlanService = class extends import_obsidian2.Events {
   }
   /**
    * Insert a meal into the markdown content
-   * Finds the correct week and meal type table and adds a row
+   * Finds the correct week and meal type table and either:
+   * 1. Updates an existing empty row for that day, OR
+   * 2. Adds a new row at the end of the table
    */
   insertMealIntoContent(content, recipeTitle, recipePath, day, weekNumber, mealType) {
     const lines = content.split("\n");
     let currentWeek = 0;
     let currentMealType = null;
-    let insertIndex = -1;
+    let inTargetTable = false;
+    let emptyRowIndex = -1;
+    let tableEndIndex = -1;
+    const wikilink = recipePath ? `[[${recipeTitle}]]` : recipeTitle;
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const weekMatch = line.match(/^##\s+Week\s+(\d+)/i);
       if (weekMatch) {
         currentWeek = parseInt(weekMatch[1], 10);
+        inTargetTable = false;
       }
-      if (line.toLowerCase().includes("breakfast")) currentMealType = "breakfast";
-      else if (line.toLowerCase().includes("lunch")) currentMealType = "lunch";
-      else if (line.toLowerCase().includes("dinner")) currentMealType = "dinner";
-      if (currentWeek === weekNumber && currentMealType === mealType) {
-        if (line.startsWith("|") && !line.includes("---") && !line.toLowerCase().includes("day")) {
-          insertIndex = i + 1;
+      if (line.toLowerCase().includes("breakfast")) {
+        currentMealType = "breakfast";
+        inTargetTable = currentWeek === weekNumber && currentMealType === mealType;
+      } else if (line.toLowerCase().includes("lunch")) {
+        currentMealType = "lunch";
+        inTargetTable = currentWeek === weekNumber && currentMealType === mealType;
+      } else if (line.toLowerCase().includes("dinner")) {
+        currentMealType = "dinner";
+        inTargetTable = currentWeek === weekNumber && currentMealType === mealType;
+      }
+      if (inTargetTable && line.startsWith("|") && !line.includes("---") && !line.toLowerCase().includes("day")) {
+        tableEndIndex = i + 1;
+        const cells = line.split("|").map((c) => c.trim());
+        if (cells[1] === day && (!cells[2] || cells[2] === "" || cells[2] === "-")) {
+          emptyRowIndex = i;
         }
       }
     }
-    const wikilink = recipePath ? `[[${recipeTitle}]]` : recipeTitle;
-    const newRow = `| ${day} | ${wikilink} | - | - | - | |`;
-    if (insertIndex > 0) {
-      lines.splice(insertIndex, 0, newRow);
+    if (emptyRowIndex >= 0) {
+      const newRow = `| ${day} | ${wikilink} | - | - | - | |`;
+      lines[emptyRowIndex] = newRow;
+      console.log(`MealPlanService: Updated existing row for ${day} at line ${emptyRowIndex + 1}`);
+    } else if (tableEndIndex > 0) {
+      const newRow = `| ${day} | ${wikilink} | - | - | - | |`;
+      lines.splice(tableEndIndex, 0, newRow);
+      console.log(`MealPlanService: Inserted new row after line ${tableEndIndex}`);
     } else {
+      const newRow = `| ${day} | ${wikilink} | - | - | - | |`;
       console.warn("MealPlanService: Could not find correct table, appending to end");
       lines.push(newRow);
     }
@@ -29474,7 +29552,6 @@ function MealCalendar({ mealPlanService, app }) {
     }
   };
   const handleDragOver = (e, day) => {
-    if (!day.isCurrentMonth) return;
     e.preventDefault();
     if (e.dataTransfer.types.includes("application/mise-meal")) {
       e.dataTransfer.dropEffect = "move";
@@ -29490,17 +29567,24 @@ function MealCalendar({ mealPlanService, app }) {
   const handleDrop = (e, day) => {
     e.preventDefault();
     setDragOverDay(null);
-    if (!day.isCurrentMonth) return;
     const recipeData = e.dataTransfer.getData("application/mise-recipe");
     if (!recipeData) return;
     try {
       const recipe = JSON.parse(recipeData);
       const dayName = DAYS_OF_WEEK[day.date.getDay()];
-      const weekNumber2 = day.weekOfMonth;
+      const targetDate = day.date;
+      const targetMonth = MONTHS[targetDate.getMonth()];
+      const targetYear = targetDate.getFullYear();
+      const firstDayOfTargetMonth = new Date(targetYear, targetDate.getMonth(), 1);
+      const firstDayWeekday = firstDayOfTargetMonth.getDay();
+      const weekNumber2 = Math.ceil((targetDate.getDate() + firstDayWeekday) / 7);
+      console.log("handleDrop: Target date info:", { dayName, weekNumber: weekNumber2, targetMonth, targetYear });
       setDraggedRecipe(recipe);
       setDropTarget({
         day: dayName,
         weekNumber: weekNumber2,
+        month: targetMonth,
+        year: targetYear,
         position: { x: 0, y: 0 }
         // Not used anymore
       });
@@ -29510,15 +29594,31 @@ function MealCalendar({ mealPlanService, app }) {
     }
   };
   const handleMealTypeSelect = async (mealType) => {
-    if (!draggedRecipe || !dropTarget) return;
+    console.log("handleMealTypeSelect called:", { mealType, draggedRecipe, dropTarget });
+    if (!draggedRecipe || !dropTarget) {
+      console.warn("handleMealTypeSelect: Missing draggedRecipe or dropTarget");
+      return;
+    }
     setPickerVisible(false);
-    await mealPlanService.addMeal(
+    console.log("Calling addMeal with:", {
+      title: draggedRecipe.title,
+      path: draggedRecipe.path,
+      day: dropTarget.day,
+      weekNumber: dropTarget.weekNumber,
+      mealType,
+      month: dropTarget.month,
+      year: dropTarget.year
+    });
+    const success = await mealPlanService.addMeal(
       draggedRecipe.title,
       draggedRecipe.path,
       dropTarget.day,
       dropTarget.weekNumber,
-      mealType
+      mealType,
+      dropTarget.month,
+      dropTarget.year
     );
+    console.log("addMeal result:", success);
     setDraggedRecipe(null);
     setDropTarget(null);
   };
@@ -29539,10 +29639,6 @@ function MealCalendar({ mealPlanService, app }) {
     console.log("Meal drop on day:", day.dayNum);
     e.preventDefault();
     setDragOverDay(null);
-    if (!day.isCurrentMonth) {
-      console.log("Meal drop: not current month, ignoring");
-      return;
-    }
     const mealData = e.dataTransfer.getData("application/mise-meal");
     console.log("Meal drop data:", mealData);
     if (!mealData) {
@@ -29640,89 +29736,91 @@ function MealCalendar({ mealPlanService, app }) {
         }
       )
     ] }),
-    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mise-calendar-weekdays", children: DAYS_OF_WEEK.map((day) => /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mise-calendar-weekday", children: day }, day)) }),
-    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
-      "div",
-      {
-        className: "mise-trash-zone",
-        onDragOver: (e) => {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = "move";
+    /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mise-calendar-container", children: [
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mise-calendar-weekdays", children: DAYS_OF_WEEK.map((day) => /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mise-calendar-weekday", children: day }, day)) }),
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: `mise-calendar-grid ${viewMode === "week" ? "mise-week-view" : ""}`, children: displayDays.map((day, idx) => /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
+        "div",
+        {
+          className: `mise-calendar-day ${!day.isCurrentMonth ? "mise-day-other-month" : ""} ${day.isToday ? "mise-day-today" : ""} ${dragOverDay === day.date.toISOString() ? "mise-day-dragover" : ""}`,
+          onClick: () => handleDayClick(day),
+          onDragOver: (e) => handleDragOver(e, day),
+          onDragLeave: handleDragLeave,
+          onDrop: (e) => {
+            if (e.dataTransfer.types.includes("application/mise-meal")) {
+              handleMealDrop(e, day);
+            } else {
+              handleDrop(e, day);
+            }
+          },
+          children: [
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mise-day-number", children: day.dayNum }),
+            /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mise-day-meals", children: [
+              day.meals.breakfast.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mise-meal-slot mise-meal-breakfast", children: day.meals.breakfast.map((meal, i) => /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
+                "span",
+                {
+                  className: "mise-meal-pill mise-meal-clickable mise-meal-draggable",
+                  title: getMealTooltip(meal),
+                  onClick: (e) => handleMealClick(meal, e),
+                  draggable: true,
+                  onDragStart: (e) => handleMealDragStart(e, meal),
+                  onDragEnd: handleMealDragEnd,
+                  children: [
+                    "\u{1F373} ",
+                    meal.recipeTitle
+                  ]
+                },
+                i
+              )) }),
+              day.meals.lunch.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mise-meal-slot mise-meal-lunch", children: day.meals.lunch.map((meal, i) => /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
+                "span",
+                {
+                  className: "mise-meal-pill mise-meal-clickable mise-meal-draggable",
+                  title: getMealTooltip(meal),
+                  onClick: (e) => handleMealClick(meal, e),
+                  draggable: true,
+                  onDragStart: (e) => handleMealDragStart(e, meal),
+                  onDragEnd: handleMealDragEnd,
+                  children: [
+                    "\u{1F957} ",
+                    meal.recipeTitle
+                  ]
+                },
+                i
+              )) }),
+              day.meals.dinner.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mise-meal-slot mise-meal-dinner", children: day.meals.dinner.map((meal, i) => /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
+                "span",
+                {
+                  className: "mise-meal-pill mise-meal-clickable mise-meal-draggable",
+                  title: getMealTooltip(meal),
+                  onClick: (e) => handleMealClick(meal, e),
+                  draggable: true,
+                  onDragStart: (e) => handleMealDragStart(e, meal),
+                  onDragEnd: handleMealDragEnd,
+                  children: [
+                    "\u{1F37D}\uFE0F ",
+                    meal.recipeTitle
+                  ]
+                },
+                i
+              )) })
+            ] })
+          ]
         },
-        onDrop: handleTrashDrop,
-        children: "\u{1F5D1}\uFE0F Drop here to delete"
-      }
-    ),
-    /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: `mise-calendar-grid ${viewMode === "week" ? "mise-week-view" : ""}`, children: displayDays.map((day, idx) => /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
-      "div",
-      {
-        className: `mise-calendar-day ${!day.isCurrentMonth ? "mise-day-other-month" : ""} ${day.isToday ? "mise-day-today" : ""} ${dragOverDay === day.date.toISOString() ? "mise-day-dragover" : ""}`,
-        onClick: () => handleDayClick(day),
-        onDragOver: (e) => handleDragOver(e, day),
-        onDragLeave: handleDragLeave,
-        onDrop: (e) => {
-          if (e.dataTransfer.types.includes("application/mise-meal")) {
-            handleMealDrop(e, day);
-          } else {
-            handleDrop(e, day);
-          }
-        },
-        children: [
-          /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mise-day-number", children: day.dayNum }),
-          /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)("div", { className: "mise-day-meals", children: [
-            day.meals.breakfast.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mise-meal-slot mise-meal-breakfast", children: day.meals.breakfast.map((meal, i) => /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
-              "span",
-              {
-                className: "mise-meal-pill mise-meal-clickable mise-meal-draggable",
-                title: getMealTooltip(meal),
-                onClick: (e) => handleMealClick(meal, e),
-                draggable: true,
-                onDragStart: (e) => handleMealDragStart(e, meal),
-                onDragEnd: handleMealDragEnd,
-                children: [
-                  "\u{1F373} ",
-                  meal.recipeTitle
-                ]
-              },
-              i
-            )) }),
-            day.meals.lunch.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mise-meal-slot mise-meal-lunch", children: day.meals.lunch.map((meal, i) => /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
-              "span",
-              {
-                className: "mise-meal-pill mise-meal-clickable mise-meal-draggable",
-                title: getMealTooltip(meal),
-                onClick: (e) => handleMealClick(meal, e),
-                draggable: true,
-                onDragStart: (e) => handleMealDragStart(e, meal),
-                onDragEnd: handleMealDragEnd,
-                children: [
-                  "\u{1F957} ",
-                  meal.recipeTitle
-                ]
-              },
-              i
-            )) }),
-            day.meals.dinner.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("div", { className: "mise-meal-slot mise-meal-dinner", children: day.meals.dinner.map((meal, i) => /* @__PURE__ */ (0, import_jsx_runtime10.jsxs)(
-              "span",
-              {
-                className: "mise-meal-pill mise-meal-clickable mise-meal-draggable",
-                title: getMealTooltip(meal),
-                onClick: (e) => handleMealClick(meal, e),
-                draggable: true,
-                onDragStart: (e) => handleMealDragStart(e, meal),
-                onDragEnd: handleMealDragEnd,
-                children: [
-                  "\u{1F37D}\uFE0F ",
-                  meal.recipeTitle
-                ]
-              },
-              i
-            )) })
-          ] })
-        ]
-      },
-      idx
-    )) }),
+        idx
+      )) }),
+      /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+        "div",
+        {
+          className: "mise-trash-zone",
+          onDragOver: (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+          },
+          onDrop: handleTrashDrop,
+          children: "\u{1F5D1}\uFE0F Drop here to delete"
+        }
+      )
+    ] }),
     /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
       MealTypePicker,
       {
@@ -30581,6 +30679,13 @@ var MisePlugin = class extends import_obsidian16.Plugin {
         console.log(`${PLUGIN_NAME}: Recipe index exported to System/Mise/recipe-index.json`);
       }
     });
+    this.addCommand({
+      id: "generate-meal-plans",
+      name: "Generate Meal Plan Files",
+      callback: async () => {
+        await this.generateMealPlanFiles();
+      }
+    });
     this.addRibbonIcon("book-open", "Open Mise Cookbook", () => {
       this.activateCookbookView();
     });
@@ -30675,6 +30780,104 @@ var MisePlugin = class extends import_obsidian16.Plugin {
       return;
     }
     new ScaleRecipeModal(this.app, recipe, this.scalingService).open();
+  }
+  /**
+   * Generate meal plan files for upcoming months
+   * Creates markdown files with week tables for each month
+   */
+  async generateMealPlanFiles() {
+    const folder = this.settings.mealPlanFolder;
+    if (!folder) {
+      new import_obsidian16.Notice("Please configure a meal plan folder in settings first.");
+      return;
+    }
+    const MONTHS2 = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December"
+    ];
+    const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const TEST_MODE = false;
+    const startYear = 2026;
+    const endYear = TEST_MODE ? 2026 : 2030;
+    let filesCreated = 0;
+    for (let year = startYear; year <= endYear; year++) {
+      const yearFolder = `${folder}/${year}`;
+      const yearFolderExists = this.app.vault.getAbstractFileByPath(yearFolder);
+      if (!yearFolderExists) {
+        try {
+          await this.app.vault.createFolder(yearFolder);
+          console.log(`Mise: Created folder ${yearFolder}`);
+        } catch (e) {
+        }
+      }
+      for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
+        if (year === 2026 && monthIndex < 2) continue;
+        if (TEST_MODE && (year !== 2026 || monthIndex > 3)) continue;
+        const monthName = MONTHS2[monthIndex];
+        const fileName = `${yearFolder}/${monthName} ${year}.md`;
+        const existingFile = this.app.vault.getAbstractFileByPath(fileName);
+        if (existingFile) {
+          console.log(`Mise: Skipping ${fileName} - already exists`);
+          continue;
+        }
+        const content = this.generateMonthContent(year, monthIndex, monthName, DAYS);
+        try {
+          await this.app.vault.create(fileName, content);
+          filesCreated++;
+          console.log(`Mise: Created ${fileName}`);
+        } catch (error) {
+          console.error(`Mise: Error creating ${fileName}:`, error);
+        }
+      }
+    }
+    new import_obsidian16.Notice(`Created ${filesCreated} meal plan files. Check ${folder}/${startYear}/ to verify format.`);
+  }
+  /**
+   * Generate markdown content for a month
+   */
+  generateMonthContent(year, monthIndex, monthName, days) {
+    const lines = [];
+    lines.push("---");
+    lines.push(`month: ${monthName}`);
+    lines.push(`year: ${year}`);
+    lines.push("---");
+    lines.push("");
+    lines.push(`# ${monthName} ${year} Meal Plan`);
+    lines.push("");
+    const firstDay = new Date(year, monthIndex, 1);
+    const lastDay = new Date(year, monthIndex + 1, 0);
+    const totalDays = lastDay.getDate();
+    const firstDayWeekday = firstDay.getDay();
+    const numWeeks = Math.ceil((totalDays + firstDayWeekday) / 7);
+    for (let week = 1; week <= numWeeks; week++) {
+      const weekStartDay = (week - 1) * 7 - firstDayWeekday + 1;
+      const weekEndDay = weekStartDay + 6;
+      const actualStart = Math.max(1, weekStartDay);
+      const actualEnd = Math.min(totalDays, weekEndDay);
+      lines.push(`## Week ${week} (${monthName} ${actualStart}-${actualEnd})`);
+      lines.push("");
+      for (const mealType of ["Breakfast", "Lunch", "Dinner"]) {
+        lines.push(`### ${mealType}`);
+        lines.push("");
+        lines.push("| Day | Meal | Protein | Side 1 | Side 2 | Notes |");
+        lines.push("| --- | ---- | ------- | ------ | ------ | ----- |");
+        for (const day of days) {
+          lines.push(`| ${day} | | | | | |`);
+        }
+        lines.push("");
+      }
+    }
+    return lines.join("\n");
   }
 };
 /*! Bundled license information:
