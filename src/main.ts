@@ -10,11 +10,12 @@
 
 import { Plugin, WorkspaceLeaf, Notice } from 'obsidian';
 import { MiseSettings, DEFAULT_SETTINGS } from './types';
-import { RecipeIndexer, MealPlanService, ShoppingListService, TimeMigrationService } from './services';
+import { RecipeIndexer, MealPlanService, ShoppingListService, TimeMigrationService, ImporterService } from './services';
 import { MiseSettingsTab } from './ui/settings/MiseSettingsTab';
 import { CookbookView, CookbookSidebar, MealPlanView, MISE_MEAL_PLAN_VIEW_TYPE } from './ui/views';
 import { PLUGIN_NAME, MISE_COOKBOOK_VIEW_TYPE, MISE_SIDEBAR_VIEW_TYPE } from './utils/constants';
 import { ShoppingListModal } from './ui/components/ShoppingListModal';
+import { RecipeImportModal } from './ui/components/RecipeImportModal';
 
 export default class MisePlugin extends Plugin {
     settings: MiseSettings;
@@ -24,6 +25,7 @@ export default class MisePlugin extends Plugin {
     mealPlanService: MealPlanService;
     shoppingListService: ShoppingListService;
     timeMigration: TimeMigrationService;
+    importerService: ImporterService;
 
     async onload(): Promise<void> {
         console.log(`${PLUGIN_NAME}: Loading plugin...`);
@@ -36,6 +38,7 @@ export default class MisePlugin extends Plugin {
         this.mealPlanService = new MealPlanService(this.app, this.settings);
         this.shoppingListService = new ShoppingListService(this.app, this.settings, this.indexer);
         this.timeMigration = new TimeMigrationService(this.app, this.settings);
+        this.importerService = new ImporterService(this.app, this.settings);
 
         // Wire up service dependencies
         this.shoppingListService.setMealPlanService(this.mealPlanService);
@@ -87,6 +90,25 @@ export default class MisePlugin extends Plugin {
             name: 'Open Meal Plan Calendar',
             callback: () => {
                 this.activateMealPlanView();
+            }
+        });
+
+        this.addCommand({
+            id: 'import-recipe-from-url',
+            name: 'Import Recipe from URL',
+            callback: () => {
+                const modal = new RecipeImportModal(
+                    this.app,
+                    this.importerService,
+                    async (filePath) => {
+                        // Open the created file
+                        const file = this.app.vault.getAbstractFileByPath(filePath);
+                        if (file) {
+                            await this.app.workspace.getLeaf('tab').openFile(file as any);
+                        }
+                    }
+                );
+                modal.open();
             }
         });
 

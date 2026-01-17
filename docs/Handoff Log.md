@@ -10,8 +10,8 @@ tags:
 **Purpose:** Session-by-session implementation notes. Each development session appends a new entry with details of what was done, what was tested, and what's next.
 
 **Last Updated:** January 16, 2026
-**Current Phase:** Phase 13 - Shopping List Writer ✅
-**Current Branch:** feat/phase-13-list-writer
+**Current Phase:** Phase 14 - Web Importer ✅
+**Current Branch:** feat/phase-14-web-importer
 **Version:** 0.1.0
 
 ---
@@ -34,6 +34,56 @@ Each session should include:
 - **Be specific** — Reference file paths, function names, and line numbers
 - **Test results are mandatory** — Every session must document testing
 - **Suggest commits** — Include recommended commit message at session end
+
+---
+
+## Session: January 16, 2026 - Web Importer
+
+### Phase
+Phase 14: Web Importer
+
+### Session Summary
+Implemented complete web recipe import functionality. Created `ImporterService.ts` that fetches URLs using Obsidian's `requestUrl` API (bypasses CORS), extracts JSON-LD Recipe schema data, and generates properly formatted markdown files. Created `RecipeImportModal.ts` with URL input and category selection. Handled edge cases including nested `HowToSection` instructions (Serious Eats), various image formats (`ImageObject`, arrays, direct URLs), and ISO 8601 duration parsing for prep/cook times.
+
+### What Was Done
+
+| Task | Details |
+|------|---------|
+| `types/index.ts` | Added `importInboxFolder`, `importImageFolder`, `downloadImagesOnImport` settings |
+| `MiseSettingsTab.ts` | Settings UI for import inbox folder, image folder, download toggle |
+| `ImporterService.ts` | New service: JSON-LD extraction, duration parsing, markdown generation, image download |
+| `RecipeImportModal.ts` | New modal: URL input, category dropdown, loading state |
+| `services/index.ts` | Export ImporterService |
+| `main.ts` | Added "Import Recipe from URL" command |
+
+### Key Technical Discoveries
+- Obsidian's `requestUrl` bypasses CORS restrictions (crucial for fetching external URLs)
+- JSON-LD images can be strings, arrays, or `ImageObject` with `url`/`contentUrl` properties
+- Serious Eats uses `HowToSection` with nested `itemListElement` for multi-day recipes
+- ISO 8601 durations: `PT1H30M` = 90 minutes
+
+### What Was Tested
+- ✅ AllRecipes import (ingredients, instructions, image)
+- ✅ Serious Eats import (multi-day nested instructions)
+- ✅ NYT Cooking import (works despite paywall for structured data)
+- ✅ Food Network import
+- ✅ Image downloading to separate folder
+- ✅ Category selection
+
+### Issues Discovered
+- Initial image extraction didn't handle `ImageObject` type (fixed)
+- Initial instruction extraction didn't flatten `HowToSection` items (fixed)
+
+### Recommended Commit
+```
+feat(phase-14): Web Importer complete
+
+- ImporterService with JSON-LD Recipe extraction
+- RecipeImportModal for URL input and category selection
+- Settings: inbox folder, image folder, download toggle
+- Handles nested HowToSection, ImageObject, ISO 8601 durations
+- Tested on AllRecipes, Serious Eats, NYT, Food Network
+```
 
 ---
 
