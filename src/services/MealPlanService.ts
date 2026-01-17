@@ -62,10 +62,13 @@ export class MealPlanService extends Events {
         console.log(`MealPlanService: Total files in vault: ${allFiles.length}`);
 
         const files = allFiles.filter(f => {
-            const inFolder = f.path.startsWith(normalizedFolder + '/') || f.path.startsWith(normalizedFolder + '\\');
+            // Check if file is inside the meal plan folder OR any subfolder
+            const inFolderOrSubfolder = f.path.startsWith(normalizedFolder + '/') || f.path.startsWith(normalizedFolder + '\\');
             const isMd = f.extension === 'md';
+            // Check for month names or 'meal'/'plan' keywords
+            const hasMonthName = /january|february|march|april|may|june|july|august|september|october|november|december/i.test(f.name);
             const hasMealOrPlan = f.name.toLowerCase().includes('meal') || f.name.toLowerCase().includes('plan');
-            return inFolder && isMd && hasMealOrPlan;
+            return inFolderOrSubfolder && isMd && (hasMonthName || hasMealOrPlan);
         });
 
         console.log(`MealPlanService: Found ${files.length} meal plan files`);
@@ -77,22 +80,30 @@ export class MealPlanService extends Events {
             return;
         }
 
-        // Use the most recently modified file
-        const file = files.sort((a, b) => b.stat.mtime - a.stat.mtime)[0];
-        this.currentFilePath = file.path;
+        // Load ALL meal plan files and aggregate meals
+        const allMeals: import('../types').PlannedMeal[] = [];
 
-        try {
-            const content = await this.app.vault.read(file);
-            this.mealPlan = parseMealPlan(content);
-            console.log(`MealPlanService: Loaded ${this.mealPlan.meals.length} meals from ${file.path}`);
-            if (this.mealPlan.meals.length > 0) {
-                console.log(`MealPlanService: First few meals:`, this.mealPlan.meals.slice(0, 3));
+        for (const file of files) {
+            try {
+                const content = await this.app.vault.read(file);
+                const parsed = parseMealPlan(content);
+                allMeals.push(...parsed.meals);
+                console.log(`MealPlanService: Loaded ${parsed.meals.length} meals from ${file.name}`);
+            } catch (error) {
+                console.error(`MealPlanService: Error loading ${file.path}:`, error);
             }
-            this.trigger('meal-plan-updated');
-        } catch (error) {
-            console.error('MealPlanService: Error loading meal plan', error);
-            this.mealPlan = null;
         }
+
+        // Store aggregated meals - use most recent file as "current" for writing new meals
+        const mostRecentFile = files.sort((a, b) => b.stat.mtime - a.stat.mtime)[0];
+        this.currentFilePath = mostRecentFile.path;
+
+        this.mealPlan = { meals: allMeals, month: 'aggregated', recipeMap: new Map() };
+        console.log(`MealPlanService: Total ${allMeals.length} meals aggregated from ${files.length} files`);
+        if (allMeals.length > 0) {
+            console.log(`MealPlanService: First few meals:`, allMeals.slice(0, 3));
+        }
+        this.trigger('meal-plan-updated');
     }
 
     /**
@@ -212,22 +223,39 @@ export class MealPlanService extends Events {
 
     /**
      * Add a meal to the meal plan file
+     * @param month - Optional month name (e.g., "January", "February")
+     * @param year - Optional year (e.g., 2026)
      */
     async addMeal(
         recipeTitle: string,
         recipePath: string | null,
         day: string,
         weekNumber: number,
-        mealType: 'breakfast' | 'lunch' | 'dinner'
+        mealType: 'breakfast' | 'lunch' | 'dinner',
+        month?: string,
+        year?: number
     ): Promise<boolean> {
-        if (!this.currentFilePath) {
+        // Find the correct file to modify
+        let targetFilePath = this.currentFilePath;
+
+        // If month is specified, find the file for that month
+        if (month && year) {
+            const monthFile = await this.findMealPlanFileForMonth(month, year);
+            if (monthFile) {
+                targetFilePath = monthFile;
+            } else {
+                console.warn(`MealPlanService: No meal plan file found for ${month} ${year}, using current file`);
+            }
+        }
+
+        if (!targetFilePath) {
             console.error('MealPlanService: No meal plan file loaded');
             return false;
         }
 
-        const file = this.app.vault.getAbstractFileByPath(this.currentFilePath);
+        const file = this.app.vault.getAbstractFileByPath(targetFilePath);
         if (!file || !(file instanceof TFile)) {
-            console.error('MealPlanService: Meal plan file not found');
+            console.error('MealPlanService: Meal plan file not found:', targetFilePath);
             return false;
         }
 
@@ -238,13 +266,44 @@ export class MealPlanService extends Events {
             );
 
             await this.app.vault.modify(file, newContent);
-            console.log(`MealPlanService: Added ${recipeTitle} to ${day} ${mealType} Week ${weekNumber}`);
+            console.log(`MealPlanService: Added ${recipeTitle} to ${day} ${mealType} Week ${weekNumber} in ${file.name}`);
             return true;
         } catch (error) {
             console.error('MealPlanService: Error adding meal', error);
             return false;
         }
     }
+
+    /**
+     * Find the meal plan file for a specific month and year
+     * Searches in subfolders like /2026/, /2027/ etc.
+     */
+    private async findMealPlanFileForMonth(month: string, year: number): Promise<string | null> {
+        const folder = this.settings.mealPlanFolder;
+        if (!folder) return null;
+
+        const normalizedFolder = folder.replace(/\/$/, '');
+        const allFiles = this.app.vault.getFiles();
+
+        // Look for files that contain the month name in folder OR subfolders
+        const monthFiles = allFiles.filter(f => {
+            const inFolderOrSubfolder = f.path.startsWith(normalizedFolder + '/') || f.path.startsWith(normalizedFolder + '\\');
+            const isMd = f.extension === 'md';
+            const hasMonth = f.name.toLowerCase().includes(month.toLowerCase());
+            return inFolderOrSubfolder && isMd && hasMonth;
+        });
+
+        if (monthFiles.length > 0) {
+            // Prefer file with year in name or path
+            const withYear = monthFiles.find(f =>
+                f.name.includes(year.toString()) || f.path.includes(`/${year}/`) || f.path.includes(`\\${year}\\`)
+            );
+            return withYear?.path || monthFiles[0].path;
+        }
+
+        return null;
+    }
+
 
     /**
      * Remove a meal from the meal plan file
@@ -281,7 +340,9 @@ export class MealPlanService extends Events {
 
     /**
      * Insert a meal into the markdown content
-     * Finds the correct week and meal type table and adds a row
+     * Finds the correct week and meal type table and either:
+     * 1. Updates an existing empty row for that day, OR
+     * 2. Adds a new row at the end of the table
      */
     private insertMealIntoContent(
         content: string,
@@ -294,9 +355,14 @@ export class MealPlanService extends Events {
         const lines = content.split('\n');
         let currentWeek = 0;
         let currentMealType: string | null = null;
-        let insertIndex = -1;
+        let inTargetTable = false;
+        let emptyRowIndex = -1;  // Index of empty row for this day
+        let tableEndIndex = -1;  // Index to insert new row if needed
 
-        // Find the correct location to insert
+        // Create the wikilink
+        const wikilink = recipePath ? `[[${recipeTitle}]]` : recipeTitle;
+
+        // Find the correct location
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
 
@@ -304,30 +370,49 @@ export class MealPlanService extends Events {
             const weekMatch = line.match(/^##\s+Week\s+(\d+)/i);
             if (weekMatch) {
                 currentWeek = parseInt(weekMatch[1], 10);
+                inTargetTable = false; // Reset when entering new week
             }
 
             // Check for meal type header
-            if (line.toLowerCase().includes('breakfast')) currentMealType = 'breakfast';
-            else if (line.toLowerCase().includes('lunch')) currentMealType = 'lunch';
-            else if (line.toLowerCase().includes('dinner')) currentMealType = 'dinner';
+            if (line.toLowerCase().includes('breakfast')) {
+                currentMealType = 'breakfast';
+                inTargetTable = (currentWeek === weekNumber && currentMealType === mealType);
+            } else if (line.toLowerCase().includes('lunch')) {
+                currentMealType = 'lunch';
+                inTargetTable = (currentWeek === weekNumber && currentMealType === mealType);
+            } else if (line.toLowerCase().includes('dinner')) {
+                currentMealType = 'dinner';
+                inTargetTable = (currentWeek === weekNumber && currentMealType === mealType);
+            }
 
-            // Check if we're in the right week and meal type
-            if (currentWeek === weekNumber && currentMealType === mealType) {
-                // Look for the end of the table (next section or blank line after table)
-                if (line.startsWith('|') && !line.includes('---') && !line.toLowerCase().includes('day')) {
-                    insertIndex = i + 1; // Keep updating to find last row
+            // If we're in the target table, look for existing rows
+            if (inTargetTable && line.startsWith('|') && !line.includes('---') && !line.toLowerCase().includes('day')) {
+                // This is a data row in the target table
+                tableEndIndex = i + 1;
+
+                // Check if this row is for our day and is empty
+                const cells = line.split('|').map(c => c.trim());
+                // cells[0] is empty (before first |), cells[1] is Day, cells[2] is Meal
+                if (cells[1] === day && (!cells[2] || cells[2] === '' || cells[2] === '-')) {
+                    // Found empty row for this day
+                    emptyRowIndex = i;
                 }
             }
         }
 
-        // Create the new row
-        const wikilink = recipePath ? `[[${recipeTitle}]]` : recipeTitle;
-        const newRow = `| ${day} | ${wikilink} | - | - | - | |`;
-
-        if (insertIndex > 0) {
-            lines.splice(insertIndex, 0, newRow);
+        // If we found an empty row for this day, update it
+        if (emptyRowIndex >= 0) {
+            const newRow = `| ${day} | ${wikilink} | - | - | - | |`;
+            lines[emptyRowIndex] = newRow;
+            console.log(`MealPlanService: Updated existing row for ${day} at line ${emptyRowIndex + 1}`);
+        } else if (tableEndIndex > 0) {
+            // Insert new row at end of table
+            const newRow = `| ${day} | ${wikilink} | - | - | - | |`;
+            lines.splice(tableEndIndex, 0, newRow);
+            console.log(`MealPlanService: Inserted new row after line ${tableEndIndex}`);
         } else {
             // Fallback: append to end of file
+            const newRow = `| ${day} | ${wikilink} | - | - | - | |`;
             console.warn('MealPlanService: Could not find correct table, appending to end');
             lines.push(newRow);
         }

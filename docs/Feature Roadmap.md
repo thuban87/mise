@@ -12,7 +12,7 @@ tags:
 > This is a personal utility project with infinite runway. Features get done when they get done. Do not pressure the user with "we should do this after MVP" language.
 
 **Last Updated:** January 17, 2026
-**Current Phase:** Phase 15.5 - Unit Standardization ✅
+**Current Phase:** Phase 15.6 - Calendar & Meal Plan Fixes ✅
 
 ---
 
@@ -608,6 +608,27 @@ interface ShoppingItem {
 - [x] Shopping list combines "2 tsp" and "1 tbsp" into single line
 - [x] Consolidates diverse units into standard form
 
+
+---
+
+### Phase 15.6: Calendar & Meal Plan Fixes
+- **Goal:** Fix calendar bugs and improve meal plan workflow.
+- **Status:** `[x]` Complete
+- **Notes:** Fixed drag-drop to next month, duplicate row insertion, subfolder support, and multi-file aggregation.
+
+| Task | Status | Notes |
+|------|-------:|-------|
+| Next-month drag-drop | `[x]` | Extract month/year from target date |
+| Fix duplicate row insertion | `[x]` | Update existing empty rows |
+| Subfolder support | `[x]` | Meal plans in `/2026/`, `/2027/` |
+| Multi-file aggregation | `[x]` | Load ALL meal plan files |
+| 5-year file generator | `[x]` | March 2026 - December 2030 |
+| Month parser fixes | `[x]` | Multiple header format recognition |
+
+**Acceptance Criteria:**
+- [x] Drag to next month adds meal to correct file
+- [x] Existing table rows updated, not duplicated
+- [x] All meal plan files load regardless of subfolder depth
 
 ---
 

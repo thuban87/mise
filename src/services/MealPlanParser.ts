@@ -30,10 +30,38 @@ export function parseMealPlan(content: string): ParsedMealPlan {
     const meals: PlannedMeal[] = [];
     const recipeMap = new Map<string, PlannedMeal[]>();
 
-    // Extract month/year from header (e.g., "# Meal Plan - January 2026" or "# Meal Plan - [January, 2026]")
-    const monthMatch = content.match(/^#\s+Meal Plan\s*[-–—]?\s*\[?(\w+)[,\s]+(\d{4})\]?/m);
-    const month = monthMatch ? monthMatch[1].trim() : 'Unknown';
-    const year = monthMatch ? parseInt(monthMatch[2], 10) : new Date().getFullYear();
+    // Extract month/year from various formats:
+    // 1. "# Meal Plan - January 2026" (old format)
+    // 2. "# January 2026 Meal Plan" (generated format)
+    // 3. Frontmatter: "month: January"
+
+    let month = 'Unknown';
+    let year = new Date().getFullYear();
+
+    // Try format: "# Meal Plan - January 2026"
+    const monthMatch1 = content.match(/^#\s+Meal Plan\s*[-–—]?\s*\[?(\w+)[,\s]+(\d{4})\]?/m);
+    if (monthMatch1) {
+        month = monthMatch1[1].trim();
+        year = parseInt(monthMatch1[2], 10);
+    }
+
+    // Try format: "# January 2026 Meal Plan"
+    if (month === 'Unknown') {
+        const monthMatch2 = content.match(/^#\s+(\w+)\s+(\d{4})\s+Meal Plan/m);
+        if (monthMatch2) {
+            month = monthMatch2[1].trim();
+            year = parseInt(monthMatch2[2], 10);
+        }
+    }
+
+    // Try frontmatter: "month: January"
+    if (month === 'Unknown') {
+        const fmMatch = content.match(/^---[\s\S]*?month:\s*(\w+)[\s\S]*?year:\s*(\d+)[\s\S]*?---/m);
+        if (fmMatch) {
+            month = fmMatch[1].trim();
+            year = parseInt(fmMatch[2], 10);
+        }
+    }
 
     console.log(`MealPlanParser: Parsing meal plan for ${month} ${year}`);
 

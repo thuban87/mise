@@ -32,6 +32,8 @@ interface DayData {
 interface DropTarget {
     day: string;
     weekNumber: number;
+    month: string;
+    year: number;
     position: { x: number; y: number };
 }
 
@@ -231,7 +233,6 @@ export function MealCalendar({ mealPlanService, app }: MealCalendarProps) {
 
     // Drag and drop handlers
     const handleDragOver = (e: React.DragEvent, day: DayData) => {
-        if (!day.isCurrentMonth) return;
         e.preventDefault();
 
         // Use 'move' for meals, 'copy' for new recipes
@@ -253,8 +254,6 @@ export function MealCalendar({ mealPlanService, app }: MealCalendarProps) {
         e.preventDefault();
         setDragOverDay(null);
 
-        if (!day.isCurrentMonth) return;
-
         // Get recipe data
         const recipeData = e.dataTransfer.getData('application/mise-recipe');
         if (!recipeData) return;
@@ -262,13 +261,24 @@ export function MealCalendar({ mealPlanService, app }: MealCalendarProps) {
         try {
             const recipe = JSON.parse(recipeData) as DraggedRecipe;
             const dayName = DAYS_OF_WEEK[day.date.getDay()];
-            const weekNumber = day.weekOfMonth;
+
+            // Calculate weekOfMonth for the target day's actual month
+            const targetDate = day.date;
+            const targetMonth = MONTHS[targetDate.getMonth()];
+            const targetYear = targetDate.getFullYear();
+            const firstDayOfTargetMonth = new Date(targetYear, targetDate.getMonth(), 1);
+            const firstDayWeekday = firstDayOfTargetMonth.getDay();
+            const weekNumber = Math.ceil((targetDate.getDate() + firstDayWeekday) / 7);
+
+            console.log('handleDrop: Target date info:', { dayName, weekNumber, targetMonth, targetYear });
 
             // Show picker (centered on page, no position needed)
             setDraggedRecipe(recipe);
             setDropTarget({
                 day: dayName,
                 weekNumber,
+                month: targetMonth,
+                year: targetYear,
                 position: { x: 0, y: 0 }, // Not used anymore
             });
             setPickerVisible(true);
@@ -279,17 +289,36 @@ export function MealCalendar({ mealPlanService, app }: MealCalendarProps) {
 
     // Handle meal type selection from picker
     const handleMealTypeSelect = async (mealType: MealType) => {
-        if (!draggedRecipe || !dropTarget) return;
+        console.log('handleMealTypeSelect called:', { mealType, draggedRecipe, dropTarget });
+
+        if (!draggedRecipe || !dropTarget) {
+            console.warn('handleMealTypeSelect: Missing draggedRecipe or dropTarget');
+            return;
+        }
 
         setPickerVisible(false);
 
-        await mealPlanService.addMeal(
+        console.log('Calling addMeal with:', {
+            title: draggedRecipe.title,
+            path: draggedRecipe.path,
+            day: dropTarget.day,
+            weekNumber: dropTarget.weekNumber,
+            mealType,
+            month: dropTarget.month,
+            year: dropTarget.year
+        });
+
+        const success = await mealPlanService.addMeal(
             draggedRecipe.title,
             draggedRecipe.path,
             dropTarget.day,
             dropTarget.weekNumber,
-            mealType
+            mealType,
+            dropTarget.month,
+            dropTarget.year
         );
+
+        console.log('addMeal result:', success);
 
         setDraggedRecipe(null);
         setDropTarget(null);
@@ -317,11 +346,6 @@ export function MealCalendar({ mealPlanService, app }: MealCalendarProps) {
         console.log('Meal drop on day:', day.dayNum);
         e.preventDefault();
         setDragOverDay(null);
-
-        if (!day.isCurrentMonth) {
-            console.log('Meal drop: not current month, ignoring');
-            return;
-        }
 
         const mealData = e.dataTransfer.getData('application/mise-meal');
         console.log('Meal drop data:', mealData);
@@ -424,98 +448,101 @@ export function MealCalendar({ mealPlanService, app }: MealCalendarProps) {
                 </button>
             </div>
 
-            {/* Weekday Headers */}
-            <div className="mise-calendar-weekdays">
-                {DAYS_OF_WEEK.map(day => (
-                    <div key={day} className="mise-calendar-weekday">{day}</div>
-                ))}
-            </div>
+            {/* Calendar Container - ensures weekday headers align with grid */}
+            <div className="mise-calendar-container">
+                {/* Weekday Headers */}
+                <div className="mise-calendar-weekdays">
+                    {DAYS_OF_WEEK.map(day => (
+                        <div key={day} className="mise-calendar-weekday">{day}</div>
+                    ))}
+                </div>
 
-            {/* Trash Zone - visible via CSS when calendar has mise-calendar-dragging class */}
-            <div
-                className="mise-trash-zone"
-                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
-                onDrop={handleTrashDrop}
-            >
-                🗑️ Drop here to delete
-            </div>
-
-            {/* Calendar Grid */}
-            <div className={`mise-calendar-grid ${viewMode === 'week' ? 'mise-week-view' : ''}`}>
-                {displayDays.map((day, idx) => (
-                    <div
-                        key={idx}
-                        className={`mise-calendar-day ${!day.isCurrentMonth ? 'mise-day-other-month' : ''
-                            } ${day.isToday ? 'mise-day-today' : ''
-                            } ${dragOverDay === day.date.toISOString() ? 'mise-day-dragover' : ''}`}
-                        onClick={() => handleDayClick(day)}
-                        onDragOver={(e) => handleDragOver(e, day)}
-                        onDragLeave={handleDragLeave}
-                        onDrop={(e) => {
-                            // Check if it's a meal being moved
-                            if (e.dataTransfer.types.includes('application/mise-meal')) {
-                                handleMealDrop(e, day);
-                            } else {
-                                handleDrop(e, day);
-                            }
-                        }}
-                    >
-                        <div className="mise-day-number">{day.dayNum}</div>
-                        <div className="mise-day-meals">
-                            {day.meals.breakfast.length > 0 && (
-                                <div className="mise-meal-slot mise-meal-breakfast">
-                                    {day.meals.breakfast.map((meal, i) => (
-                                        <span
-                                            key={i}
-                                            className="mise-meal-pill mise-meal-clickable mise-meal-draggable"
-                                            title={getMealTooltip(meal)}
-                                            onClick={(e) => handleMealClick(meal, e)}
-                                            draggable
-                                            onDragStart={(e) => handleMealDragStart(e, meal)}
-                                            onDragEnd={handleMealDragEnd}
-                                        >
-                                            🍳 {meal.recipeTitle}
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
-                            {day.meals.lunch.length > 0 && (
-                                <div className="mise-meal-slot mise-meal-lunch">
-                                    {day.meals.lunch.map((meal, i) => (
-                                        <span
-                                            key={i}
-                                            className="mise-meal-pill mise-meal-clickable mise-meal-draggable"
-                                            title={getMealTooltip(meal)}
-                                            onClick={(e) => handleMealClick(meal, e)}
-                                            draggable
-                                            onDragStart={(e) => handleMealDragStart(e, meal)}
-                                            onDragEnd={handleMealDragEnd}
-                                        >
-                                            🥗 {meal.recipeTitle}
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
-                            {day.meals.dinner.length > 0 && (
-                                <div className="mise-meal-slot mise-meal-dinner">
-                                    {day.meals.dinner.map((meal, i) => (
-                                        <span
-                                            key={i}
-                                            className="mise-meal-pill mise-meal-clickable mise-meal-draggable"
-                                            title={getMealTooltip(meal)}
-                                            onClick={(e) => handleMealClick(meal, e)}
-                                            draggable
-                                            onDragStart={(e) => handleMealDragStart(e, meal)}
-                                            onDragEnd={handleMealDragEnd}
-                                        >
-                                            🍽️ {meal.recipeTitle}
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
+                {/* Calendar Grid */}
+                <div className={`mise-calendar-grid ${viewMode === 'week' ? 'mise-week-view' : ''}`}>
+                    {displayDays.map((day, idx) => (
+                        <div
+                            key={idx}
+                            className={`mise-calendar-day ${!day.isCurrentMonth ? 'mise-day-other-month' : ''
+                                } ${day.isToday ? 'mise-day-today' : ''
+                                } ${dragOverDay === day.date.toISOString() ? 'mise-day-dragover' : ''}`}
+                            onClick={() => handleDayClick(day)}
+                            onDragOver={(e) => handleDragOver(e, day)}
+                            onDragLeave={handleDragLeave}
+                            onDrop={(e) => {
+                                // Check if it's a meal being moved
+                                if (e.dataTransfer.types.includes('application/mise-meal')) {
+                                    handleMealDrop(e, day);
+                                } else {
+                                    handleDrop(e, day);
+                                }
+                            }}
+                        >
+                            <div className="mise-day-number">{day.dayNum}</div>
+                            <div className="mise-day-meals">
+                                {day.meals.breakfast.length > 0 && (
+                                    <div className="mise-meal-slot mise-meal-breakfast">
+                                        {day.meals.breakfast.map((meal, i) => (
+                                            <span
+                                                key={i}
+                                                className="mise-meal-pill mise-meal-clickable mise-meal-draggable"
+                                                title={getMealTooltip(meal)}
+                                                onClick={(e) => handleMealClick(meal, e)}
+                                                draggable
+                                                onDragStart={(e) => handleMealDragStart(e, meal)}
+                                                onDragEnd={handleMealDragEnd}
+                                            >
+                                                🍳 {meal.recipeTitle}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                                {day.meals.lunch.length > 0 && (
+                                    <div className="mise-meal-slot mise-meal-lunch">
+                                        {day.meals.lunch.map((meal, i) => (
+                                            <span
+                                                key={i}
+                                                className="mise-meal-pill mise-meal-clickable mise-meal-draggable"
+                                                title={getMealTooltip(meal)}
+                                                onClick={(e) => handleMealClick(meal, e)}
+                                                draggable
+                                                onDragStart={(e) => handleMealDragStart(e, meal)}
+                                                onDragEnd={handleMealDragEnd}
+                                            >
+                                                🥗 {meal.recipeTitle}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                                {day.meals.dinner.length > 0 && (
+                                    <div className="mise-meal-slot mise-meal-dinner">
+                                        {day.meals.dinner.map((meal, i) => (
+                                            <span
+                                                key={i}
+                                                className="mise-meal-pill mise-meal-clickable mise-meal-draggable"
+                                                title={getMealTooltip(meal)}
+                                                onClick={(e) => handleMealClick(meal, e)}
+                                                draggable
+                                                onDragStart={(e) => handleMealDragStart(e, meal)}
+                                                onDragEnd={handleMealDragEnd}
+                                            >
+                                                🍽️ {meal.recipeTitle}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    ))}
+                </div>
+
+                {/* Trash Zone - visible via CSS when calendar has mise-calendar-dragging class */}
+                <div
+                    className="mise-trash-zone"
+                    onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                    onDrop={handleTrashDrop}
+                >
+                    🗑️ Drop here to delete
+                </div>
             </div>
 
             {/* Meal Type Picker */}

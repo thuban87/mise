@@ -9,9 +9,9 @@ tags:
 
 **Purpose:** Session-by-session implementation notes. Each development session appends a new entry with details of what was done, what was tested, and what's next.
 
-**Last Updated:** January 16, 2026
-**Current Phase:** Phase 14 - Web Importer ✅
-**Current Branch:** feat/phase-14-web-importer
+**Last Updated:** January 17, 2026
+**Current Phase:** Phase 15.6 - Calendar & Meal Plan Fixes ✅
+**Current Branch:** main
 **Version:** 0.1.0
 
 ---
@@ -833,29 +833,227 @@ Phase 13: Shopping List Writer - Implement `writeListToFile()` method to generat
 
 ---
 
+## Session: January 16, 2026 - Recipe Scaling
+
+### Phase
+Phase 15: Recipe Scaling
+
+### Session Summary
+Implemented recipe scaling functionality with two modes: inline session-only scaling in `RecipeModal` for live preview, and permanent scaled file creation via right-click context menu. Created `RecipeScalingService.ts` for core scaling logic and `ScaleRecipeModal.ts` for the UI. Enhanced `QuantityParser.ts` with `formatScaledIngredient()` and `numberToFraction()` utilities for user-friendly fraction display (e.g., 2.25 → 2 1/4).
+
+### What Was Done
+
+| Task | Details |
+|------|---------|
+| `RecipeScalingService.ts` | New service: parse servings, calculate scale factor, scale ingredients, create new files |
+| `ScaleRecipeModal.ts` | Right-click modal with target servings input and ingredient preview |
+| `RecipeModal.tsx` | Added inline scaling with session-only live preview |
+| `QuantityParser.ts` | Added `formatScaledIngredient()`, `numberToFraction()`, `pluralizeUnit()` |
+| `main.ts` | Added file-menu "Scale Recipe..." option |
+| `styles.css` | Scaling modal and inline scaling element styles |
+
+### Key Technical Discoveries
+- Regex for ingredient replacement must handle various list prefixes (`- [ ]`, `* [ ]`, `-`)
+- Fraction display requires mapping common decimals (0.25, 0.33, 0.5, etc.) to fractions
+- Session scaling keeps original file unchanged; right-click creates new file
+
+### What Was Tested
+- [x] Inline scaling updates ingredients in modal preview
+- [x] Right-click → Scale Recipe opens modal
+- [x] Scaled file created with correct servings in frontmatter
+- [x] Quantities display as fractions (1/2, 1/4, 2/3, etc.)
+
+### Recommended Commit
+```
+feat(phase-15): Recipe scaling complete
+
+- RecipeScalingService for scaling logic
+- Inline session-only scaling in RecipeModal
+- Right-click "Scale Recipe..." creates scaled copy
+- Fraction formatting for user-friendly display
+```
+
+---
+
+## Session: January 16, 2026 - Ingredient Normalization
+
+### Phase
+Phase 15.5: Ingredient Unit Standardization
+
+### Session Summary
+Implemented comprehensive ingredient normalization for web imports. Created `IngredientNormalizer.ts` with functions for unicode fraction conversion, decimal-to-fraction conversion, unit standardization (tablespoon → tbsp), ingredient name aliases (extra virgin olive oil → olive oil), preparation text reordering, and vague ingredient detection.
+
+### What Was Done
+
+| Task | Details |
+|------|---------|
+| `IngredientNormalizer.ts` | New module with all normalization logic |
+| `ImporterService.ts` | Integrated `normalizeIngredients()` into web import flow |
+| Unit alias map | Standardizes tablespoon, teaspoon, ounce variations |
+| Ingredient alias groups | Groups synonyms (garlic clove, head of garlic) |
+| Vague ingredient detection | Warns on generic items (chicken, oil, salt) |
+
+### Key Technical Discoveries
+- Unicode fractions (½, ¼, ⅓) must be converted before parsing
+- Decimals like 0.03 cup need conversion to equivalent smaller units (2 tsp)
+- Prep text sometimes appears before ingredient ("minced garlic 3 cloves")
+
+### What Was Tested
+- [x] Unicode fractions convert correctly (½ → 1/2)
+- [x] Units standardized on import (tablespoon → tbsp)
+- [x] Ingredient aliases consolidate synonyms
+- [x] Vague ingredient warnings logged to console
+
+### Recommended Commit
+```
+feat(phase-15.5): Ingredient normalization for imports
+
+- Create IngredientNormalizer module
+- Unicode fraction and decimal conversion
+- Unit and ingredient name standardization
+- Integrate into ImporterService
+```
+
+---
+
+## Session: January 17, 2026 - Calendar & Meal Plan Fixes
+
+### Phase
+Phase 15.6: Calendar & Meal Plan Fixes
+
+### Session Summary
+Fixed multiple bugs in the Meal Calendar and Meal Plan system. Enabled drag-and-drop to next/previous month days by extracting month/year from target date instead of blocking. Fixed duplicate row insertion by updating existing empty rows instead of always appending. Added subfolder support so meal plans can be organized by year (`/2026/January 2026.md`). Implemented 5-year meal plan file generator (March 2026 - December 2030) with year subfolders. Updated parser to recognize multiple month formats from headers and frontmatter. Made service aggregate meals from ALL files instead of just most recent.
+
+### What Was Done
+
+| Task | Details |
+|------|---------|
+| `MealCalendar.tsx` | Removed `isCurrentMonth` block, extract targetMonth/targetYear from drop day |
+| `MealCalendar.tsx` | Added month/year to DropTarget interface and handleMealTypeSelect |
+| `MealPlanService.ts` | Added month/year params to `addMeal()` |
+| `MealPlanService.ts` | Added `findMealPlanFileForMonth()` to find correct file by month |
+| `MealPlanService.ts` | Updated `loadMealPlan()` to aggregate meals from ALL files |
+| `MealPlanService.ts` | Rewrote `insertMealIntoContent()` to update existing rows |
+| `MealPlanParser.ts` | Added recognition for 3 month formats (header, generated, frontmatter) |
+| `main.ts` | Added "Generate Meal Plan Files" command with year subfolder creation |
+| `styles.css` | Fixed calendar grid with `minmax(0, 1fr)` and `overflow: hidden` |
+
+### Key Technical Discoveries
+- CSS `minmax(0, 1fr)` prevents grid columns from expanding with content
+- Meal plans in subfolders require `startsWith(folder + '/')` pattern matching
+- Parser needed multiple regex fallbacks for different header formats
+- Aggregating all meal plan files gives true multi-month calendar display
+
+### What Was Tested
+- [x] Drag recipe to next month day → adds to correct month file
+- [x] Existing empty rows updated instead of duplicating
+- [x] Meal plans in `/2026/` subfolder load correctly
+- [x] All generated files have correct week structures
+- [x] Both January and February meals appear on calendar
+- [x] CSS prevents calendar from overflowing horizontally
+- [x] Day headers align with grid columns
+
+### Files Modified
+- `src/ui/components/MealCalendar.tsx` — Month targeting for drag-drop
+- `src/services/MealPlanService.ts` — Aggregation, file finding, row updates
+- `src/services/MealPlanParser.ts` — Multi-format month extraction
+- `src/main.ts` — Meal plan generator command
+- `styles.css` — Grid overflow fixes
+
+### Recommended Commit
+```
+feat(phase-15.6): calendar and meal plan fixes
+
+- Drag-drop works on next/previous month days
+- Extract month/year from target date, find correct file
+- Update existing table rows instead of inserting duplicates
+- Load and aggregate meals from ALL meal plan files
+- Subfolder support for year-organized meal plans
+- 5-year meal plan generator (2026-2030)
+- Parser recognizes multiple month header formats
+- CSS grid fixes for proper column alignment
+```
+
+---
+
 ## Next Session Prompt
 
 ```
-Mise - v0.1.0 → Phase 11: Drag-and-Drop Assignment
+Mise - v0.1.0 → Phase 16: Inventory & Consumption Engine
 
 **Project:** Culinary OS for Obsidian
-**Status:** Phases 0-10 complete. Calendar UI working!
+**Status:** Phases 0-15.6 complete. Calendar, shopping list, and drag-drop all working!
 
 ## Key Docs (READ FIRST)
 - docs/CLAUDE.md - Mandatory development workflow
-- docs/Feature Roadmap.md - Phase tasks and full architecture
+- docs/Feature Roadmap.md - Phase 16 specs at line 614-633
+- docs/Handoff Log.md - This session summary
 
-## What's Already Built
-- RecipeIndexer with real-time vault events
-- React UI with cards, filters, modal
-- Meal plan parser and service
-- Calendar with month/week views
-- Clickable meals that open recipes
+## Phase 16 Scope (from Feature Roadmap)
+This is a COMPLEX phase with multiple interconnected features:
+
+### 1. InventoryService
+Create `src/services/InventoryService.ts` to manage pantry stock.
+- Storage: `Life/Household/Kitchen/Inventory.md` (markdown table)
+- Schema: | Item | Quantity | Unit | Category | LastUpdated |
+- Methods: getStock(), addStock(), deductStock(), setStock()
+
+### 2. "Log Meal" Command
+Modal to record that a meal was eaten:
+- One-click confirm for planned meals ("Did you eat [Dinner]?")
+- Ad-hoc logging: pick any recipe or "Something New"
+- Should deduct recipe ingredients from inventory
+
+### 3. Live Cooking Mode (CRITICAL)
+Use existing RecipeModal to track ingredients live while cooking:
+- Checkbox ingredients as they're used
+- "Finish & Log" button deducts exactly what was checked
+- Handles cases where you use more/less than recipe calls for
+
+### 4. Ingredient Deduction Logic
+When meal is logged:
+- Parse recipe ingredients
+- Subtract from inventory
+- Handle unit conversions (recipe says 2 cups, inventory says 16 oz)
+- Handle partial items (use 1 of 3 eggs → 2 eggs remaining)
+
+### 5. "Threw Away Food" Command
+For spoilage tracking:
+- Quick modal to select item and quantity
+- Updates inventory and logs waste
+
+### 6. "Pantry Check" Mode
+Periodic audit workflow:
+- Walks through inventory items
+- "Still have this?" yes/no/adjust quantity
+- Designed for bi-weekly audits
+
+## Existing Code to Leverage
+- `RecipeModal.tsx` - Already has ingredient checkboxes
+- `IngredientParser.ts` - Parses ingredient strings
+- `QuantityParser.ts` - Handles quantity scaling/conversion
+- `UnitConverter.ts` - Unit family definitions
+- `MealPlanService.ts` - Example of file-backed service
+
+## Suggested Implementation Order
+1. Create InventoryService with file I/O
+2. Add inventory settings to MiseSettingsTab
+3. Create LogMealModal with one-click flow
+4. Extend RecipeModal with "Finish & Log" button
+5. Implement deduction logic with unit conversion
+6. Add waste tracking command
+7. Build Pantry Check workflow
+
+## Complexity Notes
+- Unit conversion between recipe and inventory is the hard part
+- Need to handle fuzzy matches ("olive oil" vs "extra virgin olive oil")
+- Consider optimistic updates with periodic sync
 
 ## Dev Commands
 npm run build    # Production build
 npm run deploy   # Build + copy to Obsidian
 ```
+
 
 ---
 

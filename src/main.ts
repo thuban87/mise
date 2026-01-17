@@ -218,6 +218,15 @@ export default class MisePlugin extends Plugin {
             }
         });
 
+        // Meal plan generator command
+        this.addCommand({
+            id: 'generate-meal-plans',
+            name: 'Generate Meal Plan Files',
+            callback: async () => {
+                await this.generateMealPlanFiles();
+            }
+        });
+
         // Add ribbon icon
         this.addRibbonIcon('book-open', 'Open Mise Cookbook', () => {
             this.activateCookbookView();
@@ -352,5 +361,129 @@ export default class MisePlugin extends Plugin {
             return;
         }
         new ScaleRecipeModal(this.app, recipe, this.scalingService).open();
+    }
+
+    /**
+     * Generate meal plan files for upcoming months
+     * Creates markdown files with week tables for each month
+     */
+    private async generateMealPlanFiles(): Promise<void> {
+        const folder = this.settings.mealPlanFolder;
+        if (!folder) {
+            new Notice('Please configure a meal plan folder in settings first.');
+            return;
+        }
+
+        const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'];
+        const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+        // TESTING MODE: Only create March and April 2026
+        // After verifying format, change TEST_MODE to false to generate all 5 years
+        const TEST_MODE = false;
+        const startYear = 2026;
+        const endYear = TEST_MODE ? 2026 : 2030;
+        let filesCreated = 0;
+
+        for (let year = startYear; year <= endYear; year++) {
+            // Ensure year subfolder exists
+            const yearFolder = `${folder}/${year}`;
+            const yearFolderExists = this.app.vault.getAbstractFileByPath(yearFolder);
+            if (!yearFolderExists) {
+                try {
+                    await this.app.vault.createFolder(yearFolder);
+                    console.log(`Mise: Created folder ${yearFolder}`);
+                } catch (e) {
+                    // Folder might already exist
+                }
+            }
+
+            for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
+                // Skip Jan and Feb 2026 since they already exist
+                if (year === 2026 && monthIndex < 2) continue;
+
+                // In TEST_MODE, only create March and April 2026
+                if (TEST_MODE && (year !== 2026 || monthIndex > 3)) continue;
+
+                const monthName = MONTHS[monthIndex];
+                // Put file in year subfolder: /2026/March 2026.md
+                const fileName = `${yearFolder}/${monthName} ${year}.md`;
+
+                // Check if file already exists
+                const existingFile = this.app.vault.getAbstractFileByPath(fileName);
+                if (existingFile) {
+                    console.log(`Mise: Skipping ${fileName} - already exists`);
+                    continue;
+                }
+
+                // Calculate weeks for this month using JavaScript Date
+                // Date math is reliable - we calculate first day of month, 
+                // number of days in month, and how many weeks it spans
+                const content = this.generateMonthContent(year, monthIndex, monthName, DAYS);
+
+                try {
+                    await this.app.vault.create(fileName, content);
+                    filesCreated++;
+                    console.log(`Mise: Created ${fileName}`);
+                } catch (error) {
+                    console.error(`Mise: Error creating ${fileName}:`, error);
+                }
+            }
+        }
+
+        new Notice(`Created ${filesCreated} meal plan files. Check ${folder}/${startYear}/ to verify format.`);
+    }
+
+    /**
+     * Generate markdown content for a month
+     */
+    private generateMonthContent(year: number, monthIndex: number, monthName: string, days: string[]): string {
+        const lines: string[] = [];
+
+        // Frontmatter
+        lines.push('---');
+        lines.push(`month: ${monthName}`);
+        lines.push(`year: ${year}`);
+        lines.push('---');
+        lines.push('');
+        lines.push(`# ${monthName} ${year} Meal Plan`);
+        lines.push('');
+
+        // Calculate weeks in this month
+        const firstDay = new Date(year, monthIndex, 1);
+        const lastDay = new Date(year, monthIndex + 1, 0);
+        const totalDays = lastDay.getDate();
+
+        // Calculate how many weeks this month spans
+        const firstDayWeekday = firstDay.getDay();
+        const numWeeks = Math.ceil((totalDays + firstDayWeekday) / 7);
+
+        // Generate each week
+        for (let week = 1; week <= numWeeks; week++) {
+            // Calculate date range for this week
+            const weekStartDay = (week - 1) * 7 - firstDayWeekday + 1;
+            const weekEndDay = weekStartDay + 6;
+            const actualStart = Math.max(1, weekStartDay);
+            const actualEnd = Math.min(totalDays, weekEndDay);
+
+            lines.push(`## Week ${week} (${monthName} ${actualStart}-${actualEnd})`);
+            lines.push('');
+
+            // Generate each meal type
+            for (const mealType of ['Breakfast', 'Lunch', 'Dinner']) {
+                lines.push(`### ${mealType}`);
+                lines.push('');
+                lines.push('| Day | Meal | Protein | Side 1 | Side 2 | Notes |');
+                lines.push('| --- | ---- | ------- | ------ | ------ | ----- |');
+
+                // Add a row for each day of the week
+                for (const day of days) {
+                    lines.push(`| ${day} | | | | | |`);
+                }
+                lines.push('');
+            }
+        }
+
+        return lines.join('\n');
     }
 }
