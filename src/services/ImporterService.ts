@@ -7,6 +7,7 @@
 
 import { App, requestUrl, TFolder } from 'obsidian';
 import { MiseSettings, RecipeCategory } from '../types';
+import { normalizeIngredients } from '../utils/IngredientNormalizer';
 
 /**
  * JSON-LD Recipe schema structure (subset of schema.org/Recipe)
@@ -320,10 +321,12 @@ export class ImporterService {
 
     /**
      * Extract and clean ingredients array
+     * Applies normalization to standardize units, convert decimals, etc.
      */
     private extractIngredients(ingredients?: string[]): string[] {
         if (!ingredients || !Array.isArray(ingredients)) return [];
-        return ingredients.map(i => this.cleanString(i)).filter(Boolean);
+        const cleaned = ingredients.map(i => this.cleanString(i)).filter(Boolean);
+        return normalizeIngredients(cleaned);
     }
 
     /**

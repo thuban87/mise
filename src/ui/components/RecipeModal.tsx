@@ -1,11 +1,22 @@
 /**
  * RecipeModal - Full-screen recipe preview with interactive ingredients
+ * Includes session-only scaling for cooking reference
  */
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState, useMemo } from 'react';
 import { Recipe } from '../../types';
 import { formatTotalTime, getCategoryEmoji } from '../../utils/helpers';
 import { useRecipes } from './RecipeContext';
+import { parseIngredient, scaleQuantity, formatScaledIngredient } from '../../utils/QuantityParser';
+
+/**
+ * Parse servings string to a number
+ */
+function parseServings(servingsStr: string | undefined): number | null {
+    if (!servingsStr) return null;
+    const match = servingsStr.match(/(\d+)/);
+    return match ? parseInt(match[1]) : null;
+}
 
 export function RecipeModal() {
     const {
@@ -16,6 +27,19 @@ export function RecipeModal() {
         isIngredientChecked,
         toggleIngredient,
     } = useRecipes();
+
+    // Scaling state (session-only, resets when modal closes)
+    const [isScaling, setIsScaling] = useState(false);
+    const [targetServings, setTargetServings] = useState<number>(4);
+
+    // Reset scaling state when recipe changes
+    useEffect(() => {
+        if (selectedRecipe) {
+            const parsed = parseServings(selectedRecipe.servings);
+            setTargetServings(parsed || 4);
+            setIsScaling(false);
+        }
+    }, [selectedRecipe]);
 
     // Handle escape key
     useEffect(() => {
@@ -41,6 +65,24 @@ export function RecipeModal() {
         }
     }, [closeModal]);
 
+    // Calculate scale factor and scaled ingredients
+    const currentServings = selectedRecipe ? parseServings(selectedRecipe.servings) : null;
+    const scaleFactor = currentServings && targetServings
+        ? targetServings / currentServings
+        : 1;
+
+    const scaledIngredients = useMemo(() => {
+        if (!selectedRecipe || !isScaling || scaleFactor === 1) {
+            return selectedRecipe?.ingredients || [];
+        }
+
+        return selectedRecipe.ingredients.map(ingredient => {
+            const parsed = parseIngredient(ingredient);
+            const scaled = scaleQuantity(parsed, scaleFactor);
+            return formatScaledIngredient(scaled);
+        });
+    }, [selectedRecipe, isScaling, scaleFactor]);
+
     if (!selectedRecipe) {
         return null;
     }
@@ -49,6 +91,7 @@ export function RecipeModal() {
     const imageUrl = getImageUrl(recipe.image);
     const totalTime = formatTotalTime(recipe.prepTime, recipe.cookTime);
     const categoryEmoji = getCategoryEmoji(recipe.category);
+    const displayIngredients = isScaling ? scaledIngredients : recipe.ingredients;
 
     return (
         <div className="mise-modal-backdrop" onClick={handleBackdropClick}>
@@ -90,7 +133,7 @@ export function RecipeModal() {
                         )}
                         {recipe.servings && (
                             <span className="mise-badge mise-badge-servings">
-                                🍽️ {recipe.servings}
+                                🍽️ {isScaling ? `${targetServings} (scaled)` : recipe.servings}
                             </span>
                         )}
                     </div>
@@ -106,12 +149,41 @@ export function RecipeModal() {
                         </div>
                     )}
 
+                    {/* Scaling controls */}
+                    {currentServings && (
+                        <div className="mise-modal-scale-section">
+                            <div className="mise-modal-scale-controls">
+                                <button
+                                    className={`mise-btn ${isScaling ? 'mise-btn-primary' : 'mise-btn-secondary'}`}
+                                    onClick={() => setIsScaling(!isScaling)}
+                                >
+                                    ⚖️ {isScaling ? 'Reset' : 'Scale'}
+                                </button>
+                                {isScaling && (
+                                    <>
+                                        <label>Target servings:</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max="100"
+                                            value={targetServings}
+                                            onChange={(e) => setTargetServings(parseInt(e.target.value) || 1)}
+                                        />
+                                        <span className="mise-modal-scale-factor">
+                                            ({scaleFactor.toFixed(2)}x)
+                                        </span>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Ingredients with checkboxes */}
-                    {recipe.ingredients.length > 0 && (
+                    {displayIngredients.length > 0 && (
                         <div className="mise-modal-section">
-                            <h3>Ingredients</h3>
+                            <h3>Ingredients {isScaling && <span style={{ color: 'var(--text-accent)' }}>(Scaled)</span>}</h3>
                             <ul className="mise-ingredient-list">
-                                {recipe.ingredients.map((ingredient, index) => {
+                                {displayIngredients.map((ingredient, index) => {
                                     const isChecked = isIngredientChecked(recipe.path, index);
                                     return (
                                         <li

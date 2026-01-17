@@ -231,6 +231,15 @@ export interface ShoppingItem {
 
     /** Whether the item has been checked off */
     checked: boolean;
+
+    /** Detailed breakdown of sources (original ingredient text per recipe) */
+    sourceBreakdown?: { recipe: string; original: string }[];
+
+    /** Whether there's a unit conflict for this ingredient */
+    hasConflict?: boolean;
+
+    /** Conflict note to display */
+    conflictNote?: string;
 }
 
 // ============================================================================
@@ -276,6 +285,12 @@ export interface MiseSettings {
 
     /** Whether to download images locally on import */
     downloadImagesOnImport: boolean;
+
+    /** Gemini API key for AI-powered list cleanup (optional) */
+    geminiApiKey: string;
+
+    /** Whether to use Gemini for shopping list cleanup */
+    enableGeminiCleanup: boolean;
 }
 
 /**
@@ -378,6 +393,8 @@ export const DEFAULT_SETTINGS: MiseSettings = {
     importInboxFolder: 'Life/Household/Kitchen/Recipes/Inbox',
     importImageFolder: 'Resources/Imports/Recipe-Images',
     downloadImagesOnImport: false,
+    geminiApiKey: '',
+    enableGeminiCleanup: false,
 };
 
 // ============================================================================

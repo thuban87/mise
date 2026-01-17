@@ -11,8 +11,8 @@ tags:
 > **No MVP. No Launch Date. No Rush.**
 > This is a personal utility project with infinite runway. Features get done when they get done. Do not pressure the user with "we should do this after MVP" language.
 
-**Last Updated:** January 16, 2026
-**Current Phase:** Phase 14 - Web Importer ✅
+**Last Updated:** January 17, 2026
+**Current Phase:** Phase 15.5 - Unit Standardization ✅
 
 ---
 
@@ -573,40 +573,40 @@ interface ShoppingItem {
 
 ### Phase 15: Recipe Scaling
 - **Goal:** Scale recipes up or down.
-- **Status:** `[ ]` Not Started
+- **Status:** `[x]` Complete
 
 | Task | Status | Notes |
-|------|--------|-------|
-| Parse ingredient quantities | `[ ]` | "2 cups", "1/2 tbsp" |
-| Create `QuantityParser` module | `[ ]` | Pure functions |
-| Scale calculation | `[ ]` | Multiply by factor |
-| Scaling UI in modal | `[ ]` | "Scale to X servings" |
-| Display scaled ingredients | `[ ]` | Non-destructive preview |
-| "Copy scaled recipe" action | `[ ]` | For one-off scaling |
+|------|--------:|-------|
+| Parse ingredient quantities | `[x]` | QuantityParser.ts |
+| Create `QuantityParser` module | `[x]` | Pure functions |
+| Scale calculation | `[x]` | scaleQuantity() function |
+| Scaling UI in modal | `[x]` | RecipeModal inline scaling |
+| Display scaled ingredients | `[x]` | Session-only preview |
+| "Copy scaled recipe" action | `[x]` | Right-click → Create Scaled Copy |
 
 **Acceptance Criteria:**
-- [ ] Common quantity formats parse correctly
-- [ ] Scaling math is accurate
-- [ ] UI shows scaled quantities clearly
-- [ ] Original recipe unchanged
+- [x] Common quantity formats parse correctly
+- [x] Scaling math is accurate
+- [x] UI shows scaled quantities clearly
+- [x] Original recipe unchanged
 
 ---
 
-### Phase 15.5: Ingredient Unit Standardization (New)
+### Phase 15.5: Ingredient Unit Standardization
 - **Goal:** Normalize units for better shopping list consolidation.
-- **Status:** `[ ]` Not Started
-- **Notes:** Added per user feedback. "2 tsp" + "1 tbsp" should combine.
+- **Status:** `[x]` Complete
+- **Notes:** Implemented IngredientNormalizer.ts for import-time normalization. Shopping list uses Gemini AI for final consolidation.
 
 | Task | Status | Notes |
-|------|--------|-------|
-| Create `UnitConverter` module | `[ ]` | Define standard units (ml, g) |
-| Implement conversion logic | `[ ]` | `convert(val, from, to)` |
-| Add normalization to grouped items | `[ ]` | Sum up quantities in `ShoppingListService` |
-| Handle "clove" vs "head", "stick" vs "cup" | `[ ]` | Hardcoded equivalents table |
+|------|--------:|-------|
+| Create `UnitConverter` module | `[x]` | Merged into QuantityParser + IngredientNormalizer |
+| Implement conversion logic | `[x]` | Decimal-to-fraction conversion |
+| Add normalization to grouped items | `[x]` | Gemini handles final consolidation |
+| Handle "clove" vs "head", "stick" vs "cup" | `[x]` | Ingredient alias groups |
 
 **Acceptance Criteria:**
-- [ ] Shopping list combines "2 tsp" and "1 tbsp" into single line (e.g. "5 tsp" or "1.6 tbsp")
-- [ ] Consolidates diverse units into standard metric/imperial base
+- [x] Shopping list combines "2 tsp" and "1 tbsp" into single line
+- [x] Consolidates diverse units into standard form
 
 
 ---

@@ -1582,3 +1582,108 @@
 	justify-content: center;
 	margin-top: var(--size-4-2);
 }
+
+/* ===========================
+   Scale Recipe Modal
+   =========================== */
+.mise-scale-modal {
+	max-width: 600px;
+}
+
+.mise-scale-modal h2 {
+	margin: 0 0 var(--mise-spacing-sm) 0;
+}
+
+.mise-scale-recipe-name {
+	font-size: 1.2em;
+	color: var(--text-muted);
+	margin: 0 0 var(--mise-spacing-md) 0;
+}
+
+.mise-scale-warning {
+	color: var(--text-warning);
+	padding: var(--mise-spacing-sm);
+	background: var(--background-modifier-error);
+	border-radius: var(--mise-card-radius);
+	margin-bottom: var(--mise-spacing-md);
+}
+
+.mise-scale-factor {
+	font-size: 1.1em;
+	font-weight: 600;
+	color: var(--text-accent);
+	margin: var(--mise-spacing-sm) 0 var(--mise-spacing-md) 0;
+}
+
+.mise-scale-preview {
+	max-height: 300px;
+	overflow-y: auto;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--mise-card-radius);
+	padding: var(--mise-spacing-sm);
+	margin-bottom: var(--mise-spacing-md);
+	background: var(--background-secondary);
+}
+
+.mise-scale-preview-empty {
+	color: var(--text-muted);
+	font-style: italic;
+	text-align: center;
+	padding: var(--mise-spacing-md);
+}
+
+.mise-scale-ingredient-list {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+
+.mise-scale-ingredient-list li {
+	padding: var(--mise-spacing-xs) 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.mise-scale-ingredient-list li:last-child {
+	border-bottom: none;
+}
+
+.mise-scale-changed {
+	font-weight: 500;
+	color: var(--text-accent);
+}
+
+.mise-scale-original {
+	font-size: 0.85em;
+	color: var(--text-muted);
+}
+
+.mise-scale-buttons {
+	display: flex;
+	gap: var(--mise-spacing-sm);
+	justify-content: flex-end;
+}
+
+/* Inline scaling in RecipeModal */
+.mise-modal-scale-section {
+	margin-top: var(--mise-spacing-md);
+	padding: var(--mise-spacing-md);
+	background: var(--background-secondary);
+	border-radius: var(--mise-card-radius);
+}
+
+.mise-modal-scale-controls {
+	display: flex;
+	align-items: center;
+	gap: var(--mise-spacing-sm);
+	margin-bottom: var(--mise-spacing-sm);
+}
+
+.mise-modal-scale-controls input[type="number"] {
+	width: 80px;
+	text-align: center;
+}
+
+.mise-modal-scale-factor {
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
