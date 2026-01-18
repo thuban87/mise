@@ -366,6 +366,19 @@ export class MiseSettingsTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
+        // Expiration Warning Days
+        new Setting(containerEl)
+            .setName('Expiration Warning Days')
+            .setDesc('Days before expiration to show warning in status bar.')
+            .addSlider(slider => slider
+                .setLimits(1, 14, 1)
+                .setValue(this.plugin.settings.expirationWarningDays || 3)
+                .setDynamicTooltip()
+                .onChange(async (value) => {
+                    this.plugin.settings.expirationWarningDays = value;
+                    await this.plugin.saveSettings();
+                }));
+
         // ========================================
         // AI Cleanup (Gemini)
         // ========================================

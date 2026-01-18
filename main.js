@@ -25307,7 +25307,7 @@ __export(main_exports, {
   default: () => MisePlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian20 = require("obsidian");
+var import_obsidian22 = require("obsidian");
 
 // src/types/index.ts
 var DEFAULT_SETTINGS = {
@@ -25344,7 +25344,8 @@ var DEFAULT_SETTINGS = {
   inventoryFolder: "Life/Household/Kitchen/Inventory",
   storageLocations: ["Pantry", "Fridge", "Freezer"],
   expirationTypes: ["Best By", "Use By", "Expires", "Sell By"],
-  customDensities: {}
+  customDensities: {},
+  expirationWarningDays: 3
 };
 
 // src/services/RecipeIndexer.ts
@@ -27536,8 +27537,8 @@ var ShoppingListService = class {
     if (this.settings.autoArchiveShoppingLists === "on") {
       await this.archiveFiles(filesToArchive);
     } else if (this.settings.autoArchiveShoppingLists === "ask") {
-      const { Notice: Notice8 } = require("obsidian");
-      const notice = new Notice8(
+      const { Notice: Notice9 } = require("obsidian");
+      const notice = new Notice9(
         `\u{1F4CB} ${filesToArchive.length} old shopping list(s) found. Archive them?`,
         0
         // Don't auto-hide
@@ -27601,161 +27602,6 @@ var ShoppingListService = class {
 
 // src/services/TimeMigrationService.ts
 var import_obsidian4 = require("obsidian");
-var TimeMigrationService = class {
-  constructor(app, settings) {
-    this.app = app;
-    this.settings = settings;
-  }
-  /**
-   * Run the time migration on all recipe files
-   */
-  async migrateAll() {
-    const result = {
-      totalFiles: 0,
-      migratedFiles: 0,
-      skippedFiles: 0,
-      errors: []
-    };
-    const folder = this.app.vault.getAbstractFileByPath(this.settings.recipesFolder);
-    if (!folder || !(folder instanceof import_obsidian4.TFolder)) {
-      new import_obsidian4.Notice(`${PLUGIN_NAME}: Recipes folder not found: ${this.settings.recipesFolder}`);
-      return result;
-    }
-    const files = this.getMarkdownFilesRecursive(folder);
-    result.totalFiles = files.length;
-    new import_obsidian4.Notice(`${PLUGIN_NAME}: Migrating ${files.length} recipe files...`);
-    for (const file of files) {
-      try {
-        const migrated = await this.migrateFile(file);
-        if (migrated) {
-          result.migratedFiles++;
-        } else {
-          result.skippedFiles++;
-        }
-      } catch (error) {
-        const msg = `Error migrating ${file.path}: ${error}`;
-        result.errors.push(msg);
-        console.error(`${PLUGIN_NAME}: ${msg}`);
-      }
-    }
-    const summary = `Migration complete: ${result.migratedFiles} updated, ${result.skippedFiles} unchanged, ${result.errors.length} errors`;
-    new import_obsidian4.Notice(`${PLUGIN_NAME}: ${summary}`);
-    console.log(`${PLUGIN_NAME}: ${summary}`);
-    if (result.errors.length > 0) {
-      console.log(`${PLUGIN_NAME}: Errors:`, result.errors);
-    }
-    return result;
-  }
-  /**
-   * Migrate a single file's time fields
-   * Returns true if file was modified, false if no changes needed
-   */
-  async migrateFile(file) {
-    const content = await this.app.vault.read(file);
-    if (!content.startsWith("---")) {
-      return false;
-    }
-    const endIndex = content.indexOf("---", 3);
-    if (endIndex === -1) {
-      return false;
-    }
-    const frontmatter = content.slice(4, endIndex);
-    const body = content.slice(endIndex + 3);
-    let modified = false;
-    const lines = frontmatter.split("\n");
-    const newLines = [];
-    for (const line of lines) {
-      const prepMatch = line.match(/^(prep_time:\s*)(.+)$/);
-      const cookMatch = line.match(/^(cook_time:\s*)(.+)$/);
-      if (prepMatch) {
-        const newLine = this.migrateLine(prepMatch[1], prepMatch[2]);
-        if (newLine !== line) {
-          modified = true;
-        }
-        newLines.push(newLine);
-      } else if (cookMatch) {
-        const newLine = this.migrateLine(cookMatch[1], cookMatch[2]);
-        if (newLine !== line) {
-          modified = true;
-        }
-        newLines.push(newLine);
-      } else {
-        newLines.push(line);
-      }
-    }
-    if (modified) {
-      const newContent = `---
-${newLines.join("\n")}---${body}`;
-      await this.app.vault.modify(file, newContent);
-    }
-    return modified;
-  }
-  /**
-   * Migrate a single time line
-   */
-  migrateLine(prefix, value) {
-    const trimmed = value.trim();
-    if (/^\d+$/.test(trimmed)) {
-      return `${prefix}${trimmed}`;
-    }
-    const minutes = parseTime(trimmed);
-    if (minutes === null) {
-      return `${prefix}${trimmed}`;
-    }
-    return `${prefix}${minutes}`;
-  }
-  /**
-   * Recursively get all markdown files in a folder
-   */
-  getMarkdownFilesRecursive(folder) {
-    const files = [];
-    for (const child of folder.children) {
-      if (child instanceof import_obsidian4.TFile && child.extension === "md") {
-        files.push(child);
-      } else if (child instanceof import_obsidian4.TFolder) {
-        files.push(...this.getMarkdownFilesRecursive(child));
-      }
-    }
-    return files;
-  }
-  /**
-   * Preview migration without making changes
-   */
-  async previewMigration() {
-    const previews = [];
-    const folder = this.app.vault.getAbstractFileByPath(this.settings.recipesFolder);
-    if (!folder || !(folder instanceof import_obsidian4.TFolder)) {
-      return previews;
-    }
-    const files = this.getMarkdownFilesRecursive(folder);
-    for (const file of files) {
-      const content = await this.app.vault.read(file);
-      if (!content.startsWith("---")) continue;
-      const endIndex = content.indexOf("---", 3);
-      if (endIndex === -1) continue;
-      const frontmatter = content.slice(4, endIndex);
-      const changes = [];
-      for (const line of frontmatter.split("\n")) {
-        const prepMatch = line.match(/^(prep_time:\s*)(.+)$/);
-        const cookMatch = line.match(/^(cook_time:\s*)(.+)$/);
-        const match = prepMatch || cookMatch;
-        if (match) {
-          const trimmed = match[2].trim();
-          if (!/^\d+$/.test(trimmed)) {
-            const minutes = parseTime(trimmed);
-            if (minutes !== null) {
-              changes.push(`${match[1]}${trimmed} \u2192 ${minutes}`);
-            }
-          }
-        }
-      }
-      if (changes.length > 0) {
-        previews.push({ file: file.path, changes });
-      }
-    }
-    return previews;
-  }
-};
 
 // src/services/ImporterService.ts
 var import_obsidian5 = require("obsidian");
@@ -29388,6 +29234,10 @@ var MiseSettingsTab = class extends import_obsidian10.PluginSettingTab {
     }));
     new import_obsidian10.Setting(containerEl).setName("Expiration Types").setDesc("Available expiration date labels (comma-separated).").addTextArea((text) => text.setPlaceholder("Best By, Use By, Expires, Sell By...").setValue(this.plugin.settings.expirationTypes.join(", ")).onChange(async (value) => {
       this.plugin.settings.expirationTypes = value.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian10.Setting(containerEl).setName("Expiration Warning Days").setDesc("Days before expiration to show warning in status bar.").addSlider((slider) => slider.setLimits(1, 14, 1).setValue(this.plugin.settings.expirationWarningDays || 3).setDynamicTooltip().onChange(async (value) => {
+      this.plugin.settings.expirationWarningDays = value;
       await this.plugin.saveSettings();
     }));
     containerEl.createEl("h2", { text: "\u{1F916} AI Cleanup (Gemini)" });
@@ -31694,14 +31544,258 @@ var PantryCheckModal = class extends import_obsidian19.Modal {
 
 // src/main.ts
 init_LogMealModal();
-var MisePlugin = class extends import_obsidian20.Plugin {
+
+// src/ui/components/MiseStatusBar.ts
+var import_obsidian20 = require("obsidian");
+var MiseStatusBar = class {
+  constructor(plugin) {
+    this.snoozedAlerts = /* @__PURE__ */ new Map();
+    // itemKey -> snooze until timestamp
+    this.alertCount = 0;
+    this.blinkInterval = null;
+    this.plugin = plugin;
+    this.statusBarEl = plugin.addStatusBarItem();
+    this.statusBarEl.addClass("mise-status-bar");
+    this.statusBarEl.onclick = () => this.showAlertMenu();
+    this.loadSnoozedAlerts();
+    this.checkAlerts();
+    plugin.registerInterval(
+      window.setInterval(() => this.checkAlerts(), 5 * 60 * 1e3)
+    );
+  }
+  async loadSnoozedAlerts() {
+    const data = await this.plugin.loadData() || {};
+    const snoozed = data.snoozedAlerts || [];
+    const now = Date.now();
+    for (const s of snoozed) {
+      if (s.until > now) {
+        this.snoozedAlerts.set(s.itemKey, s.until);
+      }
+    }
+  }
+  async saveSnoozedAlerts() {
+    const data = await this.plugin.loadData() || {};
+    const snoozed = [];
+    for (const [itemKey, until] of this.snoozedAlerts) {
+      snoozed.push({ itemKey, until });
+    }
+    data.snoozedAlerts = snoozed;
+    await this.plugin.saveData(data);
+  }
+  checkAlerts() {
+    const expiringItems = this.getExpiringItems();
+    this.alertCount = expiringItems.length;
+    this.updateDisplay();
+  }
+  getExpiringItems() {
+    const items = this.plugin.inventoryService.getStock();
+    const warningDays = this.plugin.settings.expirationWarningDays || 3;
+    const now = /* @__PURE__ */ new Date();
+    const warningDate = /* @__PURE__ */ new Date();
+    warningDate.setDate(now.getDate() + warningDays);
+    return items.filter((item) => {
+      if (!item.expirationDate) return false;
+      const itemKey = this.getItemKey(item);
+      const snoozedUntil = this.snoozedAlerts.get(itemKey);
+      if (snoozedUntil && Date.now() < snoozedUntil) return false;
+      const expDate = new Date(item.expirationDate);
+      return expDate <= warningDate;
+    });
+  }
+  getItemKey(item) {
+    return `${item.category}:${item.name}`;
+  }
+  updateDisplay() {
+    if (this.alertCount === 0) {
+      this.statusBarEl.setText("\u{1F37D}\uFE0F Mise");
+      this.statusBarEl.removeClass("mise-status-alert");
+      this.stopBlinking();
+    } else {
+      this.statusBarEl.setText(`\u{1F37D}\uFE0F Mise (${this.alertCount}\u26A0\uFE0F)`);
+      this.statusBarEl.addClass("mise-status-alert");
+      this.startBlinking();
+    }
+  }
+  startBlinking() {
+    if (this.blinkInterval) return;
+    let visible = true;
+    this.blinkInterval = window.setInterval(() => {
+      visible = !visible;
+      this.statusBarEl.style.opacity = visible ? "1" : "0.5";
+    }, 1e3);
+  }
+  stopBlinking() {
+    if (this.blinkInterval) {
+      window.clearInterval(this.blinkInterval);
+      this.blinkInterval = null;
+      this.statusBarEl.style.opacity = "1";
+    }
+  }
+  showAlertMenu() {
+    const menu = new import_obsidian20.Menu();
+    const expiringItems = this.getExpiringItems();
+    if (expiringItems.length === 0) {
+      menu.addItem((item) => {
+        item.setTitle("No alerts").setDisabled(true);
+      });
+    } else {
+      menu.addItem((item) => {
+        item.setTitle(`\u26A0\uFE0F Expiring Soon (${expiringItems.length})`).setDisabled(true);
+      });
+      menu.addSeparator();
+      for (const invItem of expiringItems) {
+        const expDate = new Date(invItem.expirationDate);
+        const daysLeft = Math.ceil((expDate.getTime() - Date.now()) / (1e3 * 60 * 60 * 24));
+        const label = daysLeft <= 0 ? `${invItem.name} - EXPIRED!` : `${invItem.name} - ${daysLeft} day${daysLeft === 1 ? "" : "s"}`;
+        menu.addItem((item) => {
+          item.setTitle(label).setIcon("alert-triangle");
+        });
+        menu.addItem((item) => {
+          item.setTitle("  \u21B3 Snooze...").setIcon("clock").onClick(() => this.showSnoozeMenu(invItem));
+        });
+      }
+    }
+    menu.addSeparator();
+    menu.addItem((item) => {
+      item.setTitle("\u{1F4E6} Add Inventory Item").onClick(() => {
+        this.plugin.app.commands.executeCommandById("mise:add-inventory-item");
+      });
+    });
+    menu.addItem((item) => {
+      item.setTitle("\u{1F37D}\uFE0F Log Meal").onClick(() => {
+        this.plugin.app.commands.executeCommandById("mise:log-meal");
+      });
+    });
+    menu.addItem((item) => {
+      item.setTitle("\u{1F4CB} Pantry Check").onClick(() => {
+        this.plugin.app.commands.executeCommandById("mise:pantry-check");
+      });
+    });
+    menu.showAtMouseEvent(new MouseEvent("click", {
+      clientX: this.statusBarEl.getBoundingClientRect().left,
+      clientY: this.statusBarEl.getBoundingClientRect().top - 10
+    }));
+  }
+  showSnoozeMenu(item) {
+    const menu = new import_obsidian20.Menu();
+    const itemKey = this.getItemKey(item);
+    menu.addItem((menuItem) => {
+      menuItem.setTitle(`Snooze "${item.name}" for...`).setDisabled(true);
+    });
+    menu.addSeparator();
+    const snoozeOptions = [
+      { label: "1 day", hours: 24 },
+      { label: "3 days", hours: 72 },
+      { label: "1 week", hours: 168 }
+    ];
+    for (const opt of snoozeOptions) {
+      menu.addItem((menuItem) => {
+        menuItem.setTitle(opt.label).onClick(async () => {
+          const until = Date.now() + opt.hours * 60 * 60 * 1e3;
+          this.snoozedAlerts.set(itemKey, until);
+          await this.saveSnoozedAlerts();
+          this.checkAlerts();
+          new import_obsidian20.Notice(`Snoozed "${item.name}" for ${opt.label}`);
+        });
+      });
+    }
+    menu.showAtMouseEvent(new MouseEvent("click"));
+  }
+  destroy() {
+    this.stopBlinking();
+  }
+};
+
+// src/ui/components/MiseCommandMenu.ts
+var import_obsidian21 = require("obsidian");
+var MiseCommandMenu = class extends import_obsidian21.Modal {
+  constructor(plugin) {
+    super(plugin.app);
+    this.plugin = plugin;
+  }
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("mise-command-menu");
+    const header = contentEl.createDiv("mise-menu-header");
+    header.createEl("h2", { text: "\u{1F37D}\uFE0F Mise Menu" });
+    const categories = [
+      {
+        name: "Recipes",
+        icon: "\u{1F4DA}",
+        commands: [
+          { label: "Cookbook", icon: "\u{1F4D6}", commandId: "mise:open-cookbook" },
+          { label: "Sidebar", icon: "\u{1F4D1}", commandId: "mise:open-cookbook-sidebar" },
+          { label: "Import URL", icon: "\u{1F4E5}", commandId: "mise:import-recipe-from-url" }
+        ]
+      },
+      {
+        name: "Meal Planning",
+        icon: "\u{1F4C5}",
+        commands: [
+          { label: "Calendar", icon: "\u{1F5D3}\uFE0F", commandId: "mise:open-meal-plan" },
+          { label: "Shopping List", icon: "\u{1F6D2}", commandId: "mise:generate-shopping-list" }
+        ]
+      },
+      {
+        name: "Inventory",
+        icon: "\u{1F4E6}",
+        commands: [
+          { label: "Add Item", icon: "\u2795", commandId: "mise:add-inventory-item" },
+          { label: "Pantry Check", icon: "\u{1F4CB}", commandId: "mise:pantry-check" },
+          { label: "Log Meal", icon: "\u2705", commandId: "mise:log-meal" }
+        ]
+      },
+      {
+        name: "Utilities",
+        icon: "\u{1F527}",
+        commands: [
+          { label: "Export Index", icon: "\u{1F4E4}", commandId: "mise:export-recipe-index" },
+          { label: "Settings", icon: "\u2699\uFE0F", commandId: "__settings__" }
+        ]
+      }
+    ];
+    const grid = contentEl.createDiv("mise-menu-grid");
+    for (const category of categories) {
+      const section = grid.createDiv("mise-menu-section");
+      section.createEl("h3", { text: `${category.icon} ${category.name}` });
+      const buttonsGrid = section.createDiv("mise-menu-buttons");
+      if (category.commands.length === 4) {
+        buttonsGrid.addClass("mise-buttons-2x2");
+      } else if (category.commands.length === 3) {
+        buttonsGrid.addClass("mise-buttons-3");
+      } else {
+        buttonsGrid.addClass("mise-buttons-2");
+      }
+      for (const cmd of category.commands) {
+        const btn = buttonsGrid.createDiv("mise-menu-btn");
+        btn.createSpan({ cls: "mise-menu-btn-icon", text: cmd.icon });
+        btn.createSpan({ cls: "mise-menu-btn-label", text: cmd.label });
+        btn.onclick = () => {
+          this.close();
+          if (cmd.commandId === "__settings__") {
+            this.app.setting.open();
+            this.app.setting.openTabById("mise");
+          } else {
+            this.app.commands.executeCommandById(cmd.commandId);
+          }
+        };
+      }
+    }
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+};
+
+// src/main.ts
+var MisePlugin = class extends import_obsidian22.Plugin {
   async onload() {
     console.log(`${PLUGIN_NAME}: Loading plugin...`);
     await this.loadSettings();
     this.indexer = new RecipeIndexer(this.app, this.settings);
     this.mealPlanService = new MealPlanService(this.app, this.settings);
     this.shoppingListService = new ShoppingListService(this.app, this.settings, this.indexer);
-    this.timeMigration = new TimeMigrationService(this.app, this.settings);
     this.importerService = new ImporterService(this.app, this.settings);
     this.scalingService = new RecipeScalingService(this.app, this.settings, this.indexer);
     this.inventoryService = new InventoryService(this.app, this.settings);
@@ -31710,6 +31804,7 @@ var MisePlugin = class extends import_obsidian20.Plugin {
     this.app.workspace.onLayoutReady(() => {
       this.mealPlanService.initialize();
       this.inventoryService.initialize();
+      this.statusBar = new MiseStatusBar(this);
     });
     this.registerView(
       MISE_COOKBOOK_VIEW_TYPE,
@@ -31777,7 +31872,7 @@ var MisePlugin = class extends import_obsidian20.Plugin {
           async (result) => {
             console.log(`${PLUGIN_NAME}: Generating shopping list with:`, result);
             if (result.quickTrip) {
-              new import_obsidian20.Notice("Quick Trip requires Inventory System (Phase 16)");
+              new import_obsidian22.Notice("Quick Trip requires Inventory System (Phase 16)");
               return;
             }
             let list;
@@ -31797,7 +31892,7 @@ var MisePlugin = class extends import_obsidian20.Plugin {
               list.aisles = list.aisles.filter((a) => a.items.length > 0);
             }
             const filePath = await this.shoppingListService.writeListToFile(list, result.dateRangeLabel);
-            new import_obsidian20.Notice(`\u2705 Shopping list created!`);
+            new import_obsidian22.Notice(`\u2705 Shopping list created!`);
             const file = this.app.vault.getAbstractFileByPath(filePath);
             if (file) {
               await this.app.workspace.getLeaf("tab").openFile(file);
@@ -31805,32 +31900,6 @@ var MisePlugin = class extends import_obsidian20.Plugin {
           }
         );
         modal.open();
-      }
-    });
-    this.addCommand({
-      id: "migrate-time-formats",
-      name: "Migrate Recipe Time Formats",
-      callback: async () => {
-        await this.timeMigration.migrateAll();
-        await this.indexer.initialize();
-      }
-    });
-    this.addCommand({
-      id: "preview-time-migration",
-      name: "Preview Time Format Migration",
-      callback: async () => {
-        const previews = await this.timeMigration.previewMigration();
-        if (previews.length === 0) {
-          console.log(`${PLUGIN_NAME}: No time migrations needed - all recipes already use integer format`);
-        } else {
-          console.log(`${PLUGIN_NAME}: Time migration preview (${previews.length} files would be changed):`);
-          for (const p of previews) {
-            console.log(`  ${p.file}:`);
-            for (const c of p.changes) {
-              console.log(`    ${c}`);
-            }
-          }
-        }
       }
     });
     this.addCommand({
@@ -31885,12 +31954,41 @@ var MisePlugin = class extends import_obsidian20.Plugin {
         ).open();
       }
     });
-    this.addRibbonIcon("book-open", "Open Mise Cookbook", () => {
-      this.activateCookbookView();
+    this.addCommand({
+      id: "open-menu",
+      name: "Open Mise Menu",
+      callback: () => {
+        new MiseCommandMenu(this).open();
+      }
+    });
+    this.addRibbonIcon("plus-circle", "Add Inventory Item", () => {
+      new AddInventoryModal(
+        this.app,
+        this.settings,
+        this.inventoryService,
+        () => {
+        }
+      ).open();
+    });
+    this.addRibbonIcon("utensils", "Log Meal & Deduct", () => {
+      new LogMealModal(
+        this.app,
+        this.settings,
+        this.mealPlanService,
+        this.inventoryService,
+        this.indexer
+      ).open();
+    });
+    this.addRibbonIcon("clipboard-list", "Pantry Check", () => {
+      new PantryCheckModal(
+        this.app,
+        this.settings,
+        this.inventoryService
+      ).open();
     });
     this.registerEvent(
       this.app.workspace.on("file-menu", (menu, file) => {
-        if (file instanceof import_obsidian20.TFile && this.isRecipeFile(file)) {
+        if (file instanceof import_obsidian22.TFile && this.isRecipeFile(file)) {
           menu.addItem((item) => {
             item.setTitle("\u2696\uFE0F Scale Recipe...").setIcon("scale").onClick(() => this.openScaleModal(file));
           });
@@ -31975,7 +32073,7 @@ var MisePlugin = class extends import_obsidian20.Plugin {
   openScaleModal(file) {
     const recipe = this.indexer.getRecipe(file.path);
     if (!recipe) {
-      new import_obsidian20.Notice("Recipe not found in index. Try reloading the plugin.");
+      new import_obsidian22.Notice("Recipe not found in index. Try reloading the plugin.");
       return;
     }
     new ScaleRecipeModal(this.app, recipe, this.scalingService).open();
@@ -31987,7 +32085,7 @@ var MisePlugin = class extends import_obsidian20.Plugin {
   async generateMealPlanFiles() {
     const folder = this.settings.mealPlanFolder;
     if (!folder) {
-      new import_obsidian20.Notice("Please configure a meal plan folder in settings first.");
+      new import_obsidian22.Notice("Please configure a meal plan folder in settings first.");
       return;
     }
     const MONTHS2 = [
@@ -32039,7 +32137,7 @@ var MisePlugin = class extends import_obsidian20.Plugin {
         }
       }
     }
-    new import_obsidian20.Notice(`Created ${filesCreated} meal plan files. Check ${folder}/${startYear}/ to verify format.`);
+    new import_obsidian22.Notice(`Created ${filesCreated} meal plan files. Check ${folder}/${startYear}/ to verify format.`);
   }
   /**
    * Generate markdown content for a month

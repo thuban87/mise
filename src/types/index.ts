@@ -305,6 +305,9 @@ export interface MiseSettings {
 
     /** Custom ingredient density overrides (ingredient -> oz per cup) */
     customDensities: Record<string, number>;
+
+    /** Days before expiration to show warning (default: 3) */
+    expirationWarningDays: number;
 }
 
 /**
@@ -414,6 +417,7 @@ export const DEFAULT_SETTINGS: MiseSettings = {
     storageLocations: ['Pantry', 'Fridge', 'Freezer'],
     expirationTypes: ['Best By', 'Use By', 'Expires', 'Sell By'],
     customDensities: {},
+    expirationWarningDays: 3,
 };
 
 // ============================================================================

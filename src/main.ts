@@ -10,7 +10,7 @@
 
 import { Plugin, WorkspaceLeaf, Notice, TFile, Menu } from 'obsidian';
 import { MiseSettings, DEFAULT_SETTINGS } from './types';
-import { RecipeIndexer, MealPlanService, ShoppingListService, TimeMigrationService, ImporterService } from './services';
+import { RecipeIndexer, MealPlanService, ShoppingListService, ImporterService } from './services';
 import { RecipeScalingService } from './services/RecipeScalingService';
 import { InventoryService } from './services/InventoryService';
 import { MiseSettingsTab } from './ui/settings/MiseSettingsTab';
@@ -22,6 +22,8 @@ import { ScaleRecipeModal } from './ui/components/ScaleRecipeModal';
 import { AddInventoryModal } from './ui/components/AddInventoryModal';
 import { PantryCheckModal } from './ui/components/PantryCheckModal';
 import { LogMealModal } from './ui/components/LogMealModal';
+import { MiseStatusBar } from './ui/components/MiseStatusBar';
+import { MiseCommandMenu } from './ui/components/MiseCommandMenu';
 
 export default class MisePlugin extends Plugin {
     settings: MiseSettings;
@@ -30,10 +32,10 @@ export default class MisePlugin extends Plugin {
     indexer: RecipeIndexer;
     mealPlanService: MealPlanService;
     shoppingListService: ShoppingListService;
-    timeMigration: TimeMigrationService;
     importerService: ImporterService;
     scalingService: RecipeScalingService;
     inventoryService: InventoryService;
+    statusBar: MiseStatusBar;
 
     async onload(): Promise<void> {
         console.log(`${PLUGIN_NAME}: Loading plugin...`);
@@ -45,7 +47,6 @@ export default class MisePlugin extends Plugin {
         this.indexer = new RecipeIndexer(this.app, this.settings);
         this.mealPlanService = new MealPlanService(this.app, this.settings);
         this.shoppingListService = new ShoppingListService(this.app, this.settings, this.indexer);
-        this.timeMigration = new TimeMigrationService(this.app, this.settings);
         this.importerService = new ImporterService(this.app, this.settings);
         this.scalingService = new RecipeScalingService(this.app, this.settings, this.indexer);
         this.inventoryService = new InventoryService(this.app, this.settings);
@@ -60,6 +61,8 @@ export default class MisePlugin extends Plugin {
         this.app.workspace.onLayoutReady(() => {
             this.mealPlanService.initialize();
             this.inventoryService.initialize();
+            // Initialize status bar after inventory is loaded
+            this.statusBar = new MiseStatusBar(this);
         });
 
         // Register views
@@ -188,35 +191,6 @@ export default class MisePlugin extends Plugin {
         });
 
         this.addCommand({
-            id: 'migrate-time-formats',
-            name: 'Migrate Recipe Time Formats',
-            callback: async () => {
-                await this.timeMigration.migrateAll();
-                // Re-index after migration
-                await this.indexer.initialize();
-            }
-        });
-
-        this.addCommand({
-            id: 'preview-time-migration',
-            name: 'Preview Time Format Migration',
-            callback: async () => {
-                const previews = await this.timeMigration.previewMigration();
-                if (previews.length === 0) {
-                    console.log(`${PLUGIN_NAME}: No time migrations needed - all recipes already use integer format`);
-                } else {
-                    console.log(`${PLUGIN_NAME}: Time migration preview (${previews.length} files would be changed):`);
-                    for (const p of previews) {
-                        console.log(`  ${p.file}:`);
-                        for (const c of p.changes) {
-                            console.log(`    ${c}`);
-                        }
-                    }
-                }
-            }
-        });
-
-        this.addCommand({
             id: 'export-recipe-index',
             name: 'Export Recipe Index to JSON',
             callback: async () => {
@@ -276,9 +250,41 @@ export default class MisePlugin extends Plugin {
             }
         });
 
-        // Add ribbon icon
-        this.addRibbonIcon('book-open', 'Open Mise Cookbook', () => {
-            this.activateCookbookView();
+        // Consolidated Mise Menu command
+        this.addCommand({
+            id: 'open-menu',
+            name: 'Open Mise Menu',
+            callback: () => {
+                new MiseCommandMenu(this).open();
+            }
+        });
+
+        // Add ribbon icons for mobile toolbar
+        this.addRibbonIcon('plus-circle', 'Add Inventory Item', () => {
+            new AddInventoryModal(
+                this.app,
+                this.settings,
+                this.inventoryService,
+                () => { }
+            ).open();
+        });
+
+        this.addRibbonIcon('utensils', 'Log Meal & Deduct', () => {
+            new LogMealModal(
+                this.app,
+                this.settings,
+                this.mealPlanService,
+                this.inventoryService,
+                this.indexer
+            ).open();
+        });
+
+        this.addRibbonIcon('clipboard-list', 'Pantry Check', () => {
+            new PantryCheckModal(
+                this.app,
+                this.settings,
+                this.inventoryService
+            ).open();
         });
 
         // Register file-menu event for recipe scaling
