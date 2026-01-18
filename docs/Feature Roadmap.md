@@ -12,7 +12,7 @@ tags:
 > This is a personal utility project with infinite runway. Features get done when they get done. Do not pressure the user with "we should do this after MVP" language.
 
 **Last Updated:** January 17, 2026
-**Current Phase:** Phase 15.6 - Calendar & Meal Plan Fixes ✅
+**Current Phase:** Phase 16 - Inventory & Consumption Engine ✅
 
 ---
 
@@ -632,25 +632,64 @@ interface ShoppingItem {
 
 ---
 
-### Phase 16: Inventory & Consumption Engine (New)
+### Phase 16: Inventory & Consumption Engine
 - **Goal:** Track what you have and automate deduction based on meals eaten.
-- **Status:** `[ ]` Not Started
+- **Status:** `[x]` Complete
 
+#### 16.1: Inventory Foundation ✅
 | Task | Status | Notes |
 |------|--------|-------|
-| Create `InventoryService` | `[ ]` | Manage stock in `Inventory.md` |
-| "Log Meal" Command | `[ ]` | QuickAdd-friendly modal |
-| "Did you eat [Last Meal]?" | `[ ]` | One-click logging for planned meals |
-| Ad-hoc Meal Logging | `[ ]` | Pick any recipe or "Something New" |
-| **Live Cooking Mode** | `[ ]` | **Critical:** Use `RecipeModal` to track ingredients live while cooking, then "Finish & Log" to deduct exact usage. |
-| Ingredient Deduction Logic | `[ ]` | Subtract recipe ingredients from inventory |
-| "Threw Away Food" Command | `[ ]` | For spoilage tracking |
-| "Pantry Check" Mode | `[ ]` | Periodic audit workflow (bi-weekly) |
+| Create `InventoryService` | `[x]` | File I/O, fuzzy matching, unit conversion |
+| Category files | `[x]` | Pantry/Fridge/Freezer .md files |
+| Settings integration | `[x]` | Storage locations, expiry types |
+| Master Inventory.md | `[x]` | Auto-generated aggregate view |
+
+#### 16.2: Inventory Management UI ✅
+| Task | Status | Notes |
+|------|--------|-------|
+| Add Inventory Modal | `[x]` | Add items with all fields |
+| Pantry Check Command | `[x]` | Bulk edit by location |
+| Location dropdown | `[x]` | Populated from settings |
+| Live reload | `[x]` | Fresh data on modal open |
+
+#### 16.3: Log Meal & Deduction Engine ✅
+| Task | Status | Notes |
+|------|--------|-------|
+| LogMealModal | `[x]` | Upcoming meals + cookbook selection |
+| Ingredient confirmation | `[x]` | Checkboxes + editable qty/units |
+| Inventory deduction | `[x]` | Volume↔weight conversion |
+| Meal Log.md | `[x]` | Date/time/recipe/ingredients |
+| Finish & Log button | `[x]` | Skip to confirm from RecipeModal |
+| Unit conversion on add | `[x]` | lb→oz when combining items |
+
+#### 16.4: Alerts, Command Menu & Mobile Actions ✅
+| Task | Status | Notes |
+|------|--------|-------|
+| Status bar notification center | `[x]` | Blinking indicator with alert count |
+| Expiring soon alerts | `[x]` | Configurable 1-14 day threshold |
+| Snooze functionality | `[x]` | 1 day, 3 days, 1 week options |
+| Mise Menu command | `[x]` | Categorized button grid modal |
+| Mobile ribbon icons | `[x]` | Add Item, Log Meal, Pantry Check |
+| Removed defunct commands | `[x]` | Migration commands removed |
+| Low stock alerts | `[~]` | Deferred - complex threshold problem |
+
+#### 16.5: Waste Tracking ✅
+| Task | Status | Notes |
+|------|--------|-------|
+| ThrowAwayModal | `[x]` | Inventory autocomplete, qty/unit |
+| Waste reasons | `[x]` | Expired, Spoiled, Didn't Like, Made Too Much, Other (fillable) |
+| Inventory deduction | `[x]` | Deducts thrown items from stock |
+| Waste Log.md | `[x]` | Table format with date/time/item/amount/reason |
+| Foods I Don't Like.md | `[x]` | Auto-populated from "Didn't Like" entries |
+| Custom ingredients in LogMeal | `[x]` | + Add Item for substitutions |
 
 **Acceptance Criteria:**
-- [ ] Inventory updates automatically when meals are logged
-- [ ] Users can easily correct inventory counts (Pantry Check)
-- [ ] "Log Meal" flow is fast (<5 seconds) for planned meals
+- [x] Inventory updates automatically when meals are logged
+- [x] Users can easily correct inventory counts (Pantry Check)
+- [x] "Log Meal" flow is fast (<5 seconds) for planned meals
+- [x] Expiring soon alerts visible with snooze support
+- [x] Command palette uncluttered (Mise Menu consolidates commands)
+- [x] Waste tracking with reason logging
 
 ---
 
@@ -732,6 +771,7 @@ Features that came up but aren't scheduled yet:
 - [ ] "What can I make?" mode (based on available ingredients)
 - [ ] Recipe collections/favorites list
 - [ ] Cooking timers integration
+- [ ] Low stock alerts (complex threshold problem: percentage needs starting value, per-item is tedious)
 
 ---
 

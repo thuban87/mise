@@ -1698,3 +1698,155 @@
 	color: var(--text-muted);
 	font-size: 0.9em;
 }
+
+/* ===========================
+   Status Bar (Phase 16.4)
+   =========================== */
+.mise-status-bar {
+	cursor: pointer;
+	padding: 0 8px;
+	border-radius: 4px;
+	transition: background 0.15s ease;
+}
+
+.mise-status-bar:hover {
+	background: var(--background-secondary);
+}
+
+.mise-status-alert {
+	color: var(--text-warning, #f59e0b);
+	font-weight: 500;
+}
+
+/* ===========================
+   Command Menu Modal (Phase 16.4)
+   =========================== */
+.mise-command-menu {
+	min-width: 500px;
+	max-width: 600px;
+	padding: var(--mise-spacing-lg);
+}
+
+.mise-menu-header {
+	margin-bottom: var(--mise-spacing-lg);
+	text-align: center;
+}
+
+.mise-menu-header h2 {
+	margin: 0;
+	font-size: 1.6em;
+	font-weight: 600;
+}
+
+.mise-menu-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: var(--mise-spacing-lg);
+}
+
+.mise-menu-section {
+	background: var(--background-secondary);
+	border-radius: var(--mise-card-radius);
+	padding: var(--mise-spacing-md);
+}
+
+.mise-menu-section h3 {
+	margin: 0 0 var(--mise-spacing-sm);
+	font-size: 0.9em;
+	font-weight: 600;
+	color: var(--text-muted);
+	text-align: center;
+}
+
+.mise-menu-buttons {
+	display: grid;
+	gap: var(--mise-spacing-sm);
+}
+
+.mise-buttons-2x2 {
+	grid-template-columns: 1fr 1fr;
+}
+
+.mise-buttons-2 {
+	grid-template-columns: 1fr 1fr;
+}
+
+.mise-buttons-3 {
+	grid-template-columns: 1fr 1fr;
+}
+
+.mise-buttons-3 .mise-menu-btn:last-child {
+	grid-column: 1 / -1;
+}
+
+.mise-menu-btn {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: var(--mise-spacing-xs);
+	padding: var(--mise-spacing-md);
+	background: var(--background-primary);
+	border-radius: 8px;
+	cursor: pointer;
+	transition: all 0.15s ease;
+	min-height: 60px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.mise-menu-btn:hover {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	transform: translateY(-2px);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.mise-menu-btn:hover .mise-menu-btn-label {
+	color: var(--text-on-accent);
+}
+
+.mise-menu-btn-icon {
+	font-size: 1.5em;
+}
+
+.mise-menu-btn-label {
+	font-size: 0.85em;
+	font-weight: 500;
+	color: var(--text-normal);
+	text-align: center;
+}
+
+.mise-menu-footer {
+	margin-top: var(--mise-spacing-lg);
+	display: flex;
+	justify-content: center;
+}
+
+.mise-menu-btn-settings {
+	flex-direction: row;
+	gap: var(--mise-spacing-sm);
+	padding: var(--mise-spacing-sm) var(--mise-spacing-lg);
+	min-height: auto;
+	background: transparent;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.mise-menu-btn-settings .mise-menu-btn-icon {
+	font-size: 1em;
+}
+
+.mise-menu-btn-settings .mise-menu-btn-label {
+	font-size: 0.9em;
+}
+
+/* Mobile adjustments */
+@media (max-width: 550px) {
+	.mise-command-menu {
+		min-width: auto;
+		padding: var(--mise-spacing-md);
+	}
+
+	.mise-menu-grid {
+		grid-template-columns: 1fr;
+	}
+}

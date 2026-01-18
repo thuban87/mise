@@ -313,6 +313,73 @@ export class MiseSettingsTab extends PluginSettingTab {
                 }));
 
         // ========================================
+        // Inventory Settings (Phase 16)
+        // ========================================
+        containerEl.createEl('h2', { text: '📦 Inventory' });
+        containerEl.createEl('p', {
+            text: 'Configure kitchen inventory tracking.',
+            cls: 'mise-settings-description'
+        });
+
+        // Inventory Folder
+        new Setting(containerEl)
+            .setName('Inventory Folder')
+            .setDesc('Where inventory files are stored (Pantry, Fridge, Freezer).')
+            .addText(text => {
+                text
+                    .setPlaceholder('Type to search folders...')
+                    .setValue(this.plugin.settings.inventoryFolder)
+                    .onChange(async (value) => {
+                        this.plugin.settings.inventoryFolder = value;
+                        await this.plugin.saveSettings();
+                    });
+                new FolderSuggest(this.app, text.inputEl);
+            });
+
+        // Storage Locations
+        new Setting(containerEl)
+            .setName('Storage Locations')
+            .setDesc('Custom locations within categories (comma-separated). Default: Pantry, Fridge, Freezer')
+            .addTextArea(text => text
+                .setPlaceholder('Pantry, Fridge, Freezer, Spice Cabinet...')
+                .setValue(this.plugin.settings.storageLocations.join(', '))
+                .onChange(async (value) => {
+                    this.plugin.settings.storageLocations = value
+                        .split(',')
+                        .map(s => s.trim())
+                        .filter(s => s.length > 0);
+                    await this.plugin.saveSettings();
+                }));
+
+        // Expiration Types
+        new Setting(containerEl)
+            .setName('Expiration Types')
+            .setDesc('Available expiration date labels (comma-separated).')
+            .addTextArea(text => text
+                .setPlaceholder('Best By, Use By, Expires, Sell By...')
+                .setValue(this.plugin.settings.expirationTypes.join(', '))
+                .onChange(async (value) => {
+                    this.plugin.settings.expirationTypes = value
+                        .split(',')
+                        .map(s => s.trim())
+                        .filter(s => s.length > 0);
+                    await this.plugin.saveSettings();
+                }));
+
+        // Expiration Warning Days
+        new Setting(containerEl)
+            .setName('Expiration Warning Days')
+            .setDesc('Days before expiration to show warning in status bar.')
+            .addSlider(slider => slider
+                .setLimits(1, 14, 1)
+                .setValue(this.plugin.settings.expirationWarningDays || 3)
+                .setDynamicTooltip()
+                .onChange(async (value) => {
+                    this.plugin.settings.expirationWarningDays = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        // ========================================
         // AI Cleanup (Gemini)
         // ========================================
         containerEl.createEl('h2', { text: '🤖 AI Cleanup (Gemini)' });

@@ -291,6 +291,23 @@ export interface MiseSettings {
 
     /** Whether to use Gemini for shopping list cleanup */
     enableGeminiCleanup: boolean;
+
+    // Inventory settings (Phase 16)
+
+    /** Path to inventory files folder (vault-relative) */
+    inventoryFolder: string;
+
+    /** User-defined storage locations within categories */
+    storageLocations: string[];
+
+    /** Available expiration date types */
+    expirationTypes: string[];
+
+    /** Custom ingredient density overrides (ingredient -> oz per cup) */
+    customDensities: Record<string, number>;
+
+    /** Days before expiration to show warning (default: 3) */
+    expirationWarningDays: number;
 }
 
 /**
@@ -395,7 +412,101 @@ export const DEFAULT_SETTINGS: MiseSettings = {
     downloadImagesOnImport: false,
     geminiApiKey: '',
     enableGeminiCleanup: false,
+    // Inventory defaults
+    inventoryFolder: 'Life/Household/Kitchen/Inventory',
+    storageLocations: ['Pantry', 'Fridge', 'Freezer'],
+    expirationTypes: ['Best By', 'Use By', 'Expires', 'Sell By'],
+    customDensities: {},
+    expirationWarningDays: 3,
 };
+
+// ============================================================================
+// Inventory Types
+// ============================================================================
+
+/**
+ * Inventory storage categories (main domains)
+ */
+export type InventoryCategory = 'Pantry' | 'Fridge' | 'Freezer';
+
+/**
+ * Expiration date types for inventory items
+ */
+export type ExpiryType = 'Best By' | 'Use By' | 'Expires' | 'Sell By';
+
+/**
+ * Reasons for throwing away food
+ */
+export type WasteReason = 'Spoiled/Expired' | 'Leftover Forgotten' | "Didn't Like" | 'Other';
+
+/**
+ * Represents an item in the kitchen inventory
+ */
+export interface InventoryItem {
+    /** Normalized ingredient name */
+    name: string;
+
+    /** Current quantity */
+    quantity: number;
+
+    /** Unit of measurement (oz, cups, count, etc.) */
+    unit: string;
+
+    /** Main storage category */
+    category: InventoryCategory;
+
+    /** Specific storage location (user-defined, e.g., "Spice Cabinet") */
+    location: string;
+
+    /** Date item was purchased (ISO format) */
+    purchaseDate: string;
+
+    /** Date item expires (ISO format, optional) */
+    expirationDate?: string;
+
+    /** Type of expiration date */
+    expirationType?: ExpiryType;
+}
+
+/**
+ * Food waste log entry
+ */
+export interface WasteLogEntry {
+    /** Item name */
+    name: string;
+
+    /** Quantity wasted */
+    quantity: number;
+
+    /** Unit of measurement */
+    unit: string;
+
+    /** Reason for waste */
+    reason: WasteReason;
+
+    /** Date logged (ISO format) */
+    date: string;
+
+    /** Optional notes */
+    notes?: string;
+}
+
+/**
+ * Custom meal log entry (for ad-hoc meals not from cookbook)
+ */
+export interface CustomMealEntry {
+    /** Meal name/description */
+    name: string;
+
+    /** Ingredients used (raw format from user input) */
+    ingredients: string[];
+
+    /** Date logged (ISO format) */
+    date: string;
+
+    /** Meal type */
+    mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+}
 
 // ============================================================================
 // Event Types
@@ -409,3 +520,4 @@ export type RecipeIndexerEvent =
     | { type: 'recipe-updated'; recipe: Recipe }
     | { type: 'recipe-deleted'; path: string }
     | { type: 'index-ready'; count: number };
+

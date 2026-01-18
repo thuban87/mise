@@ -26,6 +26,7 @@ export function RecipeModal() {
         getImageUrl,
         isIngredientChecked,
         toggleIngredient,
+        logMeal,
     } = useRecipes();
 
     // Scaling state (session-only, resets when modal closes)
@@ -218,9 +219,19 @@ export function RecipeModal() {
                         <button
                             className="mise-btn mise-btn-secondary"
                             disabled
-                            title="Coming soon in Phase 11"
+                            title="Coming soon"
                         >
                             📅 Add to Meal Plan
+                        </button>
+                        <button
+                            className="mise-btn mise-btn-secondary"
+                            onClick={() => {
+                                closeModal();
+                                logMeal(recipe);
+                            }}
+                            title="Log this meal and deduct ingredients from inventory"
+                        >
+                            ✅ Finish & Log
                         </button>
                     </div>
                 </div>

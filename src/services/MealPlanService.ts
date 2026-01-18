@@ -46,10 +46,8 @@ export class MealPlanService extends Events {
      */
     private async loadMealPlan(): Promise<void> {
         const folder = this.settings.mealPlanFolder;
-        console.log(`MealPlanService: Looking for meal plans in folder: "${folder}"`);
 
         if (!folder) {
-            console.log('MealPlanService: No mealPlanFolder configured');
             this.mealPlan = null;
             return;
         }
@@ -59,8 +57,6 @@ export class MealPlanService extends Events {
 
         // Find meal plan files in the folder
         const allFiles = this.app.vault.getFiles();
-        console.log(`MealPlanService: Total files in vault: ${allFiles.length}`);
-
         const files = allFiles.filter(f => {
             // Check if file is inside the meal plan folder OR any subfolder
             const inFolderOrSubfolder = f.path.startsWith(normalizedFolder + '/') || f.path.startsWith(normalizedFolder + '\\');
@@ -71,11 +67,7 @@ export class MealPlanService extends Events {
             return inFolderOrSubfolder && isMd && (hasMonthName || hasMealOrPlan);
         });
 
-        console.log(`MealPlanService: Found ${files.length} meal plan files`);
-        files.forEach(f => console.log(`  - ${f.path}`));
-
         if (files.length === 0) {
-            console.log(`MealPlanService: No meal plan files found in ${folder}`);
             this.mealPlan = null;
             return;
         }
@@ -88,7 +80,6 @@ export class MealPlanService extends Events {
                 const content = await this.app.vault.read(file);
                 const parsed = parseMealPlan(content);
                 allMeals.push(...parsed.meals);
-                console.log(`MealPlanService: Loaded ${parsed.meals.length} meals from ${file.name}`);
             } catch (error) {
                 console.error(`MealPlanService: Error loading ${file.path}:`, error);
             }
@@ -99,10 +90,6 @@ export class MealPlanService extends Events {
         this.currentFilePath = mostRecentFile.path;
 
         this.mealPlan = { meals: allMeals, month: 'aggregated', recipeMap: new Map() };
-        console.log(`MealPlanService: Total ${allMeals.length} meals aggregated from ${files.length} files`);
-        if (allMeals.length > 0) {
-            console.log(`MealPlanService: First few meals:`, allMeals.slice(0, 3));
-        }
         this.trigger('meal-plan-updated');
     }
 

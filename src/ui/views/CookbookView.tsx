@@ -44,6 +44,19 @@ export class CookbookView extends ItemView {
                 app={this.app}
                 indexer={this.plugin.indexer}
                 mealPlanService={this.plugin.mealPlanService}
+                onLogMeal={(recipe) => {
+                    // Import and open LogMealModal with pre-selected recipe
+                    import('../components/LogMealModal').then(({ LogMealModal }) => {
+                        new LogMealModal(
+                            this.app,
+                            this.plugin.settings,
+                            this.plugin.mealPlanService,
+                            this.plugin.inventoryService,
+                            this.plugin.indexer,
+                            recipe
+                        ).open();
+                    });
+                }}
             >
                 <CookbookApp />
             </RecipeProvider>
