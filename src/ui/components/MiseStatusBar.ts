@@ -66,7 +66,9 @@ export class MiseStatusBar {
         await this.plugin.saveData(data);
     }
 
-    public checkAlerts() {
+    public async checkAlerts() {
+        // Reload inventory to get fresh data
+        await this.plugin.inventoryService.reload();
         const expiringItems = this.getExpiringItems();
         this.alertCount = expiringItems.length;
         this.updateDisplay();
@@ -165,31 +167,51 @@ export class MiseStatusBar {
                         .onClick(() => this.showSnoozeMenu(invItem));
                 });
             }
+
+            menu.addSeparator();
+
+            // Clear all alerts option (snooze all for 1 week)
+            if (expiringItems.length > 0) {
+                menu.addItem(item => {
+                    item.setTitle('✕ Clear All Alerts')
+                        .setIcon('x')
+                        .onClick(async () => {
+                            for (const invItem of expiringItems) {
+                                const itemKey = this.getItemKey(invItem);
+                                this.snoozedAlerts.set(itemKey, Date.now() + 7 * 24 * 60 * 60 * 1000);
+                            }
+                            await this.saveSnoozedAlerts();
+                            await this.checkAlerts();
+                            new Notice('✅ All alerts cleared for 1 week');
+                        });
+                });
+
+                menu.addSeparator();
+            }
+
+            // Quick actions
+            menu.addItem(item => {
+                item.setTitle('📦 Add Inventory Item')
+                    .onClick(() => {
+                        (this.plugin.app as any).commands.executeCommandById('mise:add-inventory-item');
+                    });
+            });
+
+            menu.addItem(item => {
+                item.setTitle('🍽️ Log Meal')
+                    .onClick(() => {
+                        (this.plugin.app as any).commands.executeCommandById('mise:log-meal');
+                    });
+            });
+
+            menu.addItem(item => {
+                item.setTitle('📋 Pantry Check')
+                    .onClick(() => {
+                        (this.plugin.app as any).commands.executeCommandById('mise:pantry-check');
+                    });
+            });
+
         }
-
-        menu.addSeparator();
-
-        // Quick actions
-        menu.addItem(item => {
-            item.setTitle('📦 Add Inventory Item')
-                .onClick(() => {
-                    (this.plugin.app as any).commands.executeCommandById('mise:add-inventory-item');
-                });
-        });
-
-        menu.addItem(item => {
-            item.setTitle('🍽️ Log Meal')
-                .onClick(() => {
-                    (this.plugin.app as any).commands.executeCommandById('mise:log-meal');
-                });
-        });
-
-        menu.addItem(item => {
-            item.setTitle('📋 Pantry Check')
-                .onClick(() => {
-                    (this.plugin.app as any).commands.executeCommandById('mise:pantry-check');
-                });
-        });
 
         menu.showAtMouseEvent(new MouseEvent('click', {
             clientX: this.statusBarEl.getBoundingClientRect().left,

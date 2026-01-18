@@ -24,6 +24,7 @@ import { PantryCheckModal } from './ui/components/PantryCheckModal';
 import { LogMealModal } from './ui/components/LogMealModal';
 import { MiseStatusBar } from './ui/components/MiseStatusBar';
 import { MiseCommandMenu } from './ui/components/MiseCommandMenu';
+import { ThrowAwayModal } from './ui/components/ThrowAwayModal';
 
 export default class MisePlugin extends Plugin {
     settings: MiseSettings;
@@ -256,6 +257,15 @@ export default class MisePlugin extends Plugin {
             name: 'Open Mise Menu',
             callback: () => {
                 new MiseCommandMenu(this).open();
+            }
+        });
+
+        // Waste tracking command
+        this.addCommand({
+            id: 'throw-away-food',
+            name: 'Threw Away Food',
+            callback: () => {
+                new ThrowAwayModal(this).open();
             }
         });
 

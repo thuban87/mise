@@ -62,6 +62,7 @@ export class MiseCommandMenu extends Modal {
                     { label: 'Add Item', icon: '➕', commandId: 'mise:add-inventory-item' },
                     { label: 'Pantry Check', icon: '📋', commandId: 'mise:pantry-check' },
                     { label: 'Log Meal', icon: '✅', commandId: 'mise:log-meal' },
+                    { label: 'Threw Away', icon: '🗑️', commandId: 'mise:throw-away-food' },
                 ]
             },
             {

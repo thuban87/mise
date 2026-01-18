@@ -10,8 +10,8 @@ tags:
 **Purpose:** Session-by-session implementation notes. Each development session appends a new entry with details of what was done, what was tested, and what's next.
 
 **Last Updated:** January 17, 2026
-**Current Phase:** Phase 15.6 - Calendar & Meal Plan Fixes ✅
-**Current Branch:** main
+**Current Phase:** Phase 16 - Inventory & Consumption Engine ✅
+**Current Branch:** feat/phase-16-inventory-and-consumption-engine
 **Version:** 0.1.0
 
 ---
@@ -34,6 +34,99 @@ Each session should include:
 - **Be specific** — Reference file paths, function names, and line numbers
 - **Test results are mandatory** — Every session must document testing
 - **Suggest commits** — Include recommended commit message at session end
+
+---
+
+## Session: January 17, 2026 - Inventory & Consumption Engine (Phase 16)
+
+### Phase
+Phase 16: Inventory & Consumption Engine
+
+### Session Summary
+Implemented complete inventory management system across 5 sub-phases. Created `InventoryService` with markdown file I/O, fuzzy ingredient matching, and cross-unit conversion. Built full UI suite: `AddInventoryModal`, `PantryCheckModal`, `LogMealModal`, and `ThrowAwayModal`. Implemented status bar notification center with expiration alerts and snooze functionality. Created `MiseCommandMenu` as consolidated command portal. Added waste tracking with auto-population of "Foods I Don't Like" list. Fixed several bugs including recipe loading from meal plan and Meal Log path.
+
+### What Was Done
+
+| Sub-phase | Files | Features |
+|-----------|-------|----------|
+| 16.1 | `InventoryService.ts`, `IngredientDensities.ts` | File I/O, fuzzy matching, unit conversion, master file generation |
+| 16.2 | `AddInventoryModal.ts`, `PantryCheckModal.ts` | Add items, bulk edit by location, live reload |
+| 16.3 | `LogMealModal.ts`, `RecipeContext.tsx`, `RecipeModal.tsx` | Upcoming meals, ingredient confirmation, deduction, Meal Log writing, Finish & Log flow |
+| 16.4 | `MiseStatusBar.ts`, `MiseCommandMenu.ts`, `main.ts` | Status bar alerts with snooze, categorized command menu, mobile ribbon icons |
+| 16.5 | `ThrowAwayModal.ts`, `LogMealModal.ts` | Waste tracking with reasons, Waste Log.md, Foods I Don't Like.md, custom ingredients for substitutions |
+
+### Key Technical Discoveries
+
+| Issue | Solution |
+|-------|----------|
+| Cross-unit conversion | 8 oz/cup approximation for volume↔weight, extensible density table |
+| Recipe loading from meal plan | Added title fallback when `recipePath` is null |
+| Meal Log path | Changed to parent of inventory folder (Kitchen) |
+| Timer types in TypeScript | Use `window.setInterval` and cast to number |
+| App.commands not typed | Cast to `any` for command execution |
+
+### What Was Tested
+- [x] Add inventory item with all fields
+- [x] Pantry check bulk editing
+- [x] Log meal from upcoming meals list
+- [x] Log meal from cookbook dropdown
+- [x] Finish & Log from RecipeModal
+- [x] Custom ingredients for substitutions
+- [x] Status bar expiration alerts
+- [x] Snooze alerts (1d/3d/1w)
+- [x] Mise Menu command execution
+- [x] Threw Away Food with inventory deduction
+- [x] Waste Log and Foods I Don't Like auto-population
+
+### Issues Discovered & Deferred
+- **Low stock alerts**: Deferred due to complex threshold problem (percentage needs starting value, per-item is tedious). Added to Ideas Parking Lot.
+- **tslib lint errors**: Safe to ignore, IDE quirk that doesn't affect build/runtime.
+
+### Files Created
+- `src/services/InventoryService.ts`
+- `src/utils/IngredientDensities.ts`
+- `src/ui/components/AddInventoryModal.ts`
+- `src/ui/components/PantryCheckModal.ts`
+- `src/ui/components/LogMealModal.ts`
+- `src/ui/components/MiseStatusBar.ts`
+- `src/ui/components/MiseCommandMenu.ts`
+- `src/ui/components/ThrowAwayModal.ts`
+
+### Files Modified
+- `src/types/index.ts` — InventoryItem, WasteReason, expirationWarningDays setting
+- `src/main.ts` — All modal commands, ribbon icons, status bar
+- `src/ui/settings/MiseSettingsTab.ts` — Inventory settings section
+- `src/ui/components/RecipeContext.tsx` — onLogMeal callback
+- `src/ui/components/RecipeModal.tsx` — Finish & Log button
+- `src/ui/views/CookbookView.tsx` — onLogMeal prop
+- `styles.css` — Status bar, command menu styles
+
+### Recommended Commits
+```
+feat(phase-16.4): Alerts, Command Menu & Mobile Actions
+
+- Status bar notification center with expiring item alerts
+- Snooze functionality (1d/3d/1w) with persistence
+- Mise Menu command with categorized button grid
+- Mobile ribbon: Add Item, Log Meal, Pantry Check
+- Expiration warning days setting (configurable 1-14 days)
+- Removed defunct time migration commands
+- Low stock alerts deferred (complex threshold problem)
+```
+
+```
+feat(phase-16.5): Waste Tracking & Custom Ingredients
+
+- ThrowAwayModal with inventory autocomplete and waste reasons
+- Waste Log.md with table format tracking
+- Foods I Don't Like.md auto-populated from "Didn't Like" entries
+- Fixed Meal Log.md path (now in Kitchen folder, not Inventory)
+- Custom ingredient rows in LogMealModal for tracking substitutions
+- Fixed recipe loading from upcoming meals (title fallback)
+```
+
+### Next Session Prompt
+Phase 17: Polish & Error Handling - Add React error boundaries, handle edge cases gracefully, theme compatibility testing, mobile usability pass.
 
 ---
 

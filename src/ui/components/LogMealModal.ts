@@ -36,6 +36,7 @@ export class LogMealModal extends Modal {
     private selectedRecipe: Recipe | null = null;
     private selectedMealType: 'breakfast' | 'lunch' | 'dinner' = 'lunch';
     private ingredients: IngredientSelection[] = [];
+    private customIngredients: IngredientSelection[] = []; // User-added substitutions
     private upcomingMeals: PlannedMeal[] = [];
 
     constructor(
@@ -212,18 +213,31 @@ export class LogMealModal extends Modal {
     }
 
     private async selectRecipe(title: string, path: string | null) {
-        // Load recipe
+        // Load recipe by path if available
         if (path) {
             this.selectedRecipe = this.indexer.getRecipe(path) || null;
         }
 
+        // Fallback: try to find recipe by title if path didn't work
+        if (!this.selectedRecipe) {
+            const allRecipes = this.indexer.getRecipes();
+            const matchByTitle = allRecipes.find(r =>
+                r.title.toLowerCase() === title.toLowerCase() ||
+                r.title.toLowerCase().includes(title.toLowerCase()) ||
+                title.toLowerCase().includes(r.title.toLowerCase())
+            );
+            if (matchByTitle) {
+                this.selectedRecipe = matchByTitle;
+                path = matchByTitle.path;
+            }
+        }
+
+        // Still no recipe? Try to load from file path directly
         if (!this.selectedRecipe && path) {
-            // Try to load from file
             const file = this.app.vault.getAbstractFileByPath(path);
             if (file) {
                 const content = await this.app.vault.read(file as any);
                 const ingredientStrings = parseIngredients(content);
-                // Create minimal recipe object
                 this.selectedRecipe = {
                     title,
                     path,
@@ -310,6 +324,91 @@ export class LogMealModal extends Modal {
             row.createEl('span', { text: ing.name });
         }
 
+        // Custom ingredients section
+        const customSection = contentEl.createDiv('mise-custom-ingredients');
+        customSection.style.marginTop = '12px';
+        customSection.style.paddingTop = '12px';
+        customSection.style.borderTop = '1px solid var(--background-modifier-border)';
+
+        // Render existing custom ingredients
+        for (let i = 0; i < this.customIngredients.length; i++) {
+            const custIng = this.customIngredients[i];
+            const row = customSection.createDiv('mise-ingredient-row');
+            row.style.display = 'flex';
+            row.style.alignItems = 'center';
+            row.style.gap = '10px';
+            row.style.marginBottom = '8px';
+            row.style.padding = '6px';
+            row.style.background = 'var(--background-secondary-alt)';
+            row.style.borderRadius = '4px';
+
+            // Checkbox (always checked for custom)
+            const checkbox = row.createEl('input', { type: 'checkbox' });
+            checkbox.checked = custIng.checked;
+            checkbox.onchange = () => { custIng.checked = checkbox.checked; };
+
+            // Quantity input
+            const qtyInput = row.createEl('input', { type: 'number' });
+            qtyInput.value = String(custIng.quantity);
+            qtyInput.style.width = '60px';
+            qtyInput.min = '0';
+            qtyInput.step = '0.25';
+            qtyInput.onchange = () => { custIng.quantity = parseFloat(qtyInput.value) || 0; };
+
+            // Unit dropdown
+            const unitSelect = row.createEl('select');
+            unitSelect.style.width = '70px';
+            const commonUnits = ['', 'oz', 'lb', 'g', 'cup', 'cups', 'tbsp', 'tsp', 'count'];
+            for (const u of commonUnits) {
+                const opt = unitSelect.createEl('option', { text: u || '—' });
+                opt.value = u;
+            }
+            unitSelect.value = custIng.unit;
+            unitSelect.onchange = () => { custIng.unit = unitSelect.value; };
+
+            // Name input with datalist for autocomplete
+            const nameInput = row.createEl('input', { type: 'text' });
+            nameInput.value = custIng.name;
+            nameInput.placeholder = 'Item name';
+            nameInput.style.flex = '1';
+            nameInput.id = `custom-ing-${i}`;
+            nameInput.setAttribute('list', 'inventory-items-list');
+            nameInput.oninput = () => { custIng.name = nameInput.value; };
+
+            // Remove button
+            const removeBtn = row.createEl('button', { text: '✕' });
+            removeBtn.style.padding = '2px 8px';
+            removeBtn.onclick = () => {
+                this.customIngredients.splice(i, 1);
+                this.render();
+            };
+        }
+
+        // Datalist for autocomplete
+        let datalist = contentEl.querySelector('#inventory-items-list') as HTMLDataListElement;
+        if (!datalist) {
+            datalist = contentEl.createEl('datalist');
+            datalist.id = 'inventory-items-list';
+            const inventoryItems = this.inventoryService.getStock();
+            for (const item of inventoryItems) {
+                datalist.createEl('option', { value: item.name });
+            }
+        }
+
+        // Add Item button
+        const addBtn = customSection.createEl('button', { text: '+ Add Item' });
+        addBtn.style.marginTop = '8px';
+        addBtn.onclick = () => {
+            this.customIngredients.push({
+                original: '',
+                checked: true,
+                quantity: 1,
+                unit: 'oz',
+                name: '',
+            });
+            this.render();
+        };
+
         // Buttons
         const buttonContainer = contentEl.createDiv('mise-modal-nav');
         buttonContainer.style.marginTop = '20px';
@@ -328,7 +427,9 @@ export class LogMealModal extends Modal {
     }
 
     private async doLogMeal(button: HTMLButtonElement) {
-        const checkedIngredients = this.ingredients.filter(i => i.checked && i.quantity > 0);
+        // Combine recipe ingredients and custom ingredients
+        const allIngredients = [...this.ingredients, ...this.customIngredients];
+        const checkedIngredients = allIngredients.filter(i => i.checked && i.quantity > 0 && i.name.trim());
 
         if (checkedIngredients.length === 0) {
             new Notice('No ingredients selected');
@@ -380,7 +481,10 @@ export class LogMealModal extends Modal {
     }
 
     private async writeMealLog(ingredients: IngredientSelection[]) {
-        const logPath = `${this.settings.inventoryFolder}/Meal Log.md`;
+        // Meal Log goes in parent of inventory folder (e.g., Life/Household/Kitchen)
+        const inventoryFolder = this.settings.inventoryFolder;
+        const parentFolder = inventoryFolder.substring(0, inventoryFolder.lastIndexOf('/')) || inventoryFolder;
+        const logPath = `${parentFolder}/Meal Log.md`;
         const now = new Date();
         const dateStr = now.toISOString().split('T')[0];
         const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });

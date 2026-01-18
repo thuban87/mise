@@ -12,7 +12,7 @@ tags:
 > This is a personal utility project with infinite runway. Features get done when they get done. Do not pressure the user with "we should do this after MVP" language.
 
 **Last Updated:** January 17, 2026
-**Current Phase:** Phase 15.6 - Calendar & Meal Plan Fixes ✅
+**Current Phase:** Phase 16 - Inventory & Consumption Engine ✅
 
 ---
 
@@ -634,7 +634,7 @@ interface ShoppingItem {
 
 ### Phase 16: Inventory & Consumption Engine
 - **Goal:** Track what you have and automate deduction based on meals eaten.
-- **Status:** `[/]` In Progress (16.1-16.3 Complete)
+- **Status:** `[x]` Complete
 
 #### 16.1: Inventory Foundation ✅
 | Task | Status | Notes |
@@ -662,23 +662,34 @@ interface ShoppingItem {
 | Finish & Log button | `[x]` | Skip to confirm from RecipeModal |
 | Unit conversion on add | `[x]` | lb→oz when combining items |
 
-#### 16.4: Polish, Alerts & Command Menu
+#### 16.4: Alerts, Command Menu & Mobile Actions ✅
 | Task | Status | Notes |
 |------|--------|-------|
-| Status bar notification center | `[ ]` | Blinking indicator, snooze support |
-| Expiring soon alerts | `[ ]` | Configurable threshold (3/7 days) |
-| Low stock alerts | `[ ]` | Tie into shopping list logic |
-| Master command modal | `[ ]` | Single command opens menu |
-| Ribbon/quick action review | `[ ]` | Best UX for mobile/desktop |
-| "Threw Away Food" command | `[ ]` | Waste tracking with reason |
-| Error handling pass | `[ ]` | Graceful failures |
+| Status bar notification center | `[x]` | Blinking indicator with alert count |
+| Expiring soon alerts | `[x]` | Configurable 1-14 day threshold |
+| Snooze functionality | `[x]` | 1 day, 3 days, 1 week options |
+| Mise Menu command | `[x]` | Categorized button grid modal |
+| Mobile ribbon icons | `[x]` | Add Item, Log Meal, Pantry Check |
+| Removed defunct commands | `[x]` | Migration commands removed |
+| Low stock alerts | `[~]` | Deferred - complex threshold problem |
+
+#### 16.5: Waste Tracking ✅
+| Task | Status | Notes |
+|------|--------|-------|
+| ThrowAwayModal | `[x]` | Inventory autocomplete, qty/unit |
+| Waste reasons | `[x]` | Expired, Spoiled, Didn't Like, Made Too Much, Other (fillable) |
+| Inventory deduction | `[x]` | Deducts thrown items from stock |
+| Waste Log.md | `[x]` | Table format with date/time/item/amount/reason |
+| Foods I Don't Like.md | `[x]` | Auto-populated from "Didn't Like" entries |
+| Custom ingredients in LogMeal | `[x]` | + Add Item for substitutions |
 
 **Acceptance Criteria:**
 - [x] Inventory updates automatically when meals are logged
 - [x] Users can easily correct inventory counts (Pantry Check)
 - [x] "Log Meal" flow is fast (<5 seconds) for planned meals
-- [ ] Expiring/low stock alerts are visible and snooze-able
-- [ ] Command palette is uncluttered
+- [x] Expiring soon alerts visible with snooze support
+- [x] Command palette uncluttered (Mise Menu consolidates commands)
+- [x] Waste tracking with reason logging
 
 ---
 
