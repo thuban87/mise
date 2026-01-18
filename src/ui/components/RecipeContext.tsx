@@ -23,6 +23,8 @@ interface RecipeContextValue {
     // Ingredient checkbox state (session only)
     isIngredientChecked: (recipePath: string, ingredientIndex: number) => boolean;
     toggleIngredient: (recipePath: string, ingredientIndex: number) => void;
+    // Log meal callback
+    logMeal: (recipe: Recipe) => void;
     // Filter state
     searchQuery: string;
     setSearchQuery: (query: string) => void;
@@ -54,10 +56,11 @@ interface RecipeProviderProps {
     app: App;
     indexer: RecipeIndexer;
     mealPlanService?: MealPlanService;
+    onLogMeal?: (recipe: Recipe) => void;
     children: ReactNode;
 }
 
-export function RecipeProvider({ app, indexer, mealPlanService, children }: RecipeProviderProps) {
+export function RecipeProvider({ app, indexer, mealPlanService, onLogMeal, children }: RecipeProviderProps) {
     const [recipes, setRecipes] = useState<Recipe[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
@@ -258,6 +261,12 @@ export function RecipeProvider({ app, indexer, mealPlanService, children }: Reci
         return mealPlanService.getPlannedDaysSummary(recipeTitle);
     }, [mealPlanService]);
 
+    const logMeal = useCallback((recipe: Recipe) => {
+        if (onLogMeal) {
+            onLogMeal(recipe);
+        }
+    }, [onLogMeal]);
+
     return (
         <RecipeContext.Provider value={{
             app,
@@ -271,6 +280,7 @@ export function RecipeProvider({ app, indexer, mealPlanService, children }: Reci
             closeModal,
             isIngredientChecked,
             toggleIngredient,
+            logMeal,
             searchQuery,
             setSearchQuery,
             selectedCategory,

@@ -21,6 +21,7 @@ import { RecipeImportModal } from './ui/components/RecipeImportModal';
 import { ScaleRecipeModal } from './ui/components/ScaleRecipeModal';
 import { AddInventoryModal } from './ui/components/AddInventoryModal';
 import { PantryCheckModal } from './ui/components/PantryCheckModal';
+import { LogMealModal } from './ui/components/LogMealModal';
 
 export default class MisePlugin extends Plugin {
     settings: MiseSettings;
@@ -257,6 +258,20 @@ export default class MisePlugin extends Plugin {
                     this.app,
                     this.settings,
                     this.inventoryService
+                ).open();
+            }
+        });
+
+        this.addCommand({
+            id: 'log-meal',
+            name: 'Log Meal & Deduct Ingredients',
+            callback: () => {
+                new LogMealModal(
+                    this.app,
+                    this.settings,
+                    this.mealPlanService,
+                    this.inventoryService,
+                    this.indexer
                 ).open();
             }
         });
