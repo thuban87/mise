@@ -24981,7 +24981,7 @@ var init_LogMealModal = __esm({
     init_IngredientParser();
     init_QuantityParser();
     LogMealModal = class extends import_obsidian13.Modal {
-      constructor(app, settings, mealPlanService, inventoryService, ingredientIndex, indexer, preSelectedRecipe) {
+      constructor(app, settings, mealPlanService, inventoryService, ingredientIndex, indexer, preSelectedRecipe, prePopulatedIngredients) {
         super(app);
         // State
         this.step = "select";
@@ -24997,6 +24997,7 @@ var init_LogMealModal = __esm({
         this.ingredientIndex = ingredientIndex;
         this.indexer = indexer;
         this.preSelectedRecipe = preSelectedRecipe || null;
+        this.prePopulatedIngredients = prePopulatedIngredients;
       }
       async onOpen() {
         if (this.preSelectedRecipe) {
@@ -25157,16 +25158,26 @@ var init_LogMealModal = __esm({
           new import_obsidian13.Notice(`Could not load recipe: ${title}`);
           return;
         }
-        this.ingredients = this.selectedRecipe.ingredients.map((ing) => {
-          const parsed = parseIngredient(ing);
-          return {
-            original: ing,
-            checked: true,
-            quantity: parsed.value || 1,
-            unit: parsed.unit || "",
-            name: parsed.ingredient
-          };
-        });
+        if (this.prePopulatedIngredients && this.prePopulatedIngredients.length > 0) {
+          this.ingredients = this.prePopulatedIngredients.map((ing) => ({
+            original: `${ing.quantity} ${ing.unit} ${ing.name}`,
+            checked: ing.checked,
+            quantity: ing.quantity,
+            unit: ing.unit,
+            name: ing.name
+          }));
+        } else {
+          this.ingredients = this.selectedRecipe.ingredients.map((ing) => {
+            const parsed = parseIngredient(ing);
+            return {
+              original: ing,
+              checked: true,
+              quantity: parsed.value || 1,
+              unit: parsed.unit || "",
+              name: parsed.ingredient
+            };
+          });
+        }
         this.step = "confirm";
         this.render();
       }
@@ -30331,9 +30342,9 @@ function RecipeProvider({ app, indexer, mealPlanService, onLogMeal, children }) 
     if (!mealPlanService) return "";
     return mealPlanService.getPlannedDaysSummary(recipeTitle);
   }, [mealPlanService]);
-  const logMeal = (0, import_react.useCallback)((recipe) => {
+  const logMeal = (0, import_react.useCallback)((recipe, editedIngredients) => {
     if (onLogMeal) {
-      onLogMeal(recipe);
+      onLogMeal(recipe, editedIngredients);
     }
   }, [onLogMeal]);
   return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RecipeContext.Provider, { value: {
@@ -30494,6 +30505,7 @@ function parseServings(servingsStr) {
 }
 function RecipeModal() {
   const {
+    app,
     selectedRecipe,
     closeModal,
     openRecipe,
@@ -30504,11 +30516,30 @@ function RecipeModal() {
   } = useRecipes();
   const [isScaling, setIsScaling] = (0, import_react2.useState)(false);
   const [targetServings, setTargetServings] = (0, import_react2.useState)(4);
+  const [editedIngredients, setEditedIngredients] = (0, import_react2.useState)([]);
+  const [extraIngredients, setExtraIngredients] = (0, import_react2.useState)([]);
+  const [instructionsExpanded, setInstructionsExpanded] = (0, import_react2.useState)(false);
+  const [instructions, setInstructions] = (0, import_react2.useState)([]);
+  const [instructionsLoading, setInstructionsLoading] = (0, import_react2.useState)(false);
   (0, import_react2.useEffect)(() => {
     if (selectedRecipe) {
       const parsed = parseServings(selectedRecipe.servings);
       setTargetServings(parsed || 4);
       setIsScaling(false);
+      setInstructionsExpanded(false);
+      const editable = selectedRecipe.ingredients.map((ing, index) => {
+        const p = parseIngredient(ing);
+        return {
+          original: ing,
+          quantity: p.value,
+          unit: p.unit || "count",
+          name: p.ingredient,
+          checked: false
+        };
+      });
+      setEditedIngredients(editable);
+      setExtraIngredients([]);
+      setInstructions([]);
     }
   }, [selectedRecipe]);
   (0, import_react2.useEffect)(() => {
@@ -30529,6 +30560,31 @@ function RecipeModal() {
       closeModal();
     }
   }, [closeModal]);
+  (0, import_react2.useEffect)(() => {
+    if (!instructionsExpanded || !(selectedRecipe == null ? void 0 : selectedRecipe.path) || instructions.length > 0) return;
+    const loadInstructions = async () => {
+      setInstructionsLoading(true);
+      try {
+        const file = app.vault.getAbstractFileByPath(selectedRecipe.path);
+        if (file) {
+          const content = await app.vault.read(file);
+          const instructionMatches = content.match(/##\s*[^\n]*?(Instructions|Directions|Steps|Method)\s*\n([\s\S]*?)(?=\n##|\n---|$)/i);
+          if (instructionMatches) {
+            const instructionText = instructionMatches[2].trim();
+            const steps = instructionText.split(/\n(?=\d+\.|\*|-|\+)/).map((s) => s.replace(/^\d+\.\s*/, "").replace(/^[-*+]\s*/, "").trim()).filter((s) => s.length > 0);
+            setInstructions(steps);
+          } else {
+            setInstructions(["No instructions section found in recipe"]);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load instructions:", e);
+        setInstructions(["Failed to load instructions"]);
+      }
+      setInstructionsLoading(false);
+    };
+    loadInstructions();
+  }, [instructionsExpanded, selectedRecipe == null ? void 0 : selectedRecipe.path, app, instructions.length]);
   const currentServings = selectedRecipe ? parseServings(selectedRecipe.servings) : null;
   const scaleFactor = currentServings && targetServings ? targetServings / currentServings : 1;
   const scaledIngredients = (0, import_react2.useMemo)(() => {
@@ -30607,26 +30663,149 @@ function RecipeModal() {
           ] })
         ] })
       ] }) }),
-      displayIngredients.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mise-modal-section", children: [
+      editedIngredients.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mise-modal-section", children: [
         /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("h3", { children: [
-          "Ingredients ",
-          isScaling && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { color: "var(--text-accent)" }, children: "(Scaled)" })
+          "Ingredients",
+          isScaling && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { style: { color: "var(--text-accent)" }, children: " (Scaled)" })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("ul", { className: "mise-ingredient-list", children: displayIngredients.map((ingredient, index) => {
-          const isChecked = isIngredientChecked(recipe.path, index);
-          return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
-            "li",
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mise-editable-ingredients", children: [
+          editedIngredients.map((ing, index) => {
+            const displayQty = isScaling ? ing.quantity * scaleFactor : ing.quantity;
+            return /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: `mise-editable-ingredient-row ${ing.checked ? "mise-ingredient-checked" : ""}`, children: [
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                "input",
+                {
+                  type: "checkbox",
+                  checked: ing.checked,
+                  onChange: (e) => {
+                    const updated = [...editedIngredients];
+                    updated[index].checked = e.target.checked;
+                    setEditedIngredients(updated);
+                  },
+                  className: "mise-ingredient-checkbox-input"
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+                "input",
+                {
+                  type: "number",
+                  value: displayQty.toFixed(2).replace(/\.00$/, "").replace(/(\.\d)0$/, "$1"),
+                  min: "0",
+                  step: "0.25",
+                  onChange: (e) => {
+                    const updated = [...editedIngredients];
+                    const newValue = parseFloat(e.target.value) || 0;
+                    updated[index].quantity = isScaling ? newValue / scaleFactor : newValue;
+                    setEditedIngredients(updated);
+                  },
+                  className: "mise-ingredient-qty-input"
+                }
+              ),
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "mise-ingredient-unit", children: ing.unit }),
+              /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "mise-ingredient-name", children: ing.name })
+            ] }, index);
+          }),
+          extraIngredients.map((ing, index) => /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mise-editable-ingredient-row mise-extra-ingredient", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+              "input",
+              {
+                type: "checkbox",
+                checked: ing.checked,
+                onChange: (e) => {
+                  const updated = [...extraIngredients];
+                  updated[index].checked = e.target.checked;
+                  setExtraIngredients(updated);
+                },
+                className: "mise-ingredient-checkbox-input"
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+              "input",
+              {
+                type: "number",
+                value: ing.quantity,
+                min: "0",
+                step: "0.25",
+                onChange: (e) => {
+                  const updated = [...extraIngredients];
+                  updated[index].quantity = parseFloat(e.target.value) || 0;
+                  setExtraIngredients(updated);
+                },
+                className: "mise-ingredient-qty-input"
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+              "input",
+              {
+                type: "text",
+                value: ing.unit,
+                placeholder: "unit",
+                onChange: (e) => {
+                  const updated = [...extraIngredients];
+                  updated[index].unit = e.target.value;
+                  setExtraIngredients(updated);
+                },
+                className: "mise-ingredient-unit-input"
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+              "input",
+              {
+                type: "text",
+                value: ing.name,
+                placeholder: "Item name...",
+                onChange: (e) => {
+                  const updated = [...extraIngredients];
+                  updated[index].name = e.target.value;
+                  setExtraIngredients(updated);
+                },
+                className: "mise-ingredient-name-input"
+              }
+            ),
+            /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+              "button",
+              {
+                className: "mise-btn-icon",
+                onClick: () => {
+                  setExtraIngredients(extraIngredients.filter((_, i) => i !== index));
+                },
+                children: "\xD7"
+              }
+            )
+          ] }, `extra-${index}`)),
+          /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
+            "button",
             {
-              className: `mise-ingredient-item ${isChecked ? "mise-ingredient-checked" : ""}`,
-              onClick: () => toggleIngredient(recipe.path, index),
-              children: [
-                /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "mise-ingredient-checkbox", children: isChecked ? "\u2611" : "\u2610" }),
-                /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("span", { className: "mise-ingredient-text", children: ingredient })
-              ]
-            },
-            index
-          );
-        }) })
+              className: "mise-btn mise-btn-small",
+              onClick: () => {
+                setExtraIngredients([...extraIngredients, {
+                  original: "",
+                  quantity: 1,
+                  unit: "oz",
+                  name: "",
+                  checked: true
+                }]);
+              },
+              style: { marginTop: "8px" },
+              children: "+ Add Extra Item"
+            }
+          )
+        ] })
+      ] }),
+      recipe.path && /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mise-modal-section", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)(
+          "h3",
+          {
+            className: "mise-collapsible-header",
+            onClick: () => setInstructionsExpanded(!instructionsExpanded),
+            style: { cursor: "pointer", userSelect: "none" },
+            children: [
+              instructionsExpanded ? "\u25BC" : "\u25B6",
+              " Instructions"
+            ]
+          }
+        ),
+        instructionsExpanded && /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("div", { className: "mise-instructions-content", children: instructionsLoading ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("p", { style: { color: "var(--text-muted)", fontStyle: "italic" }, children: "Loading instructions..." }) : instructions.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("ol", { className: "mise-instructions-list", children: instructions.map((step, index) => /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("li", { className: "mise-instruction-step", children: step }, index)) }) : /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("p", { style: { color: "var(--text-muted)", fontStyle: "italic" }, children: "No instructions found." }) })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime5.jsxs)("div", { className: "mise-modal-actions", children: [
         /* @__PURE__ */ (0, import_jsx_runtime5.jsx)(
@@ -30655,7 +30834,7 @@ function RecipeModal() {
             className: "mise-btn mise-btn-secondary",
             onClick: () => {
               closeModal();
-              logMeal(recipe);
+              logMeal(recipe, [...editedIngredients, ...extraIngredients]);
             },
             title: "Log this meal and deduct ingredients from inventory",
             children: "\u2705 Finish & Log"
@@ -31440,7 +31619,7 @@ var CookbookView = class extends import_obsidian14.ItemView {
           app: this.app,
           indexer: this.plugin.indexer,
           mealPlanService: this.plugin.mealPlanService,
-          onLogMeal: (recipe) => {
+          onLogMeal: (recipe, editedIngredients) => {
             Promise.resolve().then(() => (init_LogMealModal(), LogMealModal_exports)).then(({ LogMealModal: LogMealModal2 }) => {
               new LogMealModal2(
                 this.app,
@@ -31449,7 +31628,8 @@ var CookbookView = class extends import_obsidian14.ItemView {
                 this.plugin.inventoryService,
                 this.plugin.ingredientIndex,
                 this.plugin.indexer,
-                recipe
+                recipe,
+                editedIngredients
               ).open();
             });
           },

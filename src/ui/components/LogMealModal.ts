@@ -32,6 +32,7 @@ export class LogMealModal extends Modal {
     private ingredientIndex: IngredientIndexService;
     private indexer: RecipeIndexer;
     private preSelectedRecipe: Recipe | null;
+    private prePopulatedIngredients: { quantity: number; unit: string; name: string; checked: boolean }[] | undefined;
 
     // State
     private step: 'select' | 'confirm' = 'select';
@@ -48,7 +49,8 @@ export class LogMealModal extends Modal {
         inventoryService: InventoryService,
         ingredientIndex: IngredientIndexService,
         indexer: RecipeIndexer,
-        preSelectedRecipe?: Recipe
+        preSelectedRecipe?: Recipe,
+        prePopulatedIngredients?: { quantity: number; unit: string; name: string; checked: boolean }[]
     ) {
         super(app);
         this.settings = settings;
@@ -57,6 +59,7 @@ export class LogMealModal extends Modal {
         this.ingredientIndex = ingredientIndex;
         this.indexer = indexer;
         this.preSelectedRecipe = preSelectedRecipe || null;
+        this.prePopulatedIngredients = prePopulatedIngredients;
     }
 
     async onOpen() {
@@ -255,17 +258,28 @@ export class LogMealModal extends Modal {
             return;
         }
 
-        // Parse ingredients
-        this.ingredients = this.selectedRecipe.ingredients.map(ing => {
-            const parsed = parseIngredient(ing);
-            return {
-                original: ing,
-                checked: true,
-                quantity: parsed.value || 1,
-                unit: parsed.unit || '',
-                name: parsed.ingredient,
-            };
-        });
+        // If we have pre-populated ingredients from RecipeModal, use those
+        if (this.prePopulatedIngredients && this.prePopulatedIngredients.length > 0) {
+            this.ingredients = this.prePopulatedIngredients.map(ing => ({
+                original: `${ing.quantity} ${ing.unit} ${ing.name}`,
+                checked: ing.checked,
+                quantity: ing.quantity,
+                unit: ing.unit,
+                name: ing.name,
+            }));
+        } else {
+            // Parse ingredients from recipe
+            this.ingredients = this.selectedRecipe.ingredients.map(ing => {
+                const parsed = parseIngredient(ing);
+                return {
+                    original: ing,
+                    checked: true,
+                    quantity: parsed.value || 1,
+                    unit: parsed.unit || '',
+                    name: parsed.ingredient,
+                };
+            });
+        }
 
         this.step = 'confirm';
         this.render();

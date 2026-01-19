@@ -627,6 +627,107 @@
 	color: var(--text-muted);
 }
 
+/* Editable Ingredients in Modal */
+.mise-editable-ingredients {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.mise-editable-ingredient-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 0;
+}
+
+.mise-editable-ingredient-row.mise-ingredient-checked {
+	opacity: 0.6;
+}
+
+.mise-ingredient-checkbox-input {
+	width: 18px;
+	height: 18px;
+	cursor: pointer;
+}
+
+.mise-ingredient-qty-input {
+	width: 60px;
+	padding: 4px 6px;
+	text-align: center;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+}
+
+.mise-ingredient-unit {
+	min-width: 50px;
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+
+.mise-ingredient-name {
+	flex: 1;
+	color: var(--text-normal);
+}
+
+.mise-ingredient-unit-input,
+.mise-ingredient-name-input {
+	padding: 4px 6px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+}
+
+.mise-ingredient-unit-input {
+	width: 60px;
+}
+
+.mise-ingredient-name-input {
+	flex: 1;
+}
+
+.mise-extra-ingredient {
+	background: var(--background-secondary);
+	padding: 6px;
+	border-radius: 4px;
+}
+
+.mise-btn-icon {
+	border: none;
+	background: none;
+	cursor: pointer;
+	font-size: 1.2em;
+	color: var(--text-muted);
+	padding: 2px 6px;
+}
+
+.mise-btn-icon:hover {
+	color: var(--text-error);
+}
+
+.mise-btn-small {
+	padding: 6px 12px;
+	font-size: 0.85em;
+	flex: none;
+}
+
+/* Collapsible header */
+.mise-collapsible-header {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.mise-instructions-content {
+	padding: 12px;
+	background: var(--background-secondary);
+	border-radius: 6px;
+	margin-top: 8px;
+	max-height: 300px;
+	overflow-y: auto;
+}
+
 /* Modal Actions */
 .mise-modal-actions {
 	display: flex;
@@ -1888,6 +1989,7 @@
 }
 
 @media (hover: hover) {
+
 	/* Desktop - remove extra padding */
 	.mise-modal-content,
 	.mise-add-inventory-modal,

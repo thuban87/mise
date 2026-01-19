@@ -24,7 +24,7 @@ interface RecipeContextValue {
     isIngredientChecked: (recipePath: string, ingredientIndex: number) => boolean;
     toggleIngredient: (recipePath: string, ingredientIndex: number) => void;
     // Log meal callback
-    logMeal: (recipe: Recipe) => void;
+    logMeal: (recipe: Recipe, editedIngredients?: { quantity: number; unit: string; name: string; checked: boolean }[]) => void;
     // Filter state
     searchQuery: string;
     setSearchQuery: (query: string) => void;
@@ -56,7 +56,7 @@ interface RecipeProviderProps {
     app: App;
     indexer: RecipeIndexer;
     mealPlanService?: MealPlanService;
-    onLogMeal?: (recipe: Recipe) => void;
+    onLogMeal?: (recipe: Recipe, editedIngredients?: { quantity: number; unit: string; name: string; checked: boolean }[]) => void;
     children: ReactNode;
 }
 
@@ -261,9 +261,9 @@ export function RecipeProvider({ app, indexer, mealPlanService, onLogMeal, child
         return mealPlanService.getPlannedDaysSummary(recipeTitle);
     }, [mealPlanService]);
 
-    const logMeal = useCallback((recipe: Recipe) => {
+    const logMeal = useCallback((recipe: Recipe, editedIngredients?: { quantity: number; unit: string; name: string; checked: boolean }[]) => {
         if (onLogMeal) {
-            onLogMeal(recipe);
+            onLogMeal(recipe, editedIngredients);
         }
     }, [onLogMeal]);
 

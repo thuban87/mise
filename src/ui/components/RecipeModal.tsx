@@ -7,7 +7,18 @@ import { useEffect, useCallback, useState, useMemo } from 'react';
 import { Recipe } from '../../types';
 import { formatTotalTime, getCategoryEmoji } from '../../utils/helpers';
 import { useRecipes } from './RecipeContext';
-import { parseIngredient, scaleQuantity, formatScaledIngredient } from '../../utils/QuantityParser';
+import { parseIngredient, scaleQuantity, formatScaledIngredient, ParsedQuantity } from '../../utils/QuantityParser';
+
+/**
+ * Editable ingredient row data
+ */
+interface EditableIngredient {
+    original: string;
+    quantity: number;
+    unit: string;
+    name: string;
+    checked: boolean;
+}
 
 /**
  * Parse servings string to a number
@@ -20,6 +31,7 @@ function parseServings(servingsStr: string | undefined): number | null {
 
 export function RecipeModal() {
     const {
+        app,
         selectedRecipe,
         closeModal,
         openRecipe,
@@ -33,12 +45,37 @@ export function RecipeModal() {
     const [isScaling, setIsScaling] = useState(false);
     const [targetServings, setTargetServings] = useState<number>(4);
 
-    // Reset scaling state when recipe changes
+    // Editable ingredients state
+    const [editedIngredients, setEditedIngredients] = useState<EditableIngredient[]>([]);
+    const [extraIngredients, setExtraIngredients] = useState<EditableIngredient[]>([]);
+
+    // Instructions state
+    const [instructionsExpanded, setInstructionsExpanded] = useState(false);
+    const [instructions, setInstructions] = useState<string[]>([]);
+    const [instructionsLoading, setInstructionsLoading] = useState(false);
+
+    // Initialize/reset edited ingredients when recipe changes
     useEffect(() => {
         if (selectedRecipe) {
             const parsed = parseServings(selectedRecipe.servings);
             setTargetServings(parsed || 4);
             setIsScaling(false);
+            setInstructionsExpanded(false);
+
+            // Parse all ingredients into editable form
+            const editable = selectedRecipe.ingredients.map((ing, index) => {
+                const p = parseIngredient(ing);
+                return {
+                    original: ing,
+                    quantity: p.value,
+                    unit: p.unit || 'count',
+                    name: p.ingredient,
+                    checked: false,
+                };
+            });
+            setEditedIngredients(editable);
+            setExtraIngredients([]);
+            setInstructions([]); // Reset instructions for new recipe
         }
     }, [selectedRecipe]);
 
@@ -66,7 +103,41 @@ export function RecipeModal() {
         }
     }, [closeModal]);
 
-    // Calculate scale factor and scaled ingredients
+    // Load instructions when expanded
+    useEffect(() => {
+        if (!instructionsExpanded || !selectedRecipe?.path || instructions.length > 0) return;
+
+        const loadInstructions = async () => {
+            setInstructionsLoading(true);
+            try {
+                const file = app.vault.getAbstractFileByPath(selectedRecipe.path);
+                if (file) {
+                    const content = await app.vault.read(file as any);
+                    // Parse instructions from markdown (handles emoji like "## 🍳 Instructions")
+                    const instructionMatches = content.match(/##\s*[^\n]*?(Instructions|Directions|Steps|Method)\s*\n([\s\S]*?)(?=\n##|\n---|$)/i);
+                    if (instructionMatches) {
+                        const instructionText = instructionMatches[2].trim();
+                        // Split into numbered steps or bullet points
+                        const steps = instructionText
+                            .split(/\n(?=\d+\.|\*|-|\+)/)
+                            .map(s => s.replace(/^\d+\.\s*/, '').replace(/^[-*+]\s*/, '').trim())
+                            .filter(s => s.length > 0);
+                        setInstructions(steps);
+                    } else {
+                        setInstructions(['No instructions section found in recipe']);
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load instructions:', e);
+                setInstructions(['Failed to load instructions']);
+            }
+            setInstructionsLoading(false);
+        };
+
+        loadInstructions();
+    }, [instructionsExpanded, selectedRecipe?.path, app, instructions.length]);
+
+    // Calculate scale factor
     const currentServings = selectedRecipe ? parseServings(selectedRecipe.servings) : null;
     const scaleFactor = currentServings && targetServings
         ? targetServings / currentServings
@@ -179,29 +250,155 @@ export function RecipeModal() {
                         </div>
                     )}
 
-                    {/* Ingredients with checkboxes */}
-                    {displayIngredients.length > 0 && (
+                    {/* Ingredients with editable quantities */}
+                    {editedIngredients.length > 0 && (
                         <div className="mise-modal-section">
-                            <h3>Ingredients {isScaling && <span style={{ color: 'var(--text-accent)' }}>(Scaled)</span>}</h3>
-                            <ul className="mise-ingredient-list">
-                                {displayIngredients.map((ingredient, index) => {
-                                    const isChecked = isIngredientChecked(recipe.path, index);
+                            <h3>
+                                Ingredients
+                                {isScaling && <span style={{ color: 'var(--text-accent)' }}> (Scaled)</span>}
+                            </h3>
+                            <div className="mise-editable-ingredients">
+                                {editedIngredients.map((ing, index) => {
+                                    const displayQty = isScaling ? ing.quantity * scaleFactor : ing.quantity;
                                     return (
-                                        <li
-                                            key={index}
-                                            className={`mise-ingredient-item ${isChecked ? 'mise-ingredient-checked' : ''}`}
-                                            onClick={() => toggleIngredient(recipe.path, index)}
-                                        >
-                                            <span className="mise-ingredient-checkbox">
-                                                {isChecked ? '☑' : '☐'}
-                                            </span>
-                                            <span className="mise-ingredient-text">
-                                                {ingredient}
-                                            </span>
-                                        </li>
+                                        <div key={index} className={`mise-editable-ingredient-row ${ing.checked ? 'mise-ingredient-checked' : ''}`}>
+                                            <input
+                                                type="checkbox"
+                                                checked={ing.checked}
+                                                onChange={(e) => {
+                                                    const updated = [...editedIngredients];
+                                                    updated[index].checked = e.target.checked;
+                                                    setEditedIngredients(updated);
+                                                }}
+                                                className="mise-ingredient-checkbox-input"
+                                            />
+                                            <input
+                                                type="number"
+                                                value={displayQty.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1')}
+                                                min="0"
+                                                step="0.25"
+                                                onChange={(e) => {
+                                                    const updated = [...editedIngredients];
+                                                    const newValue = parseFloat(e.target.value) || 0;
+                                                    updated[index].quantity = isScaling ? newValue / scaleFactor : newValue;
+                                                    setEditedIngredients(updated);
+                                                }}
+                                                className="mise-ingredient-qty-input"
+                                            />
+                                            <span className="mise-ingredient-unit">{ing.unit}</span>
+                                            <span className="mise-ingredient-name">{ing.name}</span>
+                                        </div>
                                     );
                                 })}
-                            </ul>
+
+                                {/* Extra ingredients */}
+                                {extraIngredients.map((ing, index) => (
+                                    <div key={`extra-${index}`} className="mise-editable-ingredient-row mise-extra-ingredient">
+                                        <input
+                                            type="checkbox"
+                                            checked={ing.checked}
+                                            onChange={(e) => {
+                                                const updated = [...extraIngredients];
+                                                updated[index].checked = e.target.checked;
+                                                setExtraIngredients(updated);
+                                            }}
+                                            className="mise-ingredient-checkbox-input"
+                                        />
+                                        <input
+                                            type="number"
+                                            value={ing.quantity}
+                                            min="0"
+                                            step="0.25"
+                                            onChange={(e) => {
+                                                const updated = [...extraIngredients];
+                                                updated[index].quantity = parseFloat(e.target.value) || 0;
+                                                setExtraIngredients(updated);
+                                            }}
+                                            className="mise-ingredient-qty-input"
+                                        />
+                                        <input
+                                            type="text"
+                                            value={ing.unit}
+                                            placeholder="unit"
+                                            onChange={(e) => {
+                                                const updated = [...extraIngredients];
+                                                updated[index].unit = e.target.value;
+                                                setExtraIngredients(updated);
+                                            }}
+                                            className="mise-ingredient-unit-input"
+                                        />
+                                        <input
+                                            type="text"
+                                            value={ing.name}
+                                            placeholder="Item name..."
+                                            onChange={(e) => {
+                                                const updated = [...extraIngredients];
+                                                updated[index].name = e.target.value;
+                                                setExtraIngredients(updated);
+                                            }}
+                                            className="mise-ingredient-name-input"
+                                        />
+                                        <button
+                                            className="mise-btn-icon"
+                                            onClick={() => {
+                                                setExtraIngredients(extraIngredients.filter((_, i) => i !== index));
+                                            }}
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                ))}
+
+                                <button
+                                    className="mise-btn mise-btn-small"
+                                    onClick={() => {
+                                        setExtraIngredients([...extraIngredients, {
+                                            original: '',
+                                            quantity: 1,
+                                            unit: 'oz',
+                                            name: '',
+                                            checked: true,
+                                        }]);
+                                    }}
+                                    style={{ marginTop: '8px' }}
+                                >
+                                    + Add Extra Item
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Collapsible Instructions */}
+                    {recipe.path && (
+                        <div className="mise-modal-section">
+                            <h3
+                                className="mise-collapsible-header"
+                                onClick={() => setInstructionsExpanded(!instructionsExpanded)}
+                                style={{ cursor: 'pointer', userSelect: 'none' }}
+                            >
+                                {instructionsExpanded ? '▼' : '▶'} Instructions
+                            </h3>
+                            {instructionsExpanded && (
+                                <div className="mise-instructions-content">
+                                    {instructionsLoading ? (
+                                        <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                            Loading instructions...
+                                        </p>
+                                    ) : instructions.length > 0 ? (
+                                        <ol className="mise-instructions-list">
+                                            {instructions.map((step, index) => (
+                                                <li key={index} className="mise-instruction-step">
+                                                    {step}
+                                                </li>
+                                            ))}
+                                        </ol>
+                                    ) : (
+                                        <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                            No instructions found.
+                                        </p>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -227,7 +424,8 @@ export function RecipeModal() {
                             className="mise-btn mise-btn-secondary"
                             onClick={() => {
                                 closeModal();
-                                logMeal(recipe);
+                                // Pass edited + extra ingredients to logMeal
+                                logMeal(recipe, [...editedIngredients, ...extraIngredients]);
                             }}
                             title="Log this meal and deduct ingredients from inventory"
                         >
