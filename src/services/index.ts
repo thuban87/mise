@@ -9,4 +9,6 @@ export type { ParsedMealPlan, MealType } from './MealPlanParser';
 export { ShoppingListService } from './ShoppingListService';
 export { TimeMigrationService } from './TimeMigrationService';
 export { ImporterService } from './ImporterService';
-
+export { InventoryService } from './InventoryService';
+export { IngredientIndexService } from './IngredientIndexService';
+export type { IndexedIngredient } from './IngredientIndexService';

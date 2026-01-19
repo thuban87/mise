@@ -10,7 +10,7 @@
 
 import { Plugin, WorkspaceLeaf, Notice, TFile, Menu } from 'obsidian';
 import { MiseSettings, DEFAULT_SETTINGS } from './types';
-import { RecipeIndexer, MealPlanService, ShoppingListService, ImporterService } from './services';
+import { RecipeIndexer, MealPlanService, ShoppingListService, ImporterService, IngredientIndexService } from './services';
 import { RecipeScalingService } from './services/RecipeScalingService';
 import { InventoryService } from './services/InventoryService';
 import { MiseSettingsTab } from './ui/settings/MiseSettingsTab';
@@ -36,6 +36,7 @@ export default class MisePlugin extends Plugin {
     importerService: ImporterService;
     scalingService: RecipeScalingService;
     inventoryService: InventoryService;
+    ingredientIndex: IngredientIndexService;
     statusBar: MiseStatusBar;
 
     async onload(): Promise<void> {
@@ -51,6 +52,7 @@ export default class MisePlugin extends Plugin {
         this.importerService = new ImporterService(this.app, this.settings);
         this.scalingService = new RecipeScalingService(this.app, this.settings, this.indexer);
         this.inventoryService = new InventoryService(this.app, this.settings);
+        this.ingredientIndex = new IngredientIndexService(this.app, this.settings);
 
         // Wire up service dependencies
         this.shoppingListService.setMealPlanService(this.mealPlanService);
@@ -59,9 +61,18 @@ export default class MisePlugin extends Plugin {
         this.indexer.initialize();
 
         // Initialize meal plan and inventory after layout is ready (vault files are loaded)
-        this.app.workspace.onLayoutReady(() => {
+        this.app.workspace.onLayoutReady(async () => {
             this.mealPlanService.initialize();
-            this.inventoryService.initialize();
+            await this.inventoryService.initialize();
+
+            // Initialize ingredient index with data from inventory and recipes
+            const inventoryItems = this.inventoryService.getStock().map(i => i.name);
+            const recipeIngredients = this.indexer.getRecipes().flatMap((r: { ingredients: string[] }) => r.ingredients);
+            await this.ingredientIndex.initialize(inventoryItems, recipeIngredients);
+
+            // Connect ingredient index to inventory service for alias-based matching
+            this.inventoryService.setIngredientIndex(this.ingredientIndex);
+
             // Initialize status bar after inventory is loaded
             this.statusBar = new MiseStatusBar(this);
         });
@@ -209,7 +220,6 @@ export default class MisePlugin extends Plugin {
             }
         });
 
-        // Inventory commands
         this.addCommand({
             id: 'add-inventory-item',
             name: 'Add Inventory Item',
@@ -218,8 +228,9 @@ export default class MisePlugin extends Plugin {
                     this.app,
                     this.settings,
                     this.inventoryService,
-                    () => {
-                        // Refresh callback - could update any open inventory views
+                    this.ingredientIndex,
+                    async () => {
+                        // Add new ingredient to the index
                     }
                 ).open();
             }
@@ -246,6 +257,7 @@ export default class MisePlugin extends Plugin {
                     this.settings,
                     this.mealPlanService,
                     this.inventoryService,
+                    this.ingredientIndex,
                     this.indexer
                 ).open();
             }
@@ -275,6 +287,7 @@ export default class MisePlugin extends Plugin {
                 this.app,
                 this.settings,
                 this.inventoryService,
+                this.ingredientIndex,
                 () => { }
             ).open();
         });
@@ -285,6 +298,7 @@ export default class MisePlugin extends Plugin {
                 this.settings,
                 this.mealPlanService,
                 this.inventoryService,
+                this.ingredientIndex,
                 this.indexer
             ).open();
         });

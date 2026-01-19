@@ -16,6 +16,7 @@ import {
     InventoryCategory
 } from '../types';
 import { normalizeIngredient } from '../parsers/IngredientParser';
+import type { IngredientIndexService } from './IngredientIndexService';
 
 // Category file mapping
 const CATEGORY_FILES: Record<InventoryCategory, string> = {
@@ -32,6 +33,7 @@ export class InventoryService {
     private settings: MiseSettings;
     private inventory: Map<string, InventoryItem> = new Map();
     private isLoaded = false;
+    private ingredientIndex: IngredientIndexService | null = null;
 
     constructor(app: App, settings: MiseSettings) {
         this.app = app;
@@ -53,6 +55,13 @@ export class InventoryService {
      */
     updateSettings(settings: MiseSettings): void {
         this.settings = settings;
+    }
+
+    /**
+     * Set the ingredient index for alias-based matching
+     */
+    setIngredientIndex(index: IngredientIndexService): void {
+        this.ingredientIndex = index;
     }
 
     /**
@@ -81,10 +90,24 @@ export class InventoryService {
     }
 
     /**
-     * Find inventory item by name using fuzzy matching
+     * Find inventory item by name using fuzzy matching and alias lookup
      */
     findItem(name: string): InventoryItem | null {
         const normalizedSearch = normalizeIngredient(name);
+
+        // Try alias lookup first if ingredient index is available
+        if (this.ingredientIndex && this.ingredientIndex.isReady()) {
+            const canonicalName = this.ingredientIndex.findCanonicalName(name);
+            if (canonicalName) {
+                // Search for the canonical name
+                const normalizedCanonical = normalizeIngredient(canonicalName);
+                for (const item of this.inventory.values()) {
+                    if (normalizeIngredient(item.name) === normalizedCanonical) {
+                        return item;
+                    }
+                }
+            }
+        }
 
         // Exact match first
         for (const item of this.inventory.values()) {

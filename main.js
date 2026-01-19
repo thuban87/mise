@@ -24974,14 +24974,14 @@ var LogMealModal_exports = {};
 __export(LogMealModal_exports, {
   LogMealModal: () => LogMealModal
 });
-var import_obsidian11, LogMealModal;
+var import_obsidian13, LogMealModal;
 var init_LogMealModal = __esm({
   "src/ui/components/LogMealModal.ts"() {
-    import_obsidian11 = require("obsidian");
+    import_obsidian13 = require("obsidian");
     init_IngredientParser();
     init_QuantityParser();
-    LogMealModal = class extends import_obsidian11.Modal {
-      constructor(app, settings, mealPlanService, inventoryService, indexer, preSelectedRecipe) {
+    LogMealModal = class extends import_obsidian13.Modal {
+      constructor(app, settings, mealPlanService, inventoryService, ingredientIndex, indexer, preSelectedRecipe) {
         super(app);
         // State
         this.step = "select";
@@ -24994,6 +24994,7 @@ var init_LogMealModal = __esm({
         this.settings = settings;
         this.mealPlanService = mealPlanService;
         this.inventoryService = inventoryService;
+        this.ingredientIndex = ingredientIndex;
         this.indexer = indexer;
         this.preSelectedRecipe = preSelectedRecipe || null;
       }
@@ -25098,7 +25099,7 @@ var init_LogMealModal = __esm({
           const opt = recipeDropdown.createEl("option", { text: recipe.title });
           opt.value = recipe.path;
         }
-        new import_obsidian11.Setting(contentEl).setName("Meal Type").addDropdown((dropdown) => {
+        new import_obsidian13.Setting(contentEl).setName("Meal Type").addDropdown((dropdown) => {
           dropdown.addOption("breakfast", "\u{1F373} Breakfast");
           dropdown.addOption("lunch", "\u{1F957} Lunch");
           dropdown.addOption("dinner", "\u{1F37D}\uFE0F Dinner");
@@ -25114,7 +25115,7 @@ var init_LogMealModal = __esm({
         selectBtn.onclick = async () => {
           const selectedPath = recipeDropdown.value;
           if (!selectedPath) {
-            new import_obsidian11.Notice("Please select a recipe");
+            new import_obsidian13.Notice("Please select a recipe");
             return;
           }
           const recipe = this.indexer.getRecipe(selectedPath);
@@ -25153,7 +25154,7 @@ var init_LogMealModal = __esm({
           }
         }
         if (!this.selectedRecipe) {
-          new import_obsidian11.Notice(`Could not load recipe: ${title}`);
+          new import_obsidian13.Notice(`Could not load recipe: ${title}`);
           return;
         }
         this.ingredients = this.selectedRecipe.ingredients.map((ing) => {
@@ -25272,8 +25273,16 @@ var init_LogMealModal = __esm({
           datalist = contentEl.createEl("datalist");
           datalist.id = "inventory-items-list";
           const inventoryItems = this.inventoryService.getStock();
+          const addedNames = /* @__PURE__ */ new Set();
           for (const item of inventoryItems) {
             datalist.createEl("option", { value: item.name });
+            addedNames.add(item.name.toLowerCase());
+          }
+          const indexedIngredients = this.ingredientIndex.getAllIngredients();
+          for (const ing of indexedIngredients) {
+            if (!addedNames.has(ing.name.toLowerCase())) {
+              datalist.createEl("option", { value: ing.name });
+            }
           }
         }
         const addBtn = customSection.createEl("button", { text: "+ Add Item" });
@@ -25306,7 +25315,7 @@ var init_LogMealModal = __esm({
         const allIngredients = [...this.ingredients, ...this.customIngredients];
         const checkedIngredients = allIngredients.filter((i) => i.checked && i.quantity > 0 && i.name.trim());
         if (checkedIngredients.length === 0) {
-          new import_obsidian11.Notice("No ingredients selected");
+          new import_obsidian13.Notice("No ingredients selected");
           return;
         }
         button.textContent = "Logging...";
@@ -25334,11 +25343,11 @@ var init_LogMealModal = __esm({
           if (notFound > 0) {
             message += ` \u26A0\uFE0F ${notFound} not in inventory`;
           }
-          new import_obsidian11.Notice(message);
+          new import_obsidian13.Notice(message);
           this.close();
         } catch (error) {
           console.error("LogMealModal: Error logging meal", error);
-          new import_obsidian11.Notice(`\u274C Error: ${error.message || "Unknown error"}`);
+          new import_obsidian13.Notice(`\u274C Error: ${error.message || "Unknown error"}`);
           button.textContent = "\u2713 Log Meal & Deduct";
           button.disabled = false;
         }
@@ -25397,7 +25406,7 @@ __export(main_exports, {
   default: () => MisePlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian23 = require("obsidian");
+var import_obsidian26 = require("obsidian");
 
 // src/types/index.ts
 var DEFAULT_SETTINGS = {
@@ -27627,8 +27636,8 @@ var ShoppingListService = class {
     if (this.settings.autoArchiveShoppingLists === "on") {
       await this.archiveFiles(filesToArchive);
     } else if (this.settings.autoArchiveShoppingLists === "ask") {
-      const { Notice: Notice10 } = require("obsidian");
-      const notice = new Notice10(
+      const { Notice: Notice11 } = require("obsidian");
+      const notice = new Notice11(
         `\u{1F4CB} ${filesToArchive.length} old shopping list(s) found. Archive them?`,
         0
         // Don't auto-hide
@@ -28502,131 +28511,8 @@ var ImporterService = class {
   }
 };
 
-// src/services/RecipeScalingService.ts
-var import_obsidian6 = require("obsidian");
-init_QuantityParser();
-var RecipeScalingService = class {
-  constructor(app, settings, indexer) {
-    this.app = app;
-    this.settings = settings;
-    this.indexer = indexer;
-  }
-  /**
-   * Parse servings string to a number
-   * Handles: "4", "8 pancakes", "6-8 servings"
-   */
-  parseServings(servingsStr) {
-    if (!servingsStr) return null;
-    const match = servingsStr.match(/(\d+)/);
-    return match ? parseInt(match[1]) : null;
-  }
-  /**
-   * Calculate scale factor from current and target servings
-   */
-  calculateScaleFactor(currentServings, targetServings) {
-    return targetServings / currentServings;
-  }
-  /**
-   * Scale all ingredients by a factor
-   */
-  scaleIngredients(ingredients, factor) {
-    return ingredients.map((ingredient) => {
-      const parsed = parseIngredient(ingredient);
-      const scaled = scaleQuantity(parsed, factor);
-      return formatScaledIngredient(scaled);
-    });
-  }
-  /**
-   * Generate a new filename for the scaled recipe
-   */
-  generateScaledFilename(originalPath, targetServings) {
-    var _a;
-    const file = this.app.vault.getAbstractFileByPath(originalPath);
-    if (!file || !(file instanceof import_obsidian6.TFile)) {
-      throw new Error(`File not found: ${originalPath}`);
-    }
-    const baseName = file.basename;
-    const parentPath = ((_a = file.parent) == null ? void 0 : _a.path) || "";
-    const newName = `${baseName} (Scaled to ${targetServings})`;
-    return parentPath ? `${parentPath}/${newName}.md` : `${newName}.md`;
-  }
-  /**
-   * Create a scaled copy of a recipe file
-   * Returns the path to the new file
-   */
-  async createScaledCopy(originalPath, targetServings) {
-    const file = this.app.vault.getAbstractFileByPath(originalPath);
-    if (!file || !(file instanceof import_obsidian6.TFile)) {
-      throw new Error(`File not found: ${originalPath}`);
-    }
-    const recipe = this.indexer.getRecipe(originalPath);
-    if (!recipe) {
-      throw new Error(`Recipe not indexed: ${originalPath}`);
-    }
-    const currentServings = this.parseServings(recipe.servings);
-    if (!currentServings) {
-      throw new Error(`Cannot parse servings: ${recipe.servings}`);
-    }
-    const factor = this.calculateScaleFactor(currentServings, targetServings);
-    const scaledIngredients = this.scaleIngredients(recipe.ingredients, factor);
-    const originalContent = await this.app.vault.read(file);
-    const newContent = this.replaceIngredients(
-      originalContent,
-      recipe.ingredients,
-      scaledIngredients,
-      recipe.servings,
-      targetServings.toString()
-    );
-    const newPath = this.generateScaledFilename(originalPath, targetServings);
-    const existingFile = this.app.vault.getAbstractFileByPath(newPath);
-    if (existingFile) {
-      await this.app.vault.modify(existingFile, newContent);
-    } else {
-      await this.app.vault.create(newPath, newContent);
-    }
-    console.log(`RecipeScalingService: Created scaled recipe at ${newPath}`);
-    return newPath;
-  }
-  /**
-   * Replace ingredients in the file content
-   */
-  replaceIngredients(content, originalIngredients, scaledIngredients, originalServings, newServings) {
-    let result = content;
-    result = result.replace(
-      /^(servings:\s*).+$/m,
-      `$1${newServings}`
-    );
-    for (let i = 0; i < originalIngredients.length; i++) {
-      const original = originalIngredients[i];
-      const scaled = scaledIngredients[i];
-      if (original !== scaled) {
-        const escaped = original.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        const regex = new RegExp(
-          `^(\\s*[-*+]\\s*(?:\\[[x ]\\]\\s*)?)${escaped}(\\s*)$`,
-          "mi"
-        );
-        result = result.replace(regex, `$1${scaled}$2`);
-      }
-    }
-    return result;
-  }
-  /**
-   * Get a preview of scaled ingredients without creating a file
-   * (for modal display)
-   */
-  getScaledPreview(recipe, targetServings) {
-    const currentServings = this.parseServings(recipe.servings);
-    if (!currentServings) {
-      return null;
-    }
-    const factor = this.calculateScaleFactor(currentServings, targetServings);
-    const ingredients = this.scaleIngredients(recipe.ingredients, factor);
-    return { ingredients, factor };
-  }
-};
-
 // src/services/InventoryService.ts
-var import_obsidian7 = require("obsidian");
+var import_obsidian6 = require("obsidian");
 init_IngredientParser();
 var CATEGORY_FILES = {
   "Pantry": "Inventory - Pantry.md",
@@ -28638,6 +28524,7 @@ var InventoryService = class {
   constructor(app, settings) {
     this.inventory = /* @__PURE__ */ new Map();
     this.isLoaded = false;
+    this.ingredientIndex = null;
     this.app = app;
     this.settings = settings;
   }
@@ -28655,6 +28542,12 @@ var InventoryService = class {
    */
   updateSettings(settings) {
     this.settings = settings;
+  }
+  /**
+   * Set the ingredient index for alias-based matching
+   */
+  setIngredientIndex(index) {
+    this.ingredientIndex = index;
   }
   /**
    * Reload inventory from files (useful for getting fresh data)
@@ -28679,10 +28572,21 @@ var InventoryService = class {
     return items;
   }
   /**
-   * Find inventory item by name using fuzzy matching
+   * Find inventory item by name using fuzzy matching and alias lookup
    */
   findItem(name) {
     const normalizedSearch = normalizeIngredient(name);
+    if (this.ingredientIndex && this.ingredientIndex.isReady()) {
+      const canonicalName = this.ingredientIndex.findCanonicalName(name);
+      if (canonicalName) {
+        const normalizedCanonical = normalizeIngredient(canonicalName);
+        for (const item of this.inventory.values()) {
+          if (normalizeIngredient(item.name) === normalizedCanonical) {
+            return item;
+          }
+        }
+      }
+    }
     for (const item of this.inventory.values()) {
       if (normalizeIngredient(item.name) === normalizedSearch) {
         return item;
@@ -28805,7 +28709,7 @@ var InventoryService = class {
   async loadCategoryFile(category) {
     const filePath = `${this.settings.inventoryFolder}/${CATEGORY_FILES[category]}`;
     const file = this.app.vault.getAbstractFileByPath(filePath);
-    if (!file || !(file instanceof import_obsidian7.TFile)) {
+    if (!file || !(file instanceof import_obsidian6.TFile)) {
       return;
     }
     const content = await this.app.vault.read(file);
@@ -28823,7 +28727,7 @@ var InventoryService = class {
     const content = this.generateCategoryFileContent(category, items);
     await this.ensureFolderExists(this.settings.inventoryFolder);
     const file = this.app.vault.getAbstractFileByPath(filePath);
-    if (file && file instanceof import_obsidian7.TFile) {
+    if (file && file instanceof import_obsidian6.TFile) {
       await this.app.vault.modify(file, content);
     } else {
       await this.app.vault.create(filePath, content);
@@ -28870,7 +28774,7 @@ var InventoryService = class {
     }
     await this.ensureFolderExists(this.settings.inventoryFolder);
     const file = this.app.vault.getAbstractFileByPath(filePath);
-    if (file && file instanceof import_obsidian7.TFile) {
+    if (file && file instanceof import_obsidian6.TFile) {
       await this.app.vault.modify(file, content);
     } else {
       await this.app.vault.create(filePath, content);
@@ -29024,19 +28928,591 @@ var InventoryService = class {
   }
 };
 
+// src/services/IngredientIndexService.ts
+var import_obsidian7 = require("obsidian");
+init_IngredientParser();
+var INDEX_VERSION = 1;
+var INDEX_FILENAME = "Ingredient Index.json";
+var _IngredientIndexService = class _IngredientIndexService {
+  constructor(app, settings) {
+    this.ingredients = /* @__PURE__ */ new Map();
+    this.aliasMap = /* @__PURE__ */ new Map();
+    // alias -> canonical name
+    this.isLoaded = false;
+    this.app = app;
+    this.settings = settings;
+  }
+  /**
+   * Initialize the service - load from file and populate from sources
+   */
+  async initialize(inventoryItems, recipeIngredients) {
+    await this.loadFromFile();
+    for (const item of inventoryItems) {
+      this.addIngredientInternal(item, "inventory");
+    }
+    for (const ingredient of recipeIngredients) {
+      const name = this.extractIngredientName(ingredient);
+      if (name) {
+        this.addIngredientInternal(name, "recipe");
+      }
+    }
+    await this.saveToFile();
+    this.isLoaded = true;
+    console.log(`Mise: Loaded ${this.ingredients.size} indexed ingredients`);
+  }
+  /**
+   * Update settings reference
+   */
+  updateSettings(settings) {
+    this.settings = settings;
+  }
+  /**
+   * Check if service is ready
+   */
+  isReady() {
+    return this.isLoaded;
+  }
+  /**
+   * Get all indexed ingredients
+   */
+  getAllIngredients() {
+    return Array.from(this.ingredients.values());
+  }
+  /**
+   * Search for ingredients matching a query
+   * Returns matches sorted by relevance (exact match first, then starts-with, then contains)
+   */
+  search(query, limit = 10) {
+    if (!query.trim()) {
+      return Array.from(this.ingredients.values()).sort((a, b) => b.lastUsed.localeCompare(a.lastUsed)).slice(0, limit);
+    }
+    const normalizedQuery = normalizeIngredient(query);
+    const results = [];
+    for (const ingredient of this.ingredients.values()) {
+      const normalizedName = normalizeIngredient(ingredient.name);
+      let score = 0;
+      if (normalizedName === normalizedQuery) {
+        score = 100;
+      } else if (normalizedName.startsWith(normalizedQuery)) {
+        score = 80;
+      } else if (normalizedName.includes(normalizedQuery)) {
+        score = 60;
+      } else {
+        for (const alias of ingredient.aliases) {
+          const normalizedAlias = normalizeIngredient(alias);
+          if (normalizedAlias === normalizedQuery) {
+            score = 90;
+            break;
+          } else if (normalizedAlias.startsWith(normalizedQuery)) {
+            score = 70;
+            break;
+          } else if (normalizedAlias.includes(normalizedQuery)) {
+            score = 50;
+            break;
+          }
+        }
+      }
+      if (score > 0) {
+        results.push({ ingredient, score });
+      }
+    }
+    return results.sort((a, b) => b.score - a.score || a.ingredient.name.localeCompare(b.ingredient.name)).slice(0, limit).map((r) => r.ingredient);
+  }
+  /**
+   * Add a new ingredient to the index
+   */
+  async addIngredient(name, source) {
+    this.addIngredientInternal(name, source);
+    await this.saveToFile();
+  }
+  /**
+   * Internal add without save (for batch operations)
+   */
+  addIngredientInternal(name, source) {
+    const normalizedName = normalizeIngredient(name);
+    if (!normalizedName) return;
+    const existing = this.ingredients.get(normalizedName);
+    if (existing) {
+      existing.lastUsed = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+      if (!existing.sources.includes(source)) {
+        existing.sources.push(source);
+      }
+    } else {
+      this.ingredients.set(normalizedName, {
+        name: name.trim().toLowerCase(),
+        aliases: [],
+        lastUsed: (/* @__PURE__ */ new Date()).toISOString().split("T")[0],
+        sources: [source]
+      });
+    }
+  }
+  /**
+   * Add an alias for an ingredient
+   */
+  async addAlias(ingredientName, alias) {
+    const normalizedName = normalizeIngredient(ingredientName);
+    const normalizedAlias = normalizeIngredient(alias);
+    if (!normalizedName || !normalizedAlias) return false;
+    const ingredient = this.ingredients.get(normalizedName);
+    if (!ingredient) {
+      this.addIngredientInternal(ingredientName, "manual");
+    }
+    const target = this.ingredients.get(normalizedName);
+    const existingTarget = this.aliasMap.get(normalizedAlias);
+    if (existingTarget && existingTarget !== normalizedName) {
+      console.warn(`Mise: Alias "${alias}" already maps to "${existingTarget}"`);
+      return false;
+    }
+    if (!target.aliases.some((a) => normalizeIngredient(a) === normalizedAlias)) {
+      target.aliases.push(alias.trim().toLowerCase());
+      this.aliasMap.set(normalizedAlias, normalizedName);
+      await this.saveToFile();
+    }
+    return true;
+  }
+  /**
+   * Remove an alias from an ingredient
+   */
+  async removeAlias(ingredientName, alias) {
+    const normalizedName = normalizeIngredient(ingredientName);
+    const normalizedAlias = normalizeIngredient(alias);
+    const ingredient = this.ingredients.get(normalizedName);
+    if (!ingredient) return false;
+    const index = ingredient.aliases.findIndex((a) => normalizeIngredient(a) === normalizedAlias);
+    if (index === -1) return false;
+    ingredient.aliases.splice(index, 1);
+    this.aliasMap.delete(normalizedAlias);
+    await this.saveToFile();
+    return true;
+  }
+  /**
+   * Find the canonical ingredient name from a name or alias
+   * Handles raw recipe strings like "New York strip steak (boneless or bone-in)"
+   * Returns null if not found
+   */
+  findCanonicalName(nameOrAlias) {
+    const extracted = this.extractIngredientName(nameOrAlias);
+    const normalized = normalizeIngredient(extracted);
+    if (!normalized) return null;
+    if (this.ingredients.has(normalized)) {
+      return this.ingredients.get(normalized).name;
+    }
+    const canonical = this.aliasMap.get(normalized);
+    if (canonical && this.ingredients.has(canonical)) {
+      return this.ingredients.get(canonical).name;
+    }
+    for (const [key, ingredient] of this.ingredients) {
+      if (key.includes(normalized) || normalized.includes(key)) {
+        return ingredient.name;
+      }
+      for (const alias of ingredient.aliases) {
+        const normalizedAlias = normalizeIngredient(alias);
+        if (normalizedAlias.includes(normalized) || normalized.includes(normalizedAlias)) {
+          return ingredient.name;
+        }
+      }
+    }
+    return null;
+  }
+  /**
+   * Get ingredient by canonical name
+   */
+  getIngredient(name) {
+    const normalized = normalizeIngredient(name);
+    return this.ingredients.get(normalized) || null;
+  }
+  /**
+   * Remove an ingredient from the index
+   */
+  async removeIngredient(name) {
+    const normalized = normalizeIngredient(name);
+    const ingredient = this.ingredients.get(normalized);
+    if (!ingredient) return false;
+    for (const alias of ingredient.aliases) {
+      this.aliasMap.delete(normalizeIngredient(alias));
+    }
+    this.ingredients.delete(normalized);
+    await this.saveToFile();
+    return true;
+  }
+  /**
+   * Merge two ingredients (combine aliases, keep first as canonical)
+   */
+  async mergeIngredients(primaryName, secondaryName) {
+    const primaryNorm = normalizeIngredient(primaryName);
+    const secondaryNorm = normalizeIngredient(secondaryName);
+    const primary = this.ingredients.get(primaryNorm);
+    const secondary = this.ingredients.get(secondaryNorm);
+    if (!primary || !secondary) return false;
+    if (!primary.aliases.some((a) => normalizeIngredient(a) === secondaryNorm)) {
+      primary.aliases.push(secondary.name);
+      this.aliasMap.set(secondaryNorm, primaryNorm);
+    }
+    for (const alias of secondary.aliases) {
+      const normalizedAlias = normalizeIngredient(alias);
+      if (!primary.aliases.some((a) => normalizeIngredient(a) === normalizedAlias)) {
+        primary.aliases.push(alias);
+        this.aliasMap.set(normalizedAlias, primaryNorm);
+      }
+    }
+    for (const source of secondary.sources) {
+      if (!primary.sources.includes(source)) {
+        primary.sources.push(source);
+      }
+    }
+    if (secondary.lastUsed > primary.lastUsed) {
+      primary.lastUsed = secondary.lastUsed;
+    }
+    this.ingredients.delete(secondaryNorm);
+    await this.saveToFile();
+    return true;
+  }
+  // =========================================================================
+  // Persistence
+  // =========================================================================
+  /**
+   * Get the index file path
+   */
+  getIndexPath() {
+    return (0, import_obsidian7.normalizePath)(`${this.settings.inventoryFolder}/${INDEX_FILENAME}`);
+  }
+  /**
+   * Load index from file
+   */
+  async loadFromFile() {
+    const filePath = this.getIndexPath();
+    const file = this.app.vault.getAbstractFileByPath(filePath);
+    if (!file || !(file instanceof import_obsidian7.TFile)) {
+      return;
+    }
+    try {
+      const content = await this.app.vault.read(file);
+      const data = JSON.parse(content);
+      if (data.version !== INDEX_VERSION) {
+        console.log("Mise: Ingredient index version mismatch, will rebuild");
+        return;
+      }
+      for (const ingredient of data.ingredients) {
+        const normalized = normalizeIngredient(ingredient.name);
+        this.ingredients.set(normalized, ingredient);
+        for (const alias of ingredient.aliases) {
+          this.aliasMap.set(normalizeIngredient(alias), normalized);
+        }
+      }
+    } catch (e) {
+      console.error("Mise: Failed to load ingredient index", e);
+    }
+  }
+  /**
+   * Save index to file
+   */
+  async saveToFile() {
+    const filePath = this.getIndexPath();
+    const data = {
+      version: INDEX_VERSION,
+      ingredients: Array.from(this.ingredients.values())
+    };
+    const content = JSON.stringify(data, null, 2);
+    const folderPath = this.settings.inventoryFolder;
+    const folder = this.app.vault.getAbstractFileByPath(folderPath);
+    if (!folder) {
+      await this.app.vault.createFolder(folderPath);
+    }
+    const file = this.app.vault.getAbstractFileByPath(filePath);
+    if (file && file instanceof import_obsidian7.TFile) {
+      await this.app.vault.modify(file, content);
+    } else {
+      await this.app.vault.create(filePath, content);
+    }
+  }
+  /**
+   * Extract ingredient name from full ingredient string (strip quantity/unit/notes)
+   * "2 cups flour" -> "flour"
+   * "1/2 tsp salt, divided" -> "salt"
+   * "1 lb new york strip steak (boneless or bone-in)" -> "new york strip steak"
+   */
+  extractIngredientName(ingredientStr) {
+    let remaining = ingredientStr.trim();
+    remaining = remaining.replace(/^[\d\s\/⁄.,]+/, "").trim();
+    const units = [
+      "cups?",
+      "c\\.?",
+      "tablespoons?",
+      "tbsp\\.?",
+      "tbs\\.?",
+      "tb\\.?",
+      "teaspoons?",
+      "tsp\\.?",
+      "ts\\.?",
+      "pounds?",
+      "lbs?\\.?",
+      "ounces?",
+      "oz\\.?",
+      "grams?",
+      "g\\.?",
+      "kilograms?",
+      "kg\\.?",
+      "pints?",
+      "pt\\.?",
+      "quarts?",
+      "qt\\.?",
+      "gallons?",
+      "gal\\.?",
+      "milliliters?",
+      "ml\\.?",
+      "liters?",
+      "l\\.?",
+      "pieces?",
+      "pcs?\\.?",
+      "slices?",
+      "cloves?",
+      "cans?",
+      "packages?",
+      "pkgs?\\.?",
+      "bunche?s?",
+      "sprigs?",
+      "pinche?s?",
+      "dashe?s?",
+      "heads?",
+      "stalks?",
+      "sticks?",
+      "small",
+      "medium",
+      "large"
+    ];
+    const unitPattern = new RegExp(`^(${units.join("|")})\\s+`, "i");
+    remaining = remaining.replace(unitPattern, "").trim();
+    remaining = remaining.replace(/^of\s+/i, "").trim();
+    remaining = remaining.replace(/\s*\([^)]*\)\s*/g, " ").trim();
+    remaining = remaining.replace(/,\s+.*$/, "").trim();
+    for (const word of _IngredientIndexService.PREP_WORDS) {
+      const endPattern = new RegExp(`\\s+${word}$`, "gi");
+      remaining = remaining.replace(endPattern, "").trim();
+      const startPattern = new RegExp(`^${word}\\s+`, "gi");
+      remaining = remaining.replace(startPattern, "").trim();
+    }
+    remaining = remaining.replace(/\s+/g, " ").trim();
+    return remaining.toLowerCase();
+  }
+};
+// =========================================================================
+// Utilities
+// =========================================================================
+/**
+ * Common preparation/modifier words to strip from ingredient names
+ */
+_IngredientIndexService.PREP_WORDS = [
+  "minced",
+  "diced",
+  "chopped",
+  "sliced",
+  "crushed",
+  "grated",
+  "shredded",
+  "peeled",
+  "cubed",
+  "halved",
+  "quartered",
+  "whole",
+  "fresh",
+  "dried",
+  "ground",
+  "powdered",
+  "melted",
+  "softened",
+  "chilled",
+  "cold",
+  "warm",
+  "hot",
+  "room temperature",
+  "cooked",
+  "uncooked",
+  "raw",
+  "frozen",
+  "thawed",
+  "canned",
+  "drained",
+  "rinsed",
+  "packed",
+  "loosely packed",
+  "firmly packed",
+  "sifted",
+  "unsifted",
+  "divided",
+  "plus more",
+  "to taste",
+  "for garnish",
+  "for serving",
+  "optional",
+  "or more",
+  "as needed",
+  "if desired",
+  "pureed",
+  "mashed",
+  "beaten",
+  "whisked",
+  "separated",
+  "at room temperature",
+  "finely",
+  "coarsely",
+  "thinly",
+  "thickly",
+  "roughly",
+  "julienned",
+  "zested",
+  "juiced",
+  "seeded",
+  "deveined",
+  "trimmed",
+  "washed",
+  "cleaned",
+  "torn",
+  "crumbled",
+  "boneless",
+  "bone-in",
+  "skinless",
+  "skin-on",
+  "thick-cut",
+  "thin-cut"
+];
+var IngredientIndexService = _IngredientIndexService;
+
+// src/services/RecipeScalingService.ts
+var import_obsidian8 = require("obsidian");
+init_QuantityParser();
+var RecipeScalingService = class {
+  constructor(app, settings, indexer) {
+    this.app = app;
+    this.settings = settings;
+    this.indexer = indexer;
+  }
+  /**
+   * Parse servings string to a number
+   * Handles: "4", "8 pancakes", "6-8 servings"
+   */
+  parseServings(servingsStr) {
+    if (!servingsStr) return null;
+    const match = servingsStr.match(/(\d+)/);
+    return match ? parseInt(match[1]) : null;
+  }
+  /**
+   * Calculate scale factor from current and target servings
+   */
+  calculateScaleFactor(currentServings, targetServings) {
+    return targetServings / currentServings;
+  }
+  /**
+   * Scale all ingredients by a factor
+   */
+  scaleIngredients(ingredients, factor) {
+    return ingredients.map((ingredient) => {
+      const parsed = parseIngredient(ingredient);
+      const scaled = scaleQuantity(parsed, factor);
+      return formatScaledIngredient(scaled);
+    });
+  }
+  /**
+   * Generate a new filename for the scaled recipe
+   */
+  generateScaledFilename(originalPath, targetServings) {
+    var _a;
+    const file = this.app.vault.getAbstractFileByPath(originalPath);
+    if (!file || !(file instanceof import_obsidian8.TFile)) {
+      throw new Error(`File not found: ${originalPath}`);
+    }
+    const baseName = file.basename;
+    const parentPath = ((_a = file.parent) == null ? void 0 : _a.path) || "";
+    const newName = `${baseName} (Scaled to ${targetServings})`;
+    return parentPath ? `${parentPath}/${newName}.md` : `${newName}.md`;
+  }
+  /**
+   * Create a scaled copy of a recipe file
+   * Returns the path to the new file
+   */
+  async createScaledCopy(originalPath, targetServings) {
+    const file = this.app.vault.getAbstractFileByPath(originalPath);
+    if (!file || !(file instanceof import_obsidian8.TFile)) {
+      throw new Error(`File not found: ${originalPath}`);
+    }
+    const recipe = this.indexer.getRecipe(originalPath);
+    if (!recipe) {
+      throw new Error(`Recipe not indexed: ${originalPath}`);
+    }
+    const currentServings = this.parseServings(recipe.servings);
+    if (!currentServings) {
+      throw new Error(`Cannot parse servings: ${recipe.servings}`);
+    }
+    const factor = this.calculateScaleFactor(currentServings, targetServings);
+    const scaledIngredients = this.scaleIngredients(recipe.ingredients, factor);
+    const originalContent = await this.app.vault.read(file);
+    const newContent = this.replaceIngredients(
+      originalContent,
+      recipe.ingredients,
+      scaledIngredients,
+      recipe.servings,
+      targetServings.toString()
+    );
+    const newPath = this.generateScaledFilename(originalPath, targetServings);
+    const existingFile = this.app.vault.getAbstractFileByPath(newPath);
+    if (existingFile) {
+      await this.app.vault.modify(existingFile, newContent);
+    } else {
+      await this.app.vault.create(newPath, newContent);
+    }
+    console.log(`RecipeScalingService: Created scaled recipe at ${newPath}`);
+    return newPath;
+  }
+  /**
+   * Replace ingredients in the file content
+   */
+  replaceIngredients(content, originalIngredients, scaledIngredients, originalServings, newServings) {
+    let result = content;
+    result = result.replace(
+      /^(servings:\s*).+$/m,
+      `$1${newServings}`
+    );
+    for (let i = 0; i < originalIngredients.length; i++) {
+      const original = originalIngredients[i];
+      const scaled = scaledIngredients[i];
+      if (original !== scaled) {
+        const escaped = original.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const regex = new RegExp(
+          `^(\\s*[-*+]\\s*(?:\\[[x ]\\]\\s*)?)${escaped}(\\s*)$`,
+          "mi"
+        );
+        result = result.replace(regex, `$1${scaled}$2`);
+      }
+    }
+    return result;
+  }
+  /**
+   * Get a preview of scaled ingredients without creating a file
+   * (for modal display)
+   */
+  getScaledPreview(recipe, targetServings) {
+    const currentServings = this.parseServings(recipe.servings);
+    if (!currentServings) {
+      return null;
+    }
+    const factor = this.calculateScaleFactor(currentServings, targetServings);
+    const ingredients = this.scaleIngredients(recipe.ingredients, factor);
+    return { ingredients, factor };
+  }
+};
+
 // src/ui/settings/MiseSettingsTab.ts
-var import_obsidian10 = require("obsidian");
+var import_obsidian12 = require("obsidian");
 
 // src/ui/components/FolderSuggest.ts
-var import_obsidian8 = require("obsidian");
-var FolderSuggest = class extends import_obsidian8.AbstractInputSuggest {
+var import_obsidian9 = require("obsidian");
+var FolderSuggest = class extends import_obsidian9.AbstractInputSuggest {
   constructor(app, inputEl) {
     super(app, inputEl);
     this.textInput = inputEl;
     this.folders = this.getFolders();
   }
   getFolders() {
-    return this.app.vault.getAllLoadedFiles().filter((f) => f instanceof import_obsidian8.TFolder).sort((a, b) => a.path.localeCompare(b.path));
+    return this.app.vault.getAllLoadedFiles().filter((f) => f instanceof import_obsidian9.TFolder).sort((a, b) => a.path.localeCompare(b.path));
   }
   getSuggestions(query) {
     const lowerQuery = query.toLowerCase();
@@ -29055,8 +29531,8 @@ var FolderSuggest = class extends import_obsidian8.AbstractInputSuggest {
 };
 
 // src/ui/settings/StoreProfileModal.ts
-var import_obsidian9 = require("obsidian");
-var StoreProfileModal = class extends import_obsidian9.Modal {
+var import_obsidian10 = require("obsidian");
+var StoreProfileModal = class extends import_obsidian10.Modal {
   constructor(app, profile, onSave) {
     super(app);
     this.profile = profile ? JSON.parse(JSON.stringify(profile)) : {
@@ -29078,10 +29554,10 @@ var StoreProfileModal = class extends import_obsidian9.Modal {
     this.renderFooter(contentEl);
   }
   renderBasicSettings(container) {
-    new import_obsidian9.Setting(container).setName("Store Name").setDesc('E.g. "Jewel-Osco", "Whole Foods"').addText((text) => text.setValue(this.profile.name).onChange((value) => {
+    new import_obsidian10.Setting(container).setName("Store Name").setDesc('E.g. "Jewel-Osco", "Whole Foods"').addText((text) => text.setValue(this.profile.name).onChange((value) => {
       this.profile.name = value;
     }));
-    new import_obsidian9.Setting(container).setName("Default Profile").setDesc("Use this store by default if no other is selected.").addToggle((toggle) => toggle.setValue(this.profile.isDefault).onChange((value) => {
+    new import_obsidian10.Setting(container).setName("Default Profile").setDesc("Use this store by default if no other is selected.").addToggle((toggle) => toggle.setValue(this.profile.isDefault).onChange((value) => {
       this.profile.isDefault = value;
     }));
   }
@@ -29106,8 +29582,8 @@ var StoreProfileModal = class extends import_obsidian9.Modal {
     const aisleDiv = container.createDiv("mise-aisle-item");
     aisleDiv.addClass("mise-card");
     const headerDiv = aisleDiv.createDiv("mise-aisle-header");
-    new import_obsidian9.Setting(headerDiv).setClass("mise-aisle-number-setting").addText((text) => text.setPlaceholder("8").setValue(aisle.aisleNumber).onChange((val) => aisle.aisleNumber = val));
-    new import_obsidian9.Setting(headerDiv).setClass("mise-aisle-name-setting").addText((text) => text.setPlaceholder("Spices \u{1F96B}").setValue(aisle.aisleName).onChange((val) => aisle.aisleName = val));
+    new import_obsidian10.Setting(headerDiv).setClass("mise-aisle-number-setting").addText((text) => text.setPlaceholder("8").setValue(aisle.aisleNumber).onChange((val) => aisle.aisleNumber = val));
+    new import_obsidian10.Setting(headerDiv).setClass("mise-aisle-name-setting").addText((text) => text.setPlaceholder("Spices \u{1F96B}").setValue(aisle.aisleName).onChange((val) => aisle.aisleName = val));
     const deleteBtn = headerDiv.createEl("div", { text: "\u{1F5D1}\uFE0F" });
     deleteBtn.addClass("mise-aisle-delete-btn");
     deleteBtn.onclick = () => {
@@ -29116,7 +29592,7 @@ var StoreProfileModal = class extends import_obsidian9.Modal {
     };
     const keywordsDiv = aisleDiv.createDiv("mise-aisle-keywords");
     keywordsDiv.createEl("span", { text: "Keywords (comma separated):" });
-    const textArea = new import_obsidian9.TextAreaComponent(keywordsDiv);
+    const textArea = new import_obsidian10.TextAreaComponent(keywordsDiv);
     textArea.setValue(aisle.keywords.join(", ")).setPlaceholder("cumin, paprika, salt, pepper...").onChange((val) => {
       aisle.keywords = val.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
     });
@@ -29146,8 +29622,232 @@ var StoreProfileModal = class extends import_obsidian9.Modal {
   }
 };
 
+// src/ui/settings/IngredientAliasModal.ts
+var import_obsidian11 = require("obsidian");
+var IngredientAliasModal = class extends import_obsidian11.Modal {
+  constructor(app, ingredientIndex) {
+    super(app);
+    this.searchQuery = "";
+    this.filteredIngredients = [];
+    this.ingredientIndex = ingredientIndex;
+  }
+  onOpen() {
+    this.render();
+  }
+  render() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.addClass("mise-alias-modal");
+    contentEl.createEl("h2", { text: "\u{1F958} Ingredient Aliases" });
+    contentEl.createEl("p", {
+      text: 'Add aliases for ingredients to improve matching. For example, "NY strip" \u2192 "new york strip steak".',
+      cls: "mise-modal-description"
+    });
+    const searchSetting = new import_obsidian11.Setting(contentEl).setName("Search ingredients").addText((text) => {
+      text.setPlaceholder("Type to filter...").setValue(this.searchQuery).onChange((value) => {
+        this.searchQuery = value;
+        this.updateFilteredIngredients();
+        this.renderIngredientList(listContainer);
+      });
+    });
+    const stats = contentEl.createDiv("mise-alias-stats");
+    const allIngredients = this.ingredientIndex.getAllIngredients();
+    const withAliases = allIngredients.filter((i) => i.aliases.length > 0);
+    stats.setText(`${allIngredients.length} ingredients indexed \u2022 ${withAliases.length} with aliases`);
+    stats.style.marginBottom = "16px";
+    stats.style.color = "var(--text-muted)";
+    stats.style.fontSize = "0.85em";
+    const listContainer = contentEl.createDiv("mise-alias-list");
+    listContainer.style.maxHeight = "400px";
+    listContainer.style.overflowY = "auto";
+    listContainer.style.marginBottom = "16px";
+    this.updateFilteredIngredients();
+    this.renderIngredientList(listContainer);
+    const buttonContainer = contentEl.createDiv("mise-modal-nav");
+    buttonContainer.style.paddingTop = "16px";
+    buttonContainer.style.borderTop = "1px solid var(--background-modifier-border)";
+    const closeBtn = buttonContainer.createEl("button", {
+      text: "Close",
+      cls: "mod-cta"
+    });
+    closeBtn.onclick = () => this.close();
+  }
+  updateFilteredIngredients() {
+    const all = this.ingredientIndex.getAllIngredients();
+    if (!this.searchQuery) {
+      this.filteredIngredients = all.sort((a, b) => {
+        if (b.aliases.length !== a.aliases.length) {
+          return b.aliases.length - a.aliases.length;
+        }
+        return a.name.localeCompare(b.name);
+      }).slice(0, 50);
+    } else {
+      const query = this.searchQuery.toLowerCase();
+      this.filteredIngredients = all.filter(
+        (i) => i.name.toLowerCase().includes(query) || i.aliases.some((a) => a.toLowerCase().includes(query))
+      ).slice(0, 50);
+    }
+  }
+  renderIngredientList(container) {
+    container.empty();
+    if (this.filteredIngredients.length === 0) {
+      container.createEl("p", {
+        text: "No ingredients found.",
+        cls: "mise-text-muted"
+      });
+      return;
+    }
+    for (const ingredient of this.filteredIngredients) {
+      const itemDiv = container.createDiv("mise-alias-item");
+      itemDiv.style.padding = "12px";
+      itemDiv.style.marginBottom = "8px";
+      itemDiv.style.background = "var(--background-secondary)";
+      itemDiv.style.borderRadius = "6px";
+      const headerRow = itemDiv.createDiv();
+      headerRow.style.display = "flex";
+      headerRow.style.justifyContent = "space-between";
+      headerRow.style.alignItems = "center";
+      headerRow.style.marginBottom = "8px";
+      const nameEl = headerRow.createEl("strong", { text: ingredient.name });
+      nameEl.style.fontSize = "1em";
+      const sourceEl = headerRow.createEl("span");
+      sourceEl.style.fontSize = "0.8em";
+      sourceEl.style.color = "var(--text-muted)";
+      const sourceIcons = [];
+      if (ingredient.sources.includes("inventory")) sourceIcons.push("\u{1F4E6}");
+      if (ingredient.sources.includes("recipe")) sourceIcons.push("\u{1F4D6}");
+      if (ingredient.sources.includes("meal-log")) sourceIcons.push("\u{1F37D}\uFE0F");
+      sourceEl.setText(sourceIcons.join(" "));
+      if (ingredient.aliases.length > 0) {
+        const aliasContainer = itemDiv.createDiv();
+        aliasContainer.style.display = "flex";
+        aliasContainer.style.flexWrap = "wrap";
+        aliasContainer.style.gap = "6px";
+        aliasContainer.style.marginBottom = "8px";
+        for (const alias of ingredient.aliases) {
+          const chip = aliasContainer.createEl("span");
+          chip.style.display = "inline-flex";
+          chip.style.alignItems = "center";
+          chip.style.gap = "4px";
+          chip.style.padding = "2px 8px";
+          chip.style.background = "var(--background-primary)";
+          chip.style.borderRadius = "12px";
+          chip.style.fontSize = "0.85em";
+          chip.createEl("span", { text: alias });
+          const removeBtn = chip.createEl("button", { text: "\xD7" });
+          removeBtn.style.border = "none";
+          removeBtn.style.background = "none";
+          removeBtn.style.cursor = "pointer";
+          removeBtn.style.padding = "0 2px";
+          removeBtn.style.color = "var(--text-muted)";
+          removeBtn.style.fontSize = "1em";
+          removeBtn.onclick = async (e) => {
+            e.stopPropagation();
+            await this.ingredientIndex.removeAlias(ingredient.name, alias);
+            new import_obsidian11.Notice(`Removed alias "${alias}"`);
+            this.updateFilteredIngredients();
+            this.renderIngredientList(container);
+          };
+        }
+      }
+      const addRow = itemDiv.createDiv();
+      addRow.style.display = "flex";
+      addRow.style.gap = "8px";
+      addRow.style.alignItems = "center";
+      const aliasInput = addRow.createEl("input", {
+        type: "text",
+        placeholder: "Add alias..."
+      });
+      aliasInput.style.flex = "1";
+      aliasInput.style.padding = "6px 10px";
+      aliasInput.style.border = "1px solid var(--background-modifier-border)";
+      aliasInput.style.borderRadius = "4px";
+      aliasInput.style.background = "var(--background-primary)";
+      aliasInput.style.fontSize = "0.9em";
+      const addBtn = addRow.createEl("button", { text: "Add" });
+      addBtn.onclick = async () => {
+        const newAlias = aliasInput.value.trim();
+        if (!newAlias) {
+          new import_obsidian11.Notice("Please enter an alias");
+          return;
+        }
+        const success = await this.ingredientIndex.addAlias(ingredient.name, newAlias);
+        if (success) {
+          new import_obsidian11.Notice(`Added alias "${newAlias}" for ${ingredient.name}`);
+          aliasInput.value = "";
+          this.updateFilteredIngredients();
+          this.renderIngredientList(container);
+        } else {
+          new import_obsidian11.Notice(`Could not add alias - may already exist for another ingredient`);
+        }
+      };
+      aliasInput.onkeydown = (e) => {
+        if (e.key === "Enter") {
+          addBtn.click();
+        }
+      };
+      const mergeRow = itemDiv.createDiv();
+      mergeRow.style.display = "flex";
+      mergeRow.style.flexWrap = "wrap";
+      mergeRow.style.gap = "8px";
+      mergeRow.style.alignItems = "center";
+      mergeRow.style.marginTop = "8px";
+      mergeRow.style.paddingTop = "8px";
+      mergeRow.style.borderTop = "1px solid var(--background-modifier-border)";
+      const mergeLabel = mergeRow.createEl("span", { text: "Merge:" });
+      mergeLabel.style.fontSize = "0.85em";
+      mergeLabel.style.color = "var(--text-muted)";
+      mergeLabel.style.flexShrink = "0";
+      const mergeInput = mergeRow.createEl("input", {
+        type: "text",
+        placeholder: "Type to find ingredient..."
+      });
+      mergeInput.style.flex = "1";
+      mergeInput.style.minWidth = "120px";
+      mergeInput.style.padding = "4px 8px";
+      mergeInput.style.borderRadius = "4px";
+      mergeInput.style.border = "1px solid var(--background-modifier-border)";
+      mergeInput.style.background = "var(--background-primary)";
+      mergeInput.style.fontSize = "0.85em";
+      const datalistId = `merge-${ingredient.name.replace(/\s+/g, "-")}`;
+      const datalist = mergeRow.createEl("datalist");
+      datalist.id = datalistId;
+      mergeInput.setAttribute("list", datalistId);
+      const allIngredients = this.ingredientIndex.getAllIngredients().filter((i) => i.name !== ingredient.name).sort((a, b) => a.name.localeCompare(b.name));
+      for (const other of allIngredients) {
+        datalist.createEl("option", { value: other.name });
+      }
+      const mergeBtn = mergeRow.createEl("button", { text: "Merge" });
+      mergeBtn.style.flexShrink = "0";
+      mergeBtn.onclick = async () => {
+        const selectedName = mergeInput.value.trim();
+        if (!selectedName) {
+          new import_obsidian11.Notice("Please enter an ingredient to merge with");
+          return;
+        }
+        const targetExists = allIngredients.some((i) => i.name === selectedName);
+        if (!targetExists) {
+          new import_obsidian11.Notice(`Ingredient "${selectedName}" not found in index`);
+          return;
+        }
+        const success = await this.ingredientIndex.mergeIngredients(ingredient.name, selectedName);
+        if (success) {
+          new import_obsidian11.Notice(`Merged "${selectedName}" into "${ingredient.name}"`);
+          this.updateFilteredIngredients();
+          this.renderIngredientList(container);
+        } else {
+          new import_obsidian11.Notice("Failed to merge ingredients");
+        }
+      };
+    }
+  }
+  onClose() {
+    this.contentEl.empty();
+  }
+};
+
 // src/ui/settings/MiseSettingsTab.ts
-var MiseSettingsTab = class extends import_obsidian10.PluginSettingTab {
+var MiseSettingsTab = class extends import_obsidian12.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
@@ -29161,21 +29861,21 @@ var MiseSettingsTab = class extends import_obsidian10.PluginSettingTab {
       cls: "mise-settings-description"
     });
     containerEl.createEl("h2", { text: "\u{1F4C1} Folder Paths" });
-    new import_obsidian10.Setting(containerEl).setName("Recipes Folder").setDesc("The folder containing your recipe markdown files.").addText((text) => {
+    new import_obsidian12.Setting(containerEl).setName("Recipes Folder").setDesc("The folder containing your recipe markdown files.").addText((text) => {
       text.setPlaceholder("Type to search folders...").setValue(this.plugin.settings.recipesFolder).onChange(async (value) => {
         this.plugin.settings.recipesFolder = value;
         await this.plugin.saveSettings();
       });
       new FolderSuggest(this.app, text.inputEl);
     });
-    new import_obsidian10.Setting(containerEl).setName("Meal Plan Folder").setDesc("The folder where meal plan files are stored.").addText((text) => {
+    new import_obsidian12.Setting(containerEl).setName("Meal Plan Folder").setDesc("The folder where meal plan files are stored.").addText((text) => {
       text.setPlaceholder("Type to search folders...").setValue(this.plugin.settings.mealPlanFolder).onChange(async (value) => {
         this.plugin.settings.mealPlanFolder = value;
         await this.plugin.saveSettings();
       });
       new FolderSuggest(this.app, text.inputEl);
     });
-    new import_obsidian10.Setting(containerEl).setName("Shopping List Folder").setDesc("The folder where shopping lists are generated.").addText((text) => {
+    new import_obsidian12.Setting(containerEl).setName("Shopping List Folder").setDesc("The folder where shopping lists are generated.").addText((text) => {
       text.setPlaceholder("Type to search folders...").setValue(this.plugin.settings.shoppingListFolder).onChange(async (value) => {
         this.plugin.settings.shoppingListFolder = value;
         await this.plugin.saveSettings();
@@ -29183,18 +29883,18 @@ var MiseSettingsTab = class extends import_obsidian10.PluginSettingTab {
       new FolderSuggest(this.app, text.inputEl);
     });
     containerEl.createEl("h2", { text: "\u{1F6D2} Shopping Lists" });
-    new import_obsidian10.Setting(containerEl).setName("Auto-archive Shopping Lists").setDesc("What to do with old shopping lists when generating new ones.").addDropdown((dropdown) => dropdown.addOption("off", "Off - Keep all lists in place").addOption("on", "On - Automatically archive").addOption("ask", "Ask every time").setValue(this.plugin.settings.autoArchiveShoppingLists).onChange(async (value) => {
+    new import_obsidian12.Setting(containerEl).setName("Auto-archive Shopping Lists").setDesc("What to do with old shopping lists when generating new ones.").addDropdown((dropdown) => dropdown.addOption("off", "Off - Keep all lists in place").addOption("on", "On - Automatically archive").addOption("ask", "Ask every time").setValue(this.plugin.settings.autoArchiveShoppingLists).onChange(async (value) => {
       this.plugin.settings.autoArchiveShoppingLists = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian10.Setting(containerEl).setName("Archive Folder").setDesc("Where to move old shopping lists when archiving.").addText((text) => {
+    new import_obsidian12.Setting(containerEl).setName("Archive Folder").setDesc("Where to move old shopping lists when archiving.").addText((text) => {
       text.setPlaceholder("Type to search folders...").setValue(this.plugin.settings.shoppingListArchiveFolder).onChange(async (value) => {
         this.plugin.settings.shoppingListArchiveFolder = value;
         await this.plugin.saveSettings();
       });
       new FolderSuggest(this.app, text.inputEl);
     });
-    new import_obsidian10.Setting(containerEl).setName("Show Recipe Source Links").setDesc("Display recipe names as [[wikilinks]] in shopping lists for easy navigation.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showRecipeSourceLinks).onChange(async (value) => {
+    new import_obsidian12.Setting(containerEl).setName("Show Recipe Source Links").setDesc("Display recipe names as [[wikilinks]] in shopping lists for easy navigation.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showRecipeSourceLinks).onChange(async (value) => {
       this.plugin.settings.showRecipeSourceLinks = value;
       await this.plugin.saveSettings();
     }));
@@ -29203,21 +29903,21 @@ var MiseSettingsTab = class extends import_obsidian10.PluginSettingTab {
       text: "Configure how recipes are imported from URLs.",
       cls: "mise-settings-description"
     });
-    new import_obsidian10.Setting(containerEl).setName("Import Inbox Folder").setDesc("Where newly imported recipes are saved. Review and move them to your main folder.").addText((text) => {
+    new import_obsidian12.Setting(containerEl).setName("Import Inbox Folder").setDesc("Where newly imported recipes are saved. Review and move them to your main folder.").addText((text) => {
       text.setPlaceholder("Type to search folders...").setValue(this.plugin.settings.importInboxFolder).onChange(async (value) => {
         this.plugin.settings.importInboxFolder = value;
         await this.plugin.saveSettings();
       });
       new FolderSuggest(this.app, text.inputEl);
     });
-    new import_obsidian10.Setting(containerEl).setName("Image Folder").setDesc("Where downloaded recipe images are saved.").addText((text) => {
+    new import_obsidian12.Setting(containerEl).setName("Image Folder").setDesc("Where downloaded recipe images are saved.").addText((text) => {
       text.setPlaceholder("Type to search folders...").setValue(this.plugin.settings.importImageFolder).onChange(async (value) => {
         this.plugin.settings.importImageFolder = value;
         await this.plugin.saveSettings();
       });
       new FolderSuggest(this.app, text.inputEl);
     });
-    new import_obsidian10.Setting(containerEl).setName("Download Images").setDesc("Download recipe images to your vault instead of linking to external URLs.").addToggle((toggle) => toggle.setValue(this.plugin.settings.downloadImagesOnImport).onChange(async (value) => {
+    new import_obsidian12.Setting(containerEl).setName("Download Images").setDesc("Download recipe images to your vault instead of linking to external URLs.").addToggle((toggle) => toggle.setValue(this.plugin.settings.downloadImagesOnImport).onChange(async (value) => {
       this.plugin.settings.downloadImagesOnImport = value;
       await this.plugin.saveSettings();
     }));
@@ -29227,23 +29927,23 @@ var MiseSettingsTab = class extends import_obsidian10.PluginSettingTab {
       cls: "mise-settings-description"
     });
     const insertOptions = this.plugin.settings.mealPlanInsertOptions;
-    new import_obsidian10.Setting(containerEl).setName("Include Servings").setDesc("Add servings info when inserting a recipe.").addToggle((toggle) => toggle.setValue(insertOptions.includeServings).onChange(async (value) => {
+    new import_obsidian12.Setting(containerEl).setName("Include Servings").setDesc("Add servings info when inserting a recipe.").addToggle((toggle) => toggle.setValue(insertOptions.includeServings).onChange(async (value) => {
       this.plugin.settings.mealPlanInsertOptions.includeServings = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian10.Setting(containerEl).setName("Include Prep/Cook Time").setDesc("Add time information when inserting a recipe.").addToggle((toggle) => toggle.setValue(insertOptions.includeTime).onChange(async (value) => {
+    new import_obsidian12.Setting(containerEl).setName("Include Prep/Cook Time").setDesc("Add time information when inserting a recipe.").addToggle((toggle) => toggle.setValue(insertOptions.includeTime).onChange(async (value) => {
       this.plugin.settings.mealPlanInsertOptions.includeTime = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian10.Setting(containerEl).setName("Include Ingredients (Inline)").setDesc("Add a comma-separated ingredient list.").addToggle((toggle) => toggle.setValue(insertOptions.includeIngredientsInline).onChange(async (value) => {
+    new import_obsidian12.Setting(containerEl).setName("Include Ingredients (Inline)").setDesc("Add a comma-separated ingredient list.").addToggle((toggle) => toggle.setValue(insertOptions.includeIngredientsInline).onChange(async (value) => {
       this.plugin.settings.mealPlanInsertOptions.includeIngredientsInline = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian10.Setting(containerEl).setName("Include Ingredients (Callout)").setDesc("Add ingredients in a collapsible callout block.").addToggle((toggle) => toggle.setValue(insertOptions.includeIngredientsCallout).onChange(async (value) => {
+    new import_obsidian12.Setting(containerEl).setName("Include Ingredients (Callout)").setDesc("Add ingredients in a collapsible callout block.").addToggle((toggle) => toggle.setValue(insertOptions.includeIngredientsCallout).onChange(async (value) => {
       this.plugin.settings.mealPlanInsertOptions.includeIngredientsCallout = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian10.Setting(containerEl).setName("Include Source Link").setDesc("Add the source URL if available.").addToggle((toggle) => toggle.setValue(insertOptions.includeSource).onChange(async (value) => {
+    new import_obsidian12.Setting(containerEl).setName("Include Source Link").setDesc("Add the source URL if available.").addToggle((toggle) => toggle.setValue(insertOptions.includeSource).onChange(async (value) => {
       this.plugin.settings.mealPlanInsertOptions.includeSource = value;
       await this.plugin.saveSettings();
     }));
@@ -29294,7 +29994,7 @@ var MiseSettingsTab = class extends import_obsidian10.PluginSettingTab {
         this.display();
       };
     });
-    new import_obsidian10.Setting(containerEl).addButton((btn) => btn.setButtonText("Add Store Profile").onClick(() => {
+    new import_obsidian12.Setting(containerEl).addButton((btn) => btn.setButtonText("Add Store Profile").onClick(() => {
       new StoreProfileModal(this.app, null, async (newProfile) => {
         this.plugin.settings.storeProfiles.push(newProfile);
         if (newProfile.isDefault) {
@@ -29311,40 +30011,46 @@ var MiseSettingsTab = class extends import_obsidian10.PluginSettingTab {
       text: "Configure kitchen inventory tracking.",
       cls: "mise-settings-description"
     });
-    new import_obsidian10.Setting(containerEl).setName("Inventory Folder").setDesc("Where inventory files are stored (Pantry, Fridge, Freezer).").addText((text) => {
+    new import_obsidian12.Setting(containerEl).setName("Inventory Folder").setDesc("Where inventory files are stored (Pantry, Fridge, Freezer).").addText((text) => {
       text.setPlaceholder("Type to search folders...").setValue(this.plugin.settings.inventoryFolder).onChange(async (value) => {
         this.plugin.settings.inventoryFolder = value;
         await this.plugin.saveSettings();
       });
       new FolderSuggest(this.app, text.inputEl);
     });
-    new import_obsidian10.Setting(containerEl).setName("Storage Locations").setDesc("Custom locations within categories (comma-separated). Default: Pantry, Fridge, Freezer").addTextArea((text) => text.setPlaceholder("Pantry, Fridge, Freezer, Spice Cabinet...").setValue(this.plugin.settings.storageLocations.join(", ")).onChange(async (value) => {
+    new import_obsidian12.Setting(containerEl).setName("Storage Locations").setDesc("Custom locations within categories (comma-separated). Default: Pantry, Fridge, Freezer").addTextArea((text) => text.setPlaceholder("Pantry, Fridge, Freezer, Spice Cabinet...").setValue(this.plugin.settings.storageLocations.join(", ")).onChange(async (value) => {
       this.plugin.settings.storageLocations = value.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
       await this.plugin.saveSettings();
     }));
-    new import_obsidian10.Setting(containerEl).setName("Expiration Types").setDesc("Available expiration date labels (comma-separated).").addTextArea((text) => text.setPlaceholder("Best By, Use By, Expires, Sell By...").setValue(this.plugin.settings.expirationTypes.join(", ")).onChange(async (value) => {
+    new import_obsidian12.Setting(containerEl).setName("Expiration Types").setDesc("Available expiration date labels (comma-separated).").addTextArea((text) => text.setPlaceholder("Best By, Use By, Expires, Sell By...").setValue(this.plugin.settings.expirationTypes.join(", ")).onChange(async (value) => {
       this.plugin.settings.expirationTypes = value.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
       await this.plugin.saveSettings();
     }));
-    new import_obsidian10.Setting(containerEl).setName("Expiration Warning Days").setDesc("Days before expiration to show warning in status bar.").addSlider((slider) => slider.setLimits(1, 14, 1).setValue(this.plugin.settings.expirationWarningDays || 3).setDynamicTooltip().onChange(async (value) => {
+    new import_obsidian12.Setting(containerEl).setName("Expiration Warning Days").setDesc("Days before expiration to show warning in status bar.").addSlider((slider) => slider.setLimits(1, 14, 1).setValue(this.plugin.settings.expirationWarningDays || 3).setDynamicTooltip().onChange(async (value) => {
       this.plugin.settings.expirationWarningDays = value;
       await this.plugin.saveSettings();
+    }));
+    new import_obsidian12.Setting(containerEl).setName("Manage Ingredient Aliases").setDesc('Add aliases for ingredients to improve matching (e.g., "NY strip" \u2192 "new york strip steak").').addButton((btn) => btn.setButtonText("Manage Aliases").onClick(() => {
+      new IngredientAliasModal(
+        this.app,
+        this.plugin.ingredientIndex
+      ).open();
     }));
     containerEl.createEl("h2", { text: "\u{1F916} AI Cleanup (Gemini)" });
     containerEl.createEl("p", {
       text: "Use Google's Gemini AI to intelligently clean up and consolidate shopping lists.",
       cls: "setting-item-description"
     });
-    new import_obsidian10.Setting(containerEl).setName("Enable Gemini Cleanup").setDesc("When enabled, shopping lists will be cleaned up by Gemini before saving.").addToggle((toggle) => toggle.setValue(this.plugin.settings.enableGeminiCleanup).onChange(async (value) => {
+    new import_obsidian12.Setting(containerEl).setName("Enable Gemini Cleanup").setDesc("When enabled, shopping lists will be cleaned up by Gemini before saving.").addToggle((toggle) => toggle.setValue(this.plugin.settings.enableGeminiCleanup).onChange(async (value) => {
       this.plugin.settings.enableGeminiCleanup = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian10.Setting(containerEl).setName("Gemini API Key").setDesc("Your Google AI Studio API key. Get one free at ai.google.dev").addText((text) => text.setPlaceholder("AIza...").setValue(this.plugin.settings.geminiApiKey).onChange(async (value) => {
+    new import_obsidian12.Setting(containerEl).setName("Gemini API Key").setDesc("Your Google AI Studio API key. Get one free at ai.google.dev").addText((text) => text.setPlaceholder("AIza...").setValue(this.plugin.settings.geminiApiKey).onChange(async (value) => {
       this.plugin.settings.geminiApiKey = value;
       await this.plugin.saveSettings();
     }));
     containerEl.createEl("h2", { text: "\u2699\uFE0F Advanced" });
-    new import_obsidian10.Setting(containerEl).setName("Reset to Defaults").setDesc("Reset all settings to their default values.").addButton((button) => button.setButtonText("Reset").setWarning().onClick(async () => {
+    new import_obsidian12.Setting(containerEl).setName("Reset to Defaults").setDesc("Reset all settings to their default values.").addButton((button) => button.setButtonText("Reset").setWarning().onClick(async () => {
       this.plugin.settings = { ...DEFAULT_SETTINGS };
       await this.plugin.saveSettings();
       this.display();
@@ -29353,7 +30059,7 @@ var MiseSettingsTab = class extends import_obsidian10.PluginSettingTab {
 };
 
 // src/ui/views/CookbookView.tsx
-var import_obsidian12 = require("obsidian");
+var import_obsidian14 = require("obsidian");
 var import_client = __toESM(require_client());
 
 // src/ui/components/RecipeContext.tsx
@@ -30598,7 +31304,7 @@ function getMealTooltip(meal) {
 
 // src/ui/views/CookbookView.tsx
 var import_jsx_runtime11 = __toESM(require_jsx_runtime());
-var CookbookView = class extends import_obsidian12.ItemView {
+var CookbookView = class extends import_obsidian14.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.root = null;
@@ -30632,6 +31338,7 @@ var CookbookView = class extends import_obsidian12.ItemView {
                 this.plugin.settings,
                 this.plugin.mealPlanService,
                 this.plugin.inventoryService,
+                this.plugin.ingredientIndex,
                 this.plugin.indexer,
                 recipe
               ).open();
@@ -30651,10 +31358,10 @@ var CookbookView = class extends import_obsidian12.ItemView {
 };
 
 // src/ui/views/CookbookSidebar.tsx
-var import_obsidian13 = require("obsidian");
+var import_obsidian15 = require("obsidian");
 var import_client2 = __toESM(require_client());
 var import_jsx_runtime12 = __toESM(require_jsx_runtime());
-var CookbookSidebar = class extends import_obsidian13.ItemView {
+var CookbookSidebar = class extends import_obsidian15.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.root = null;
@@ -30681,6 +31388,19 @@ var CookbookSidebar = class extends import_obsidian13.ItemView {
           app: this.app,
           indexer: this.plugin.indexer,
           mealPlanService: this.plugin.mealPlanService,
+          onLogMeal: (recipe) => {
+            Promise.resolve().then(() => (init_LogMealModal(), LogMealModal_exports)).then(({ LogMealModal: LogMealModal2 }) => {
+              new LogMealModal2(
+                this.app,
+                this.plugin.settings,
+                this.plugin.mealPlanService,
+                this.plugin.inventoryService,
+                this.plugin.ingredientIndex,
+                this.plugin.indexer,
+                recipe
+              ).open();
+            });
+          },
           children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(CookbookApp, { compact: true })
         }
       )
@@ -30695,11 +31415,11 @@ var CookbookSidebar = class extends import_obsidian13.ItemView {
 };
 
 // src/ui/views/MealPlanView.tsx
-var import_obsidian14 = require("obsidian");
+var import_obsidian16 = require("obsidian");
 var import_client3 = __toESM(require_client());
 var import_jsx_runtime13 = __toESM(require_jsx_runtime());
 var MISE_MEAL_PLAN_VIEW_TYPE = "mise-meal-plan-view";
-var MealPlanView = class extends import_obsidian14.ItemView {
+var MealPlanView = class extends import_obsidian16.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.root = null;
@@ -30746,7 +31466,7 @@ var MealPlanView = class extends import_obsidian14.ItemView {
 };
 
 // src/ui/components/ShoppingListModal.ts
-var import_obsidian15 = require("obsidian");
+var import_obsidian17 = require("obsidian");
 var AISLE_CATEGORIES = [
   "Produce",
   "Meat",
@@ -30757,7 +31477,7 @@ var AISLE_CATEGORIES = [
   "Beverages",
   "Other"
 ];
-var ShoppingListModal = class extends import_obsidian15.Modal {
+var ShoppingListModal = class extends import_obsidian17.Modal {
   constructor(app, settings, weeks, allItems, onGenerate, inventoryEnabled = false) {
     super(app);
     // State
@@ -30807,7 +31527,7 @@ var ShoppingListModal = class extends import_obsidian15.Modal {
     var _a;
     const { contentEl } = this;
     contentEl.createEl("h2", { text: "Generate Shopping List" });
-    const quickTripSetting = new import_obsidian15.Setting(contentEl).setName("\u{1F680} Quick Trip (Perishables)").setClass("mise-quick-trip-setting");
+    const quickTripSetting = new import_obsidian17.Setting(contentEl).setName("\u{1F680} Quick Trip (Perishables)").setClass("mise-quick-trip-setting");
     if (this.inventoryEnabled) {
       quickTripSetting.setDesc("Generate a list of items expiring soon").addToggle((toggle) => {
         toggle.setValue(this.quickTrip).onChange((value) => {
@@ -30816,7 +31536,7 @@ var ShoppingListModal = class extends import_obsidian15.Modal {
         });
       });
       if (this.quickTrip) {
-        new import_obsidian15.Setting(contentEl).setName("Expiring within").setClass("mise-quick-trip-days").addDropdown((dropdown) => {
+        new import_obsidian17.Setting(contentEl).setName("Expiring within").setClass("mise-quick-trip-days").addDropdown((dropdown) => {
           dropdown.addOption("1", "1 day").addOption("2", "2 days").addOption("3", "3 days").addOption("5", "5 days").addOption("7", "1 week").setValue(String(this.quickTripDays)).onChange((value) => {
             this.quickTripDays = parseInt(value);
           });
@@ -30833,7 +31553,7 @@ var ShoppingListModal = class extends import_obsidian15.Modal {
     const container = contentEl.createDiv("mise-modal-options");
     for (const week of this.weeks) {
       const label = `Week ${week.weekNumber} (${week.startDate} - ${week.endDate})`;
-      new import_obsidian15.Setting(container).setName(label).addToggle((toggle) => {
+      new import_obsidian17.Setting(container).setName(label).addToggle((toggle) => {
         var _a2;
         toggle.setValue(((_a2 = this.selectedTimeRange) == null ? void 0 : _a2.type) === "week" && this.selectedTimeRange.weekNumber === week.weekNumber).onChange(() => {
           this.selectedTimeRange = {
@@ -30848,7 +31568,7 @@ var ShoppingListModal = class extends import_obsidian15.Modal {
         });
       });
     }
-    new import_obsidian15.Setting(container).setName("Entire Month").addToggle((toggle) => {
+    new import_obsidian17.Setting(container).setName("Entire Month").addToggle((toggle) => {
       var _a2;
       toggle.setValue(((_a2 = this.selectedTimeRange) == null ? void 0 : _a2.type) === "month").onChange(() => {
         const now = /* @__PURE__ */ new Date();
@@ -30867,7 +31587,7 @@ var ShoppingListModal = class extends import_obsidian15.Modal {
     });
     if (((_a = this.selectedTimeRange) == null ? void 0 : _a.type) === "month") {
       contentEl.createEl("hr");
-      new import_obsidian15.Setting(contentEl).setName("\u{1F6D2} Bulk Buy Mode").setDesc("Filter by category (e.g., Costco run for meat + pantry)").addToggle((toggle) => {
+      new import_obsidian17.Setting(contentEl).setName("\u{1F6D2} Bulk Buy Mode").setDesc("Filter by category (e.g., Costco run for meat + pantry)").addToggle((toggle) => {
         toggle.setValue(this.bulkBuyMode).onChange((value) => {
           this.bulkBuyMode = value;
           if (!value) {
@@ -30946,14 +31666,14 @@ var ShoppingListModal = class extends import_obsidian15.Modal {
     const { contentEl } = this;
     contentEl.createEl("h2", { text: "Select Store" });
     const container = contentEl.createDiv("mise-modal-options");
-    new import_obsidian15.Setting(container).setName("General (default)").setDesc("Uses default aisle categories").addToggle((toggle) => {
+    new import_obsidian17.Setting(container).setName("General (default)").setDesc("Uses default aisle categories").addToggle((toggle) => {
       toggle.setValue(this.selectedStoreId === null).onChange(() => {
         this.selectedStoreId = null;
         this.renderStep();
       });
     });
     for (const profile of this.settings.storeProfiles) {
-      new import_obsidian15.Setting(container).setName(profile.name).addToggle((toggle) => {
+      new import_obsidian17.Setting(container).setName(profile.name).addToggle((toggle) => {
         toggle.setValue(this.selectedStoreId === profile.id).onChange(() => {
           this.selectedStoreId = profile.id;
           this.renderStep();
@@ -30961,7 +31681,7 @@ var ShoppingListModal = class extends import_obsidian15.Modal {
       });
     }
     contentEl.createEl("hr");
-    new import_obsidian15.Setting(contentEl).setName("Select specific items").setDesc("Choose which items to include in this list").addToggle((toggle) => {
+    new import_obsidian17.Setting(contentEl).setName("Select specific items").setDesc("Choose which items to include in this list").addToggle((toggle) => {
       toggle.setValue(this.selectSpecificItems).onChange((value) => {
         this.selectSpecificItems = value;
         this.renderStep();
@@ -31096,7 +31816,7 @@ var ShoppingListModal = class extends import_obsidian15.Modal {
 };
 
 // src/ui/components/RecipeImportModal.ts
-var import_obsidian16 = require("obsidian");
+var import_obsidian18 = require("obsidian");
 var RECIPE_CATEGORIES = [
   "Main",
   "Breakfast",
@@ -31107,7 +31827,7 @@ var RECIPE_CATEGORIES = [
   "Snack",
   "Uncategorized"
 ];
-var RecipeImportModal = class extends import_obsidian16.Modal {
+var RecipeImportModal = class extends import_obsidian18.Modal {
   constructor(app, importerService, onSuccess) {
     super(app);
     this.url = "";
@@ -31124,7 +31844,7 @@ var RecipeImportModal = class extends import_obsidian16.Modal {
       text: "Paste a recipe URL to import it into your cookbook.",
       cls: "mise-modal-description"
     });
-    new import_obsidian16.Setting(contentEl).setName("Recipe URL").setDesc("The URL of the recipe page to import").addText((text) => {
+    new import_obsidian18.Setting(contentEl).setName("Recipe URL").setDesc("The URL of the recipe page to import").addText((text) => {
       text.setPlaceholder("https://example.com/recipe").onChange((value) => {
         this.url = value.trim();
       });
@@ -31135,7 +31855,7 @@ var RecipeImportModal = class extends import_obsidian16.Modal {
         }, 0);
       });
     });
-    new import_obsidian16.Setting(contentEl).setName("Category").setDesc("Assign a category to the imported recipe").addDropdown((dropdown) => {
+    new import_obsidian18.Setting(contentEl).setName("Category").setDesc("Assign a category to the imported recipe").addDropdown((dropdown) => {
       for (const cat of RECIPE_CATEGORIES) {
         dropdown.addOption(cat, cat);
       }
@@ -31155,13 +31875,13 @@ var RecipeImportModal = class extends import_obsidian16.Modal {
   }
   async doImport(button) {
     if (!this.url) {
-      new import_obsidian16.Notice("Please enter a URL");
+      new import_obsidian18.Notice("Please enter a URL");
       return;
     }
     try {
       new URL(this.url);
     } catch (e) {
-      new import_obsidian16.Notice("Please enter a valid URL");
+      new import_obsidian18.Notice("Please enter a valid URL");
       return;
     }
     const originalText = button.textContent;
@@ -31169,12 +31889,12 @@ var RecipeImportModal = class extends import_obsidian16.Modal {
     button.disabled = true;
     try {
       const filePath = await this.importerService.importFromUrl(this.url, this.category);
-      new import_obsidian16.Notice("\u2705 Recipe imported successfully!");
+      new import_obsidian18.Notice("\u2705 Recipe imported successfully!");
       this.close();
       this.onSuccess(filePath);
     } catch (error) {
       console.error("RecipeImportModal: Import failed", error);
-      new import_obsidian16.Notice(`\u274C Import failed: ${error.message || "Unknown error"}`);
+      new import_obsidian18.Notice(`\u274C Import failed: ${error.message || "Unknown error"}`);
       button.textContent = originalText;
       button.disabled = false;
     }
@@ -31185,9 +31905,9 @@ var RecipeImportModal = class extends import_obsidian16.Modal {
 };
 
 // src/ui/components/ScaleRecipeModal.ts
-var import_obsidian17 = require("obsidian");
+var import_obsidian19 = require("obsidian");
 init_QuantityParser();
-var ScaleRecipeModal = class extends import_obsidian17.Modal {
+var ScaleRecipeModal = class extends import_obsidian19.Modal {
   constructor(app, recipe, scalingService) {
     super(app);
     this.previewContainer = null;
@@ -31206,13 +31926,13 @@ var ScaleRecipeModal = class extends import_obsidian17.Modal {
       cls: "mise-scale-recipe-name"
     });
     if (this.currentServings) {
-      new import_obsidian17.Setting(contentEl).setName("Current Servings").setDesc(`This recipe makes ${this.recipe.servings}`).setDisabled(true);
+      new import_obsidian19.Setting(contentEl).setName("Current Servings").setDesc(`This recipe makes ${this.recipe.servings}`).setDisabled(true);
     } else {
       contentEl.createEl("p", {
         text: "\u26A0\uFE0F Could not parse servings from this recipe. Please enter current servings manually.",
         cls: "mise-scale-warning"
       });
-      new import_obsidian17.Setting(contentEl).setName("Current Servings").setDesc("Enter the current number of servings").addText((text) => text.setPlaceholder("e.g., 4").setValue("").onChange((value) => {
+      new import_obsidian19.Setting(contentEl).setName("Current Servings").setDesc("Enter the current number of servings").addText((text) => text.setPlaceholder("e.g., 4").setValue("").onChange((value) => {
         const parsed = parseInt(value);
         if (!isNaN(parsed) && parsed > 0) {
           this.currentServings = parsed;
@@ -31220,7 +31940,7 @@ var ScaleRecipeModal = class extends import_obsidian17.Modal {
         }
       }));
     }
-    new import_obsidian17.Setting(contentEl).setName("Scale to Servings").setDesc("Enter the number of servings you want").addText((text) => text.setPlaceholder("e.g., 8").setValue(this.targetServings.toString()).onChange((value) => {
+    new import_obsidian19.Setting(contentEl).setName("Scale to Servings").setDesc("Enter the number of servings you want").addText((text) => text.setPlaceholder("e.g., 8").setValue(this.targetServings.toString()).onChange((value) => {
       const parsed = parseInt(value);
       if (!isNaN(parsed) && parsed > 0) {
         this.targetServings = parsed;
@@ -31276,7 +31996,7 @@ var ScaleRecipeModal = class extends import_obsidian17.Modal {
   }
   async createScaledCopy() {
     if (!this.currentServings) {
-      new import_obsidian17.Notice("Please enter current servings");
+      new import_obsidian19.Notice("Please enter current servings");
       return;
     }
     try {
@@ -31284,15 +32004,15 @@ var ScaleRecipeModal = class extends import_obsidian17.Modal {
         this.recipe.path,
         this.targetServings
       );
-      new import_obsidian17.Notice(`\u2705 Created: ${newPath.split("/").pop()}`);
+      new import_obsidian19.Notice(`\u2705 Created: ${newPath.split("/").pop()}`);
       const file = this.app.vault.getAbstractFileByPath(newPath);
-      if (file && file instanceof import_obsidian17.TFile) {
+      if (file && file instanceof import_obsidian19.TFile) {
         await this.app.workspace.getLeaf("tab").openFile(file);
       }
       this.close();
     } catch (error) {
       console.error("ScaleRecipeModal: Error creating scaled copy:", error);
-      new import_obsidian17.Notice(`\u274C Error: ${error instanceof Error ? error.message : "Unknown error"}`);
+      new import_obsidian19.Notice(`\u274C Error: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   }
   onClose() {
@@ -31302,7 +32022,59 @@ var ScaleRecipeModal = class extends import_obsidian17.Modal {
 };
 
 // src/ui/components/AddInventoryModal.ts
-var import_obsidian18 = require("obsidian");
+var import_obsidian21 = require("obsidian");
+
+// src/ui/components/IngredientSuggest.ts
+var import_obsidian20 = require("obsidian");
+var IngredientSuggest = class extends import_obsidian20.AbstractInputSuggest {
+  constructor(app, inputEl, ingredientIndex, onSelect) {
+    super(app, inputEl);
+    this.textInputEl = inputEl;
+    this.ingredientIndex = ingredientIndex;
+    this.selectCallback = onSelect;
+  }
+  /**
+   * Get suggestions matching the input
+   */
+  getSuggestions(inputStr) {
+    if (!this.ingredientIndex.isReady()) {
+      return [];
+    }
+    return this.ingredientIndex.search(inputStr, 10);
+  }
+  /**
+   * Render a suggestion item
+   */
+  renderSuggestion(ingredient, el) {
+    el.addClass("mise-ingredient-suggestion");
+    const nameEl = el.createDiv({ cls: "mise-suggestion-name" });
+    nameEl.setText(ingredient.name);
+    if (ingredient.aliases.length > 0) {
+      const aliasEl = el.createDiv({ cls: "mise-suggestion-aliases" });
+      aliasEl.setText(`aka: ${ingredient.aliases.slice(0, 3).join(", ")}${ingredient.aliases.length > 3 ? "..." : ""}`);
+    }
+    const sourceEl = el.createDiv({ cls: "mise-suggestion-source" });
+    const sources = [];
+    if (ingredient.sources.includes("inventory")) sources.push("\u{1F4E6}");
+    if (ingredient.sources.includes("recipe")) sources.push("\u{1F4D6}");
+    if (ingredient.sources.includes("meal-log")) sources.push("\u{1F37D}\uFE0F");
+    if (ingredient.sources.includes("manual")) sources.push("\u270F\uFE0F");
+    sourceEl.setText(sources.join(" "));
+  }
+  /**
+   * Handle selection of a suggestion
+   */
+  selectSuggestion(ingredient, evt) {
+    this.textInputEl.value = ingredient.name;
+    this.textInputEl.trigger("input");
+    if (this.selectCallback) {
+      this.selectCallback(ingredient);
+    }
+    this.close();
+  }
+};
+
+// src/ui/components/AddInventoryModal.ts
 var CATEGORIES = ["Pantry", "Fridge", "Freezer"];
 var COMMON_UNITS = [
   "count",
@@ -31325,8 +32097,8 @@ var COMMON_UNITS = [
   "bottle",
   "jar"
 ];
-var AddInventoryModal = class extends import_obsidian18.Modal {
-  constructor(app, settings, inventoryService, onSuccess) {
+var AddInventoryModal = class extends import_obsidian21.Modal {
+  constructor(app, settings, inventoryService, ingredientIndex, onSuccess) {
     super(app);
     // Form state
     this.itemName = "";
@@ -31339,6 +32111,7 @@ var AddInventoryModal = class extends import_obsidian18.Modal {
     this.expirationType = "";
     this.settings = settings;
     this.inventoryService = inventoryService;
+    this.ingredientIndex = ingredientIndex;
     this.onSuccess = onSuccess;
   }
   onOpen() {
@@ -31350,13 +32123,21 @@ var AddInventoryModal = class extends import_obsidian18.Modal {
       text: "Add a new item to your kitchen inventory.",
       cls: "mise-modal-description"
     });
-    new import_obsidian18.Setting(contentEl).setName("Item Name").setDesc("What are you adding?").addText((text) => {
+    new import_obsidian21.Setting(contentEl).setName("Item Name").setDesc("What are you adding? Start typing for suggestions.").addText((text) => {
       text.setPlaceholder("e.g., Flour, Milk, Chicken Breast").onChange((value) => {
         this.itemName = value.trim();
       });
       text.inputEl.style.width = "100%";
+      new IngredientSuggest(
+        this.app,
+        text.inputEl,
+        this.ingredientIndex,
+        (ingredient) => {
+          this.itemName = ingredient.name;
+        }
+      );
     });
-    const qtyUnitRow = new import_obsidian18.Setting(contentEl).setName("Quantity");
+    const qtyUnitRow = new import_obsidian21.Setting(contentEl).setName("Quantity");
     qtyUnitRow.addText((text) => {
       text.setPlaceholder("1").setValue(String(this.quantity)).onChange((value) => {
         const num = parseFloat(value);
@@ -31378,7 +32159,7 @@ var AddInventoryModal = class extends import_obsidian18.Modal {
         this.unit = value;
       });
     });
-    new import_obsidian18.Setting(contentEl).setName("Category").setDesc("Where is this item stored?").addDropdown((dropdown) => {
+    new import_obsidian21.Setting(contentEl).setName("Category").setDesc("Where is this item stored?").addDropdown((dropdown) => {
       for (const cat of CATEGORIES) {
         dropdown.addOption(cat, cat);
       }
@@ -31388,7 +32169,7 @@ var AddInventoryModal = class extends import_obsidian18.Modal {
         this.location = value;
       });
     });
-    new import_obsidian18.Setting(contentEl).setName("Location").setDesc("Specific storage location").addDropdown((dropdown) => {
+    new import_obsidian21.Setting(contentEl).setName("Location").setDesc("Specific storage location").addDropdown((dropdown) => {
       for (const loc of this.settings.storageLocations) {
         dropdown.addOption(loc, loc);
       }
@@ -31397,20 +32178,20 @@ var AddInventoryModal = class extends import_obsidian18.Modal {
         this.location = value;
       });
     });
-    new import_obsidian18.Setting(contentEl).setName("Purchase Date").addText((text) => {
+    new import_obsidian21.Setting(contentEl).setName("Purchase Date").addText((text) => {
       text.setValue(this.purchaseDate).onChange((value) => {
         this.purchaseDate = value;
       });
       text.inputEl.type = "date";
     });
     contentEl.createEl("h4", { text: "Expiration (Optional)" });
-    new import_obsidian18.Setting(contentEl).setName("Expires").addText((text) => {
+    new import_obsidian21.Setting(contentEl).setName("Expires").addText((text) => {
       text.setPlaceholder("").setValue(this.expirationDate).onChange((value) => {
         this.expirationDate = value;
       });
       text.inputEl.type = "date";
     });
-    new import_obsidian18.Setting(contentEl).setName("Expiry Type").addDropdown((dropdown) => {
+    new import_obsidian21.Setting(contentEl).setName("Expiry Type").addDropdown((dropdown) => {
       dropdown.addOption("", "-- Select --");
       for (const type of this.settings.expirationTypes) {
         dropdown.addOption(type, type);
@@ -31431,11 +32212,11 @@ var AddInventoryModal = class extends import_obsidian18.Modal {
   }
   async doAdd(button) {
     if (!this.itemName) {
-      new import_obsidian18.Notice("Please enter an item name");
+      new import_obsidian21.Notice("Please enter an item name");
       return;
     }
     if (this.quantity <= 0) {
-      new import_obsidian18.Notice("Please enter a valid quantity");
+      new import_obsidian21.Notice("Please enter a valid quantity");
       return;
     }
     const item = {
@@ -31453,12 +32234,13 @@ var AddInventoryModal = class extends import_obsidian18.Modal {
     button.disabled = true;
     try {
       await this.inventoryService.addStock(item);
-      new import_obsidian18.Notice(`\u2705 Added ${this.quantity} ${this.unit} ${this.itemName}`);
+      await this.ingredientIndex.addIngredient(this.itemName, "inventory");
+      new import_obsidian21.Notice(`\u2705 Added ${this.quantity} ${this.unit} ${this.itemName}`);
       this.close();
       this.onSuccess();
     } catch (error) {
       console.error("AddInventoryModal: Failed to add item", error);
-      new import_obsidian18.Notice(`\u274C Failed to add item: ${error.message || "Unknown error"}`);
+      new import_obsidian21.Notice(`\u274C Failed to add item: ${error.message || "Unknown error"}`);
       button.textContent = originalText;
       button.disabled = false;
     }
@@ -31469,8 +32251,8 @@ var AddInventoryModal = class extends import_obsidian18.Modal {
 };
 
 // src/ui/components/PantryCheckModal.ts
-var import_obsidian19 = require("obsidian");
-var PantryCheckModal = class extends import_obsidian19.Modal {
+var import_obsidian22 = require("obsidian");
+var PantryCheckModal = class extends import_obsidian22.Modal {
   constructor(app, settings, inventoryService) {
     super(app);
     this.items = [];
@@ -31489,7 +32271,7 @@ var PantryCheckModal = class extends import_obsidian19.Modal {
       text: "Review and update your inventory. Adjust quantities or mark items as used.",
       cls: "mise-modal-description"
     });
-    new import_obsidian19.Setting(contentEl).setName("Filter by").addDropdown((dropdown) => {
+    new import_obsidian22.Setting(contentEl).setName("Filter by").addDropdown((dropdown) => {
       dropdown.addOption("All", "All Categories");
       dropdown.addOption("Pantry", "\u{1F3E0} Pantry");
       dropdown.addOption("Fridge", "\u2744\uFE0F Fridge");
@@ -31599,7 +32381,7 @@ var PantryCheckModal = class extends import_obsidian19.Modal {
   }
   async saveChanges(button) {
     if (this.changes.size === 0) {
-      new import_obsidian19.Notice("No changes to save");
+      new import_obsidian22.Notice("No changes to save");
       this.close();
       return;
     }
@@ -31618,11 +32400,11 @@ var PantryCheckModal = class extends import_obsidian19.Modal {
           updated++;
         }
       }
-      new import_obsidian19.Notice(`\u2705 Updated ${updated} items, removed ${deleted} items`);
+      new import_obsidian22.Notice(`\u2705 Updated ${updated} items, removed ${deleted} items`);
       this.close();
     } catch (error) {
       console.error("PantryCheckModal: Error saving changes", error);
-      new import_obsidian19.Notice(`\u274C Error saving: ${error.message || "Unknown error"}`);
+      new import_obsidian22.Notice(`\u274C Error saving: ${error.message || "Unknown error"}`);
       button.textContent = "Save Changes";
       button.disabled = false;
     }
@@ -31636,7 +32418,7 @@ var PantryCheckModal = class extends import_obsidian19.Modal {
 init_LogMealModal();
 
 // src/ui/components/MiseStatusBar.ts
-var import_obsidian20 = require("obsidian");
+var import_obsidian23 = require("obsidian");
 var MiseStatusBar = class {
   constructor(plugin) {
     this.snoozedAlerts = /* @__PURE__ */ new Map();
@@ -31723,7 +32505,7 @@ var MiseStatusBar = class {
     }
   }
   showAlertMenu() {
-    const menu = new import_obsidian20.Menu();
+    const menu = new import_obsidian23.Menu();
     const expiringItems = this.getExpiringItems();
     if (expiringItems.length === 0) {
       menu.addItem((item) => {
@@ -31755,7 +32537,7 @@ var MiseStatusBar = class {
             }
             await this.saveSnoozedAlerts();
             await this.checkAlerts();
-            new import_obsidian20.Notice("\u2705 All alerts cleared for 1 week");
+            new import_obsidian23.Notice("\u2705 All alerts cleared for 1 week");
           });
         });
         menu.addSeparator();
@@ -31782,7 +32564,7 @@ var MiseStatusBar = class {
     }));
   }
   showSnoozeMenu(item) {
-    const menu = new import_obsidian20.Menu();
+    const menu = new import_obsidian23.Menu();
     const itemKey = this.getItemKey(item);
     menu.addItem((menuItem) => {
       menuItem.setTitle(`Snooze "${item.name}" for...`).setDisabled(true);
@@ -31800,7 +32582,7 @@ var MiseStatusBar = class {
           this.snoozedAlerts.set(itemKey, until);
           await this.saveSnoozedAlerts();
           this.checkAlerts();
-          new import_obsidian20.Notice(`Snoozed "${item.name}" for ${opt.label}`);
+          new import_obsidian23.Notice(`Snoozed "${item.name}" for ${opt.label}`);
         });
       });
     }
@@ -31812,8 +32594,8 @@ var MiseStatusBar = class {
 };
 
 // src/ui/components/MiseCommandMenu.ts
-var import_obsidian21 = require("obsidian");
-var MiseCommandMenu = class extends import_obsidian21.Modal {
+var import_obsidian24 = require("obsidian");
+var MiseCommandMenu = class extends import_obsidian24.Modal {
   constructor(plugin) {
     super(plugin.app);
     this.plugin = plugin;
@@ -31895,7 +32677,7 @@ var MiseCommandMenu = class extends import_obsidian21.Modal {
 };
 
 // src/ui/components/ThrowAwayModal.ts
-var import_obsidian22 = require("obsidian");
+var import_obsidian25 = require("obsidian");
 var WASTE_REASONS = [
   "Expired",
   "Spoiled",
@@ -31903,7 +32685,7 @@ var WASTE_REASONS = [
   "Made Too Much",
   "Other"
 ];
-var ThrowAwayModal = class extends import_obsidian22.Modal {
+var ThrowAwayModal = class extends import_obsidian25.Modal {
   constructor(plugin) {
     super(plugin.app);
     this.selectedItem = null;
@@ -31921,7 +32703,7 @@ var ThrowAwayModal = class extends import_obsidian22.Modal {
     contentEl.addClass("mise-throw-away-modal");
     contentEl.createEl("h2", { text: "\u{1F5D1}\uFE0F Threw Away Food" });
     const allItems = this.inventoryService.getStock();
-    new import_obsidian22.Setting(contentEl).setName("Item").setDesc("Select from inventory").addDropdown((dropdown) => {
+    new import_obsidian25.Setting(contentEl).setName("Item").setDesc("Select from inventory").addDropdown((dropdown) => {
       dropdown.addOption("", "Select item...");
       for (const item of allItems) {
         const label = `${item.name} (${item.quantity} ${item.unit} - ${item.category})`;
@@ -31936,7 +32718,7 @@ var ThrowAwayModal = class extends import_obsidian22.Modal {
         }
       });
     });
-    new import_obsidian22.Setting(contentEl).setName("Quantity").setDesc("How much was thrown away").addText((text) => text.setPlaceholder("1").setValue(String(this.quantity)).onChange((value) => {
+    new import_obsidian25.Setting(contentEl).setName("Quantity").setDesc("How much was thrown away").addText((text) => text.setPlaceholder("1").setValue(String(this.quantity)).onChange((value) => {
       this.quantity = parseFloat(value) || 0;
     })).addDropdown((dropdown) => {
       const units = ["oz", "lb", "g", "kg", "cup", "tbsp", "tsp", "each", "can", "bottle"];
@@ -31948,7 +32730,7 @@ var ThrowAwayModal = class extends import_obsidian22.Modal {
         this.unit = value;
       });
     });
-    const reasonSetting = new import_obsidian22.Setting(contentEl).setName("Reason").setDesc("Why was it thrown away?").addDropdown((dropdown) => {
+    const reasonSetting = new import_obsidian25.Setting(contentEl).setName("Reason").setDesc("Why was it thrown away?").addDropdown((dropdown) => {
       for (const r of WASTE_REASONS) {
         dropdown.addOption(r, r);
       }
@@ -31959,7 +32741,7 @@ var ThrowAwayModal = class extends import_obsidian22.Modal {
       });
     });
     if (this.reason === "Other") {
-      new import_obsidian22.Setting(contentEl).setName("Specify reason").addText((text) => text.setPlaceholder("Enter reason...").setValue(this.otherReason).onChange((value) => {
+      new import_obsidian25.Setting(contentEl).setName("Specify reason").addText((text) => text.setPlaceholder("Enter reason...").setValue(this.otherReason).onChange((value) => {
         this.otherReason = value;
       }));
     }
@@ -31975,7 +32757,7 @@ var ThrowAwayModal = class extends import_obsidian22.Modal {
   }
   async logWaste(button) {
     if (!this.selectedItem || this.quantity <= 0) {
-      new import_obsidian22.Notice("Please select an item and quantity");
+      new import_obsidian25.Notice("Please select an item and quantity");
       return;
     }
     button.disabled = true;
@@ -31994,11 +32776,11 @@ var ThrowAwayModal = class extends import_obsidian22.Modal {
       if (this.plugin.statusBar) {
         this.plugin.statusBar.checkAlerts();
       }
-      new import_obsidian22.Notice(`\u2705 Logged: ${this.quantity} ${this.unit} ${this.selectedItem.name} (${finalReason})`);
+      new import_obsidian25.Notice(`\u2705 Logged: ${this.quantity} ${this.unit} ${this.selectedItem.name} (${finalReason})`);
       this.close();
     } catch (error) {
       console.error("ThrowAwayModal: Error logging waste", error);
-      new import_obsidian22.Notice(`\u274C Error: ${error.message || "Unknown error"}`);
+      new import_obsidian25.Notice(`\u274C Error: ${error.message || "Unknown error"}`);
       button.textContent = "\u{1F5D1}\uFE0F Log Waste";
       button.disabled = false;
     }
@@ -32061,7 +32843,7 @@ var ThrowAwayModal = class extends import_obsidian22.Modal {
 };
 
 // src/main.ts
-var MisePlugin = class extends import_obsidian23.Plugin {
+var MisePlugin = class extends import_obsidian26.Plugin {
   async onload() {
     console.log(`${PLUGIN_NAME}: Loading plugin...`);
     await this.loadSettings();
@@ -32071,11 +32853,16 @@ var MisePlugin = class extends import_obsidian23.Plugin {
     this.importerService = new ImporterService(this.app, this.settings);
     this.scalingService = new RecipeScalingService(this.app, this.settings, this.indexer);
     this.inventoryService = new InventoryService(this.app, this.settings);
+    this.ingredientIndex = new IngredientIndexService(this.app, this.settings);
     this.shoppingListService.setMealPlanService(this.mealPlanService);
     this.indexer.initialize();
-    this.app.workspace.onLayoutReady(() => {
+    this.app.workspace.onLayoutReady(async () => {
       this.mealPlanService.initialize();
-      this.inventoryService.initialize();
+      await this.inventoryService.initialize();
+      const inventoryItems = this.inventoryService.getStock().map((i) => i.name);
+      const recipeIngredients = this.indexer.getRecipes().flatMap((r) => r.ingredients);
+      await this.ingredientIndex.initialize(inventoryItems, recipeIngredients);
+      this.inventoryService.setIngredientIndex(this.ingredientIndex);
       this.statusBar = new MiseStatusBar(this);
     });
     this.registerView(
@@ -32144,7 +32931,7 @@ var MisePlugin = class extends import_obsidian23.Plugin {
           async (result) => {
             console.log(`${PLUGIN_NAME}: Generating shopping list with:`, result);
             if (result.quickTrip) {
-              new import_obsidian23.Notice("Quick Trip requires Inventory System (Phase 16)");
+              new import_obsidian26.Notice("Quick Trip requires Inventory System (Phase 16)");
               return;
             }
             let list;
@@ -32164,7 +32951,7 @@ var MisePlugin = class extends import_obsidian23.Plugin {
               list.aisles = list.aisles.filter((a) => a.items.length > 0);
             }
             const filePath = await this.shoppingListService.writeListToFile(list, result.dateRangeLabel);
-            new import_obsidian23.Notice(`\u2705 Shopping list created!`);
+            new import_obsidian26.Notice(`\u2705 Shopping list created!`);
             const file = this.app.vault.getAbstractFileByPath(filePath);
             if (file) {
               await this.app.workspace.getLeaf("tab").openFile(file);
@@ -32197,7 +32984,8 @@ var MisePlugin = class extends import_obsidian23.Plugin {
           this.app,
           this.settings,
           this.inventoryService,
-          () => {
+          this.ingredientIndex,
+          async () => {
           }
         ).open();
       }
@@ -32222,6 +33010,7 @@ var MisePlugin = class extends import_obsidian23.Plugin {
           this.settings,
           this.mealPlanService,
           this.inventoryService,
+          this.ingredientIndex,
           this.indexer
         ).open();
       }
@@ -32245,6 +33034,7 @@ var MisePlugin = class extends import_obsidian23.Plugin {
         this.app,
         this.settings,
         this.inventoryService,
+        this.ingredientIndex,
         () => {
         }
       ).open();
@@ -32255,6 +33045,7 @@ var MisePlugin = class extends import_obsidian23.Plugin {
         this.settings,
         this.mealPlanService,
         this.inventoryService,
+        this.ingredientIndex,
         this.indexer
       ).open();
     });
@@ -32267,7 +33058,7 @@ var MisePlugin = class extends import_obsidian23.Plugin {
     });
     this.registerEvent(
       this.app.workspace.on("file-menu", (menu, file) => {
-        if (file instanceof import_obsidian23.TFile && this.isRecipeFile(file)) {
+        if (file instanceof import_obsidian26.TFile && this.isRecipeFile(file)) {
           menu.addItem((item) => {
             item.setTitle("\u2696\uFE0F Scale Recipe...").setIcon("scale").onClick(() => this.openScaleModal(file));
           });
@@ -32352,7 +33143,7 @@ var MisePlugin = class extends import_obsidian23.Plugin {
   openScaleModal(file) {
     const recipe = this.indexer.getRecipe(file.path);
     if (!recipe) {
-      new import_obsidian23.Notice("Recipe not found in index. Try reloading the plugin.");
+      new import_obsidian26.Notice("Recipe not found in index. Try reloading the plugin.");
       return;
     }
     new ScaleRecipeModal(this.app, recipe, this.scalingService).open();
@@ -32364,7 +33155,7 @@ var MisePlugin = class extends import_obsidian23.Plugin {
   async generateMealPlanFiles() {
     const folder = this.settings.mealPlanFolder;
     if (!folder) {
-      new import_obsidian23.Notice("Please configure a meal plan folder in settings first.");
+      new import_obsidian26.Notice("Please configure a meal plan folder in settings first.");
       return;
     }
     const MONTHS2 = [
@@ -32416,7 +33207,7 @@ var MisePlugin = class extends import_obsidian23.Plugin {
         }
       }
     }
-    new import_obsidian23.Notice(`Created ${filesCreated} meal plan files. Check ${folder}/${startYear}/ to verify format.`);
+    new import_obsidian26.Notice(`Created ${filesCreated} meal plan files. Check ${folder}/${startYear}/ to verify format.`);
   }
   /**
    * Generate markdown content for a month
