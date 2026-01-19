@@ -10,8 +10,8 @@ tags:
 **Purpose:** Session-by-session implementation notes. Each development session appends a new entry with details of what was done, what was tested, and what's next.
 
 **Last Updated:** January 19, 2026
-**Current Phase:** Phase 16.6 - Ingredient Index with Autocomplete ✅
-**Current Branch:** feat/priority-1-ingredient-index
+**Current Phase:** Phase 16.7 - Quick Log (Snack/Manual) ✅
+**Current Branch:** feat/priority-2-manual-logging
 **Version:** 0.1.0
 
 ---
@@ -34,6 +34,51 @@ Each session should include:
 - **Be specific** — Reference file paths, function names, and line numbers
 - **Test results are mandatory** — Every session must document testing
 - **Suggest commits** — Include recommended commit message at session end
+
+---
+
+## Session: January 19, 2026 - Quick Log (Phase 16.7)
+
+### Phase
+Phase 16.7: Quick Log (Snack/Manual)
+
+### Session Summary
+Implemented Quick Log modal for logging snacks and individual ingredients without requiring a recipe. Added "Snack" as a new meal type. Modal includes multi-row ingredient entry with autocomplete, quantity/unit controls, and deduction to inventory. Added command and Mise Menu button.
+
+### What Was Done
+
+| Component | Files | Features |
+|-----------|-------|----------|
+| QuickLogModal | `QuickLogModal.ts` | Item rows, qty/unit, autocomplete, meal type (incl. Snack) |
+| Commands | `main.ts` | `mise:quick-log` command |
+| Menu | `MiseCommandMenu.ts` | Quick Log 🍿 button in Inventory section |
+
+### What Was Tested
+- [x] Quick Log modal opens correctly
+- [x] Autocomplete shows inventory and indexed ingredients
+- [x] Adding item to inventory then logging deducts correctly
+- [x] Meal Log entry written with correct format
+
+### Files Created
+- `src/ui/components/QuickLogModal.ts`
+
+### Files Modified
+- `src/main.ts` — Added QuickLogModal import and command
+- `src/ui/components/MiseCommandMenu.ts` — Added Quick Log button
+
+### Recommended Commit
+```
+feat(phase-16.7): Quick Log for snacks and manual ingredient logging
+
+- Add QuickLogModal for logging without recipes
+- Add Snack meal type to dropdown
+- Add mise:quick-log command
+- Add Quick Log button to Mise Menu
+- Deducts from inventory and writes to Meal Log
+```
+
+### Next Session Prompt
+Priority 3: Editable ingredient amounts in Recipe Modal, or Phase 17 Polish & Error Handling.
 
 ---
 

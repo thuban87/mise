@@ -25,6 +25,7 @@ import { LogMealModal } from './ui/components/LogMealModal';
 import { MiseStatusBar } from './ui/components/MiseStatusBar';
 import { MiseCommandMenu } from './ui/components/MiseCommandMenu';
 import { ThrowAwayModal } from './ui/components/ThrowAwayModal';
+import { QuickLogModal } from './ui/components/QuickLogModal';
 
 export default class MisePlugin extends Plugin {
     settings: MiseSettings;
@@ -267,6 +268,19 @@ export default class MisePlugin extends Plugin {
                     this.inventoryService,
                     this.ingredientIndex,
                     this.indexer
+                ).open();
+            }
+        });
+
+        this.addCommand({
+            id: 'quick-log',
+            name: 'Quick Log (Snack/Manual)',
+            callback: () => {
+                new QuickLogModal(
+                    this.app,
+                    this.settings,
+                    this.inventoryService,
+                    this.ingredientIndex
                 ).open();
             }
         });
