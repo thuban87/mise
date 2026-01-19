@@ -12,7 +12,7 @@ tags:
 > This is a personal utility project with infinite runway. Features get done when they get done. Do not pressure the user with "we should do this after MVP" language.
 
 **Last Updated:** January 19, 2026
-**Current Phase:** Phase 16.7 - Quick Log (Snack/Manual) ✅
+**Current Phase:** Phase 16.8 - Recipe Modal Enhancements ✅
 
 ---
 
@@ -736,6 +736,26 @@ interface ShoppingItem {
 - [x] Autocomplete works for ingredient names
 - [x] Meal Log entry shows correct meal type
 - [x] Deduction from inventory works
+
+---
+
+### Phase 16.8: Recipe Modal Enhancements
+- **Goal:** Editable ingredient quantities and instructions on recipe modal.
+- **Status:** `[x]` Completed (January 19, 2026)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Editable ingredient quantities | `[x]` | Inline number inputs on each row |
+| Add extra items | `[x]` | Add ingredients not in recipe |
+| Collapsible instructions | `[x]` | Loads from recipe markdown, handles emoji headers |
+| Pass to LogMealModal | `[x]` | Edited ingredients flow to confirmation screen |
+| CSS styling | `[x]` | Editable rows, instructions list |
+
+**Acceptance Criteria:**
+- [x] Ingredient quantities editable inline
+- [x] Extra items can be added
+- [x] Instructions load from file when expanded
+- [x] Edited values carry to confirmation
 
 ---
 

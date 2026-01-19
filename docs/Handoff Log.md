@@ -10,8 +10,8 @@ tags:
 **Purpose:** Session-by-session implementation notes. Each development session appends a new entry with details of what was done, what was tested, and what's next.
 
 **Last Updated:** January 19, 2026
-**Current Phase:** Phase 16.7 - Quick Log (Snack/Manual) ✅
-**Current Branch:** feat/priority-2-manual-logging
+**Current Phase:** Phase 16.8 - Recipe Modal Enhancements ✅
+**Current Branch:** feat/priority-3-recipe-modal-changes
 **Version:** 0.1.0
 
 ---
@@ -34,6 +34,54 @@ Each session should include:
 - **Be specific** — Reference file paths, function names, and line numbers
 - **Test results are mandatory** — Every session must document testing
 - **Suggest commits** — Include recommended commit message at session end
+
+---
+
+## Session: January 19, 2026 - Recipe Modal Enhancements (Phase 16.8)
+
+### Phase
+Phase 16.8: Recipe Modal Enhancements
+
+### Session Summary
+Enhanced Recipe Modal with editable ingredient quantities, ability to add extra items, and collapsible instructions section that loads from recipe markdown. Changes flow through to LogMealModal confirmation screen.
+
+### What Was Done
+
+| Component | Files | Features |
+|-----------|-------|----------|
+| RecipeModal | `RecipeModal.tsx` | Editable qty inputs, extra items, instructions loading |
+| RecipeContext | `RecipeContext.tsx` | Updated logMeal signature for edited ingredients |
+| CookbookView | `CookbookView.tsx` | Pass edited ingredients to LogMealModal |
+| LogMealModal | `LogMealModal.ts` | Accept pre-populated ingredients |
+| Styles | `styles.css` | Editable ingredient rows, instructions list |
+
+### What Was Tested
+- [x] Editable quantities work inline
+- [x] Extra items can be added
+- [x] Instructions load from file with emoji headers
+- [x] Edited values carry to confirmation screen
+
+### Files Modified
+- `src/ui/components/RecipeModal.tsx`
+- `src/ui/components/RecipeContext.tsx`
+- `src/ui/views/CookbookView.tsx`
+- `src/ui/components/LogMealModal.ts`
+- `styles.css`
+
+### Recommended Commit
+```
+feat(phase-16.8): Recipe Modal editable ingredients and instructions
+
+- Add editable ingredient quantity inputs to Recipe Modal
+- Add "Add Extra Item" button for unlisted ingredients
+- Add collapsible Instructions section that loads from recipe file
+- Handle emoji prefixes in markdown headers (e.g., ## 🍳 Instructions)
+- Pass edited ingredients through to LogMealModal confirmation
+- Add CSS for editable ingredient rows
+```
+
+### Next Session Prompt
+Phase 17: Polish & Error Handling, or continue with other priorities.
 
 ---
 
