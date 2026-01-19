@@ -12,7 +12,7 @@ tags:
 > This is a personal utility project with infinite runway. Features get done when they get done. Do not pressure the user with "we should do this after MVP" language.
 
 **Last Updated:** January 19, 2026
-**Current Phase:** Phase 16.6 - Ingredient Index with Autocomplete ✅
+**Current Phase:** Phase 16.7 - Quick Log (Snack/Manual) ✅
 
 ---
 
@@ -715,6 +715,27 @@ interface ShoppingItem {
 - [x] Recipe ingredients deduct from inventory correctly
 - [x] Alias management UI available in Settings
 - [x] New recipes auto-add ingredients to index
+
+---
+
+### Phase 16.7: Quick Log (Snack/Manual)
+- **Goal:** Log snacks and individual ingredients without creating a recipe.
+- **Status:** `[x]` Completed (January 19, 2026)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| QuickLogModal | `[x]` | Simple modal with item rows and autocomplete |
+| Snack meal type | `[x]` | Added to meal type dropdown |
+| Command | `[x]` | `mise:quick-log` in command palette |
+| Mise Menu button | `[x]` | Quick Log 🍿 in Inventory section |
+| Inventory deduction | `[x]` | Deducts by default, warns if not found |
+| Meal Log entry | `[x]` | Writes to Meal Log.md as "Quick Log" |
+
+**Acceptance Criteria:**
+- [x] Quick Log modal opens with simple ingredient entry
+- [x] Autocomplete works for ingredient names
+- [x] Meal Log entry shows correct meal type
+- [x] Deduction from inventory works
 
 ---
 
