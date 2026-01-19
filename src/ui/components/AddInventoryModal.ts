@@ -13,6 +13,8 @@
 import { App, Modal, Setting, Notice } from 'obsidian';
 import { MiseSettings, InventoryItem, InventoryCategory, ExpiryType } from '../../types';
 import { InventoryService } from '../../services/InventoryService';
+import { IngredientIndexService } from '../../services/IngredientIndexService';
+import { IngredientSuggest } from './IngredientSuggest';
 
 const CATEGORIES: InventoryCategory[] = ['Pantry', 'Fridge', 'Freezer'];
 
@@ -26,6 +28,7 @@ const COMMON_UNITS = [
 export class AddInventoryModal extends Modal {
     private settings: MiseSettings;
     private inventoryService: InventoryService;
+    private ingredientIndex: IngredientIndexService;
     private onSuccess: () => void;
 
     // Form state
@@ -42,11 +45,13 @@ export class AddInventoryModal extends Modal {
         app: App,
         settings: MiseSettings,
         inventoryService: InventoryService,
+        ingredientIndex: IngredientIndexService,
         onSuccess: () => void
     ) {
         super(app);
         this.settings = settings;
         this.inventoryService = inventoryService;
+        this.ingredientIndex = ingredientIndex;
         this.onSuccess = onSuccess;
     }
 
@@ -62,10 +67,10 @@ export class AddInventoryModal extends Modal {
             cls: 'mise-modal-description'
         });
 
-        // Item name input
+        // Item name input with autocomplete
         new Setting(contentEl)
             .setName('Item Name')
-            .setDesc('What are you adding?')
+            .setDesc('What are you adding? Start typing for suggestions.')
             .addText(text => {
                 text
                     .setPlaceholder('e.g., Flour, Milk, Chicken Breast')
@@ -73,6 +78,15 @@ export class AddInventoryModal extends Modal {
                         this.itemName = value.trim();
                     });
                 text.inputEl.style.width = '100%';
+                // Add ingredient autocomplete
+                new IngredientSuggest(
+                    this.app,
+                    text.inputEl,
+                    this.ingredientIndex,
+                    (ingredient) => {
+                        this.itemName = ingredient.name;
+                    }
+                );
             });
 
         // Quantity and Unit row
@@ -203,6 +217,19 @@ export class AddInventoryModal extends Modal {
             return;
         }
 
+        // Check for similar ingredients before adding
+        const similar = this.ingredientIndex.findSimilar(this.itemName);
+        if (similar) {
+            const useSimilar = confirm(
+                `Similar ingredient found: "${similar.name}"\n\n` +
+                `Would you like to use this existing ingredient instead of "${this.itemName}"?\n\n` +
+                `Click OK to use "${similar.name}", or Cancel to add "${this.itemName}" as a new item.`
+            );
+            if (useSimilar) {
+                this.itemName = similar.name;
+            }
+        }
+
         // Build the inventory item
         const item: InventoryItem = {
             name: this.itemName,
@@ -222,6 +249,8 @@ export class AddInventoryModal extends Modal {
 
         try {
             await this.inventoryService.addStock(item);
+            // Add to ingredient index for future autocomplete
+            await this.ingredientIndex.addIngredient(this.itemName, 'inventory');
             new Notice(`✅ Added ${this.quantity} ${this.unit} ${this.itemName}`);
             this.close();
             this.onSuccess();

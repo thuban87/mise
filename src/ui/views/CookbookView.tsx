@@ -52,6 +52,7 @@ export class CookbookView extends ItemView {
                             this.plugin.settings,
                             this.plugin.mealPlanService,
                             this.plugin.inventoryService,
+                            this.plugin.ingredientIndex,
                             this.plugin.indexer,
                             recipe
                         ).open();

@@ -12,6 +12,7 @@ import { App, Modal, Setting, Notice } from 'obsidian';
 import { MiseSettings, PlannedMeal, Recipe } from '../../types';
 import { MealPlanService } from '../../services/MealPlanService';
 import { InventoryService } from '../../services/InventoryService';
+import { IngredientIndexService } from '../../services/IngredientIndexService';
 import { RecipeIndexer } from '../../services/RecipeIndexer';
 import { parseIngredients } from '../../parsers/IngredientParser';
 import { parseIngredient } from '../../utils/QuantityParser';
@@ -28,6 +29,7 @@ export class LogMealModal extends Modal {
     private settings: MiseSettings;
     private mealPlanService: MealPlanService;
     private inventoryService: InventoryService;
+    private ingredientIndex: IngredientIndexService;
     private indexer: RecipeIndexer;
     private preSelectedRecipe: Recipe | null;
 
@@ -44,6 +46,7 @@ export class LogMealModal extends Modal {
         settings: MiseSettings,
         mealPlanService: MealPlanService,
         inventoryService: InventoryService,
+        ingredientIndex: IngredientIndexService,
         indexer: RecipeIndexer,
         preSelectedRecipe?: Recipe
     ) {
@@ -51,6 +54,7 @@ export class LogMealModal extends Modal {
         this.settings = settings;
         this.mealPlanService = mealPlanService;
         this.inventoryService = inventoryService;
+        this.ingredientIndex = ingredientIndex;
         this.indexer = indexer;
         this.preSelectedRecipe = preSelectedRecipe || null;
     }
@@ -384,14 +388,24 @@ export class LogMealModal extends Modal {
             };
         }
 
-        // Datalist for autocomplete
+        // Datalist for autocomplete - use both inventory and indexed ingredients
         let datalist = contentEl.querySelector('#inventory-items-list') as HTMLDataListElement;
         if (!datalist) {
             datalist = contentEl.createEl('datalist');
             datalist.id = 'inventory-items-list';
+            // Add inventory items
             const inventoryItems = this.inventoryService.getStock();
+            const addedNames = new Set<string>();
             for (const item of inventoryItems) {
                 datalist.createEl('option', { value: item.name });
+                addedNames.add(item.name.toLowerCase());
+            }
+            // Add indexed ingredients not already in inventory
+            const indexedIngredients = this.ingredientIndex.getAllIngredients();
+            for (const ing of indexedIngredients) {
+                if (!addedNames.has(ing.name.toLowerCase())) {
+                    datalist.createEl('option', { value: ing.name });
+                }
             }
         }
 

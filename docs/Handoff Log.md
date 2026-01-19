@@ -9,9 +9,9 @@ tags:
 
 **Purpose:** Session-by-session implementation notes. Each development session appends a new entry with details of what was done, what was tested, and what's next.
 
-**Last Updated:** January 17, 2026
-**Current Phase:** Phase 16 - Inventory & Consumption Engine ✅
-**Current Branch:** feat/phase-16-inventory-and-consumption-engine
+**Last Updated:** January 19, 2026
+**Current Phase:** Phase 16.6 - Ingredient Index with Autocomplete ✅
+**Current Branch:** feat/priority-1-ingredient-index
 **Version:** 0.1.0
 
 ---
@@ -34,6 +34,83 @@ Each session should include:
 - **Be specific** — Reference file paths, function names, and line numbers
 - **Test results are mandatory** — Every session must document testing
 - **Suggest commits** — Include recommended commit message at session end
+
+---
+
+## Session: January 19, 2026 - Ingredient Index with Autocomplete (Phase 16.6)
+
+### Phase
+Phase 16.6: Ingredient Index with Autocomplete
+
+### Session Summary
+Implemented global ingredient name index with autocomplete and alias support to solve inventory matching problems. Created `IngredientIndexService` for persistent indexing of ingredient names extracted from recipes and inventory. Built `IngredientSuggest` autocomplete component and `IngredientAliasModal` for managing aliases and merging duplicates. Enhanced `InventoryService.findItem()` to use alias-based matching. Added event listeners for automatic indexing when recipes are added/updated. Fixed recipe importer crash when nutrition values are non-string types.
+
+### What Was Done
+
+| Component | Files | Features |
+|-----------|-------|----------|
+| Index Service | `IngredientIndexService.ts` | Persistent JSON index, alias map, fuzzy search, ingredient name extraction (strips qty, units, parentheticals, prep words) |
+| Autocomplete | `IngredientSuggest.ts` | AbstractInputSuggest component with source indicators |
+| Alias Management | `IngredientAliasModal.ts` | View/search ingredients, add/remove aliases, merge duplicates, delete ingredients |
+| Inventory Integration | `InventoryService.ts` | Enhanced findItem with alias lookup via findCanonicalName |
+| Modal Updates | `AddInventoryModal.ts`, `LogMealModal.ts` | Autocomplete for ingredient entry |
+| Event System | `main.ts` | Listeners for recipe-added/recipe-updated to auto-index new ingredients |
+| Bug Fix | `ImporterService.ts` | extractNutrition handles numbers, objects, and strings |
+
+### Key Technical Discoveries
+
+| Issue | Solution |
+|-------|----------|
+| Recipe ingredient parsing | extractIngredientName strips parentheticals like (boneless or bone-in), trailing notes after commas, and 40+ prep words |
+| Raw recipe string matching | findCanonicalName uses extractIngredientName before lookup so "New York strip steak (boneless or bone-in)" matches "new york strip steak" |
+| Duplicate entries in index | Merge UI allows combining "garlic cloves" with "cloves garlic" |
+| NYT Cooking import crash | Nutrition values can be numbers/objects, not just strings; added type handling |
+
+### What Was Tested
+- [x] AddInventoryModal autocomplete shows indexed ingredients
+- [x] LogMealModal datalist includes all indexed ingredients
+- [x] Recipe ingredient deduction matches inventory correctly
+- [x] Alias management (add, remove, merge)
+- [x] Delete individual ingredients from index
+- [x] New recipe import adds ingredients to index automatically
+- [x] Import from NYT Cooking (previously crashing) now works
+- [x] Fuzzy match prompts when adding similar ingredient
+
+### Issues Discovered & Deferred
+- **tslib lint errors**: Safe to ignore, IDE quirk that doesn't affect build/runtime.
+
+### Files Created
+- `src/services/IngredientIndexService.ts`
+- `src/ui/components/IngredientSuggest.ts`
+- `src/ui/settings/IngredientAliasModal.ts`
+
+### Files Modified
+- `src/services/InventoryService.ts` — Added ingredientIndex reference and alias-based matching
+- `src/services/index.ts` — Exported new service and types
+- `src/services/ImporterService.ts` — Fixed extractNutrition to handle non-string values
+- `src/main.ts` — Initialize IngredientIndexService, wire up event listeners, pass to modals
+- `src/ui/components/AddInventoryModal.ts` — IngredientSuggest autocomplete
+- `src/ui/components/LogMealModal.ts` — Enhanced datalist with indexed ingredients
+- `src/ui/settings/MiseSettingsTab.ts` — Manage Aliases button
+- `src/ui/views/CookbookView.tsx` — Pass ingredientIndex to LogMealModal
+- `src/ui/views/CookbookSidebar.tsx` — Pass ingredientIndex to LogMealModal
+- `styles.css` — Ingredient suggestion styles, 50px mobile modal bottom padding
+
+### Recommended Commit
+```
+feat(phase-16.6): Ingredient index with autocomplete and alias support
+
+- Add IngredientIndexService with persistent JSON index
+- Add IngredientSuggest autocomplete component
+- Add IngredientAliasModal for alias management and merging
+- Enhance InventoryService.findItem with alias-based matching
+- Add event listeners for auto-indexing new recipe ingredients
+- Fix ImporterService.extractNutrition crash on non-string values
+- Add 50px bottom padding to modals for mobile nav bar
+```
+
+### Next Session Prompt
+Phase 17: Polish & Error Handling - Add React error boundaries, handle edge cases gracefully, theme compatibility testing, mobile usability pass. Or consider Priority 2 from Ideas.md (Quick Log snack functionality).
 
 ---
 

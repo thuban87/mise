@@ -9,6 +9,7 @@ import type MisePlugin from '../../main';
 import { DEFAULT_SETTINGS, MiseSettings, StoreProfile } from '../../types';
 import { FolderSuggest } from '../components/FolderSuggest';
 import { StoreProfileModal } from './StoreProfileModal';
+import { IngredientAliasModal } from './IngredientAliasModal';
 
 export class MiseSettingsTab extends PluginSettingTab {
     plugin: MisePlugin;
@@ -377,6 +378,19 @@ export class MiseSettingsTab extends PluginSettingTab {
                 .onChange(async (value) => {
                     this.plugin.settings.expirationWarningDays = value;
                     await this.plugin.saveSettings();
+                }));
+
+        // Ingredient Aliases
+        new Setting(containerEl)
+            .setName('Manage Ingredient Aliases')
+            .setDesc('Add aliases for ingredients to improve matching (e.g., "NY strip" → "new york strip steak").')
+            .addButton(btn => btn
+                .setButtonText('Manage Aliases')
+                .onClick(() => {
+                    new IngredientAliasModal(
+                        this.app,
+                        this.plugin.ingredientIndex
+                    ).open();
                 }));
 
         // ========================================

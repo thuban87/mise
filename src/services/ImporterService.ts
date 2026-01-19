@@ -410,18 +410,34 @@ export class ImporterService {
     private extractNutrition(nutrition?: RecipeJsonLd['nutrition']): ParsedRecipe['nutrition'] | undefined {
         if (!nutrition) return undefined;
 
-        const extractNum = (val?: string): number | undefined => {
-            if (!val) return undefined;
-            const num = parseFloat(val.replace(/[^\d.]/g, ''));
-            return isNaN(num) ? undefined : num;
+        const extractNum = (val?: string | number | { value?: string | number }): number | undefined => {
+            if (val === undefined || val === null) return undefined;
+
+            // Handle number directly
+            if (typeof val === 'number') {
+                return isNaN(val) ? undefined : val;
+            }
+
+            // Handle object with value property
+            if (typeof val === 'object' && 'value' in val) {
+                return extractNum(val.value);
+            }
+
+            // Handle string
+            if (typeof val === 'string') {
+                const num = parseFloat(val.replace(/[^\d.]/g, ''));
+                return isNaN(num) ? undefined : num;
+            }
+
+            return undefined;
         };
 
         const result = {
-            calories: extractNum(nutrition.calories),
-            protein: extractNum(nutrition.proteinContent),
-            carbs: extractNum(nutrition.carbohydrateContent),
-            fat: extractNum(nutrition.fatContent),
-            fiber: extractNum(nutrition.fiberContent),
+            calories: extractNum(nutrition.calories as any),
+            protein: extractNum(nutrition.proteinContent as any),
+            carbs: extractNum(nutrition.carbohydrateContent as any),
+            fat: extractNum(nutrition.fatContent as any),
+            fiber: extractNum(nutrition.fiberContent as any),
         };
 
         // Return undefined if all values are undefined

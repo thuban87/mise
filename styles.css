@@ -1850,3 +1850,48 @@
 		grid-template-columns: 1fr;
 	}
 }
+
+/* ===========================
+   Ingredient Suggest (Phase 17)
+   =========================== */
+.mise-ingredient-suggestion {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 8px 12px;
+}
+
+.mise-suggestion-name {
+	font-weight: 500;
+	color: var(--text-normal);
+}
+
+.mise-suggestion-aliases {
+	font-size: 0.8em;
+	color: var(--text-muted);
+	font-style: italic;
+}
+
+.mise-suggestion-source {
+	font-size: 0.75em;
+	color: var(--text-faint);
+}
+
+/* ===========================
+   Mobile Modal Bottom Padding
+   =========================== */
+/* Add padding for Obsidian mobile nav bar that appears at bottom */
+.mise-modal-content,
+.mise-add-inventory-modal,
+.mise-log-meal-modal {
+	padding-bottom: 50px;
+}
+
+@media (hover: hover) {
+	/* Desktop - remove extra padding */
+	.mise-modal-content,
+	.mise-add-inventory-modal,
+	.mise-log-meal-modal {
+		padding-bottom: var(--mise-spacing-lg);
+	}
+}
