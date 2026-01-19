@@ -73,6 +73,14 @@ export default class MisePlugin extends Plugin {
             // Connect ingredient index to inventory service for alias-based matching
             this.inventoryService.setIngredientIndex(this.ingredientIndex);
 
+            // Listen for recipe changes to update ingredient index
+            this.indexer.on('recipe-added', (recipe: { ingredients: string[] }) => {
+                this.ingredientIndex.handleRecipeUpdate(recipe.ingredients);
+            });
+            this.indexer.on('recipe-updated', (recipe: { ingredients: string[] }) => {
+                this.ingredientIndex.handleRecipeUpdate(recipe.ingredients);
+            });
+
             // Initialize status bar after inventory is loaded
             this.statusBar = new MiseStatusBar(this);
         });

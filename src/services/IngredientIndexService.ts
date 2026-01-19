@@ -96,6 +96,27 @@ export class IngredientIndexService {
     }
 
     /**
+     * Handle a recipe being added or updated - extract and index new ingredients
+     */
+    async handleRecipeUpdate(ingredients: string[]): Promise<void> {
+        if (!this.isLoaded) return;
+
+        let added = 0;
+        for (const ingredient of ingredients) {
+            const name = this.extractIngredientName(ingredient);
+            if (name && !this.ingredients.has(normalizeIngredient(name))) {
+                this.addIngredientInternal(name, 'recipe');
+                added++;
+            }
+        }
+
+        if (added > 0) {
+            await this.saveToFile();
+            console.log(`Mise: Added ${added} new ingredients from recipe`);
+        }
+    }
+
+    /**
      * Get all indexed ingredients
      */
     getAllIngredients(): IndexedIngredient[] {
@@ -159,6 +180,77 @@ export class IngredientIndexService {
             .sort((a, b) => b.score - a.score || a.ingredient.name.localeCompare(b.ingredient.name))
             .slice(0, limit)
             .map(r => r.ingredient);
+    }
+
+    /**
+     * Find similar ingredients to a given name (for fuzzy match suggestions)
+     * Returns ingredients that might be duplicates or variations
+     * Only matches when there's significant WHOLE WORD overlap
+     */
+    findSimilar(name: string, threshold: number = 0.5): IndexedIngredient | null {
+        if (!name.trim()) return null;
+
+        const normalizedQuery = normalizeIngredient(name);
+        if (!normalizedQuery) return null;
+
+        // First, check if exact match exists - if so, no suggestion needed
+        if (this.ingredients.has(normalizedQuery)) {
+            return null;
+        }
+
+        const queryWords = new Set(normalizedQuery.split(/\s+/).filter(w => w.length > 2));
+        if (queryWords.size === 0) return null;
+
+        // Look for similar ingredients based on word overlap
+        let bestMatch: { ingredient: IndexedIngredient; score: number } | null = null;
+
+        for (const ingredient of this.ingredients.values()) {
+            const normalizedName = normalizeIngredient(ingredient.name);
+            const nameWords = new Set(normalizedName.split(/\s+/).filter(w => w.length > 2));
+
+            if (nameWords.size === 0) continue;
+
+            // Calculate word overlap (Jaccard similarity)
+            const intersection = [...queryWords].filter(w => nameWords.has(w)).length;
+            const union = new Set([...queryWords, ...nameWords]).size;
+            const similarity = intersection / union;
+
+            // Also check if the main word (longest) matches
+            const queryMain = [...queryWords].sort((a, b) => b.length - a.length)[0];
+            const nameMain = [...nameWords].sort((a, b) => b.length - a.length)[0];
+            const mainWordMatch = queryMain === nameMain;
+
+            // Boost score if main words match
+            const finalScore = mainWordMatch ? Math.max(similarity, 0.8) : similarity;
+
+            if (finalScore >= threshold && (!bestMatch || finalScore > bestMatch.score)) {
+                bestMatch = { ingredient, score: finalScore };
+            }
+        }
+
+        return bestMatch?.ingredient || null;
+    }
+
+    /**
+     * Calculate similarity between two strings (0-1)
+     * Simple approach: common word overlap
+     */
+    private calculateSimilarity(a: string, b: string): number {
+        const wordsA = new Set(a.split(/\s+/).filter(w => w.length > 2));
+        const wordsB = new Set(b.split(/\s+/).filter(w => w.length > 2));
+
+        if (wordsA.size === 0 || wordsB.size === 0) {
+            // For single short words, use character overlap
+            const charsA = new Set(a);
+            const charsB = new Set(b);
+            const intersection = [...charsA].filter(c => charsB.has(c)).length;
+            return intersection / Math.max(charsA.size, charsB.size);
+        }
+
+        const intersection = [...wordsA].filter(w => wordsB.has(w)).length;
+        const union = new Set([...wordsA, ...wordsB]).size;
+
+        return intersection / union;
     }
 
     /**

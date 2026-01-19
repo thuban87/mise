@@ -131,8 +131,14 @@ export class IngredientAliasModal extends Modal {
             const nameEl = headerRow.createEl('strong', { text: ingredient.name });
             nameEl.style.fontSize = '1em';
 
+            // Right side: sources + delete button
+            const rightSection = headerRow.createDiv();
+            rightSection.style.display = 'flex';
+            rightSection.style.alignItems = 'center';
+            rightSection.style.gap = '8px';
+
             // Sources indicators
-            const sourceEl = headerRow.createEl('span');
+            const sourceEl = rightSection.createEl('span');
             sourceEl.style.fontSize = '0.8em';
             sourceEl.style.color = 'var(--text-muted)';
             const sourceIcons: string[] = [];
@@ -140,6 +146,32 @@ export class IngredientAliasModal extends Modal {
             if (ingredient.sources.includes('recipe')) sourceIcons.push('📖');
             if (ingredient.sources.includes('meal-log')) sourceIcons.push('🍽️');
             sourceEl.setText(sourceIcons.join(' '));
+
+            // Delete button
+            const deleteBtn = rightSection.createEl('button', { text: '🗑️' });
+            deleteBtn.style.border = 'none';
+            deleteBtn.style.background = 'none';
+            deleteBtn.style.cursor = 'pointer';
+            deleteBtn.style.padding = '2px 6px';
+            deleteBtn.style.fontSize = '0.9em';
+            deleteBtn.style.opacity = '0.6';
+            deleteBtn.title = 'Delete ingredient from index';
+            deleteBtn.onmouseover = () => { deleteBtn.style.opacity = '1'; };
+            deleteBtn.onmouseout = () => { deleteBtn.style.opacity = '0.6'; };
+            deleteBtn.onclick = async (e) => {
+                e.stopPropagation();
+                // Confirm deletion
+                if (confirm(`Delete "${ingredient.name}" from the ingredient index?\n\nThis will also remove all its aliases.`)) {
+                    const success = await this.ingredientIndex.removeIngredient(ingredient.name);
+                    if (success) {
+                        new Notice(`Deleted "${ingredient.name}"`);
+                        this.updateFilteredIngredients();
+                        this.renderIngredientList(container);
+                    } else {
+                        new Notice('Failed to delete ingredient');
+                    }
+                }
+            };
 
             // Aliases section
             if (ingredient.aliases.length > 0) {

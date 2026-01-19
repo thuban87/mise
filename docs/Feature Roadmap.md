@@ -11,8 +11,8 @@ tags:
 > **No MVP. No Launch Date. No Rush.**
 > This is a personal utility project with infinite runway. Features get done when they get done. Do not pressure the user with "we should do this after MVP" language.
 
-**Last Updated:** January 17, 2026
-**Current Phase:** Phase 16 - Inventory & Consumption Engine ✅
+**Last Updated:** January 19, 2026
+**Current Phase:** Phase 16.6 - Ingredient Index with Autocomplete ✅
 
 ---
 
@@ -690,6 +690,31 @@ interface ShoppingItem {
 - [x] Expiring soon alerts visible with snooze support
 - [x] Command palette uncluttered (Mise Menu consolidates commands)
 - [x] Waste tracking with reason logging
+
+---
+
+### Phase 16.6: Ingredient Index with Autocomplete
+- **Goal:** Global ingredient name index with aliases for robust inventory matching.
+- **Status:** `[x]` Completed (January 19, 2026)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| IngredientIndexService | `[x]` | Persistent JSON index with aliases |
+| Extract ingredient names | `[x]` | Strip qty, units, parentheticals, prep words |
+| IngredientSuggest component | `[x]` | AbstractInputSuggest autocomplete |
+| AddInventoryModal integration | `[x]` | Autocomplete for item names |
+| LogMealModal integration | `[x]` | Enhanced datalist with indexed ingredients |
+| InventoryService alias matching | `[x]` | findItem uses alias lookup |
+| IngredientAliasModal | `[x]` | Add/remove aliases, merge, delete |
+| Event-driven updates | `[x]` | Auto-index new recipes on add/update |
+| Import fix | `[x]` | extractNutrition handles non-string values |
+| Fuzzy match suggestions | `[x]` | Prompts when similar ingredient found on add |
+
+**Acceptance Criteria:**
+- [x] Autocomplete works in AddInventoryModal
+- [x] Recipe ingredients deduct from inventory correctly
+- [x] Alias management UI available in Settings
+- [x] New recipes auto-add ingredients to index
 
 ---
 

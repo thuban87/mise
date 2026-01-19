@@ -28347,9 +28347,18 @@ var ImporterService = class {
   extractNutrition(nutrition) {
     if (!nutrition) return void 0;
     const extractNum = (val) => {
-      if (!val) return void 0;
-      const num = parseFloat(val.replace(/[^\d.]/g, ""));
-      return isNaN(num) ? void 0 : num;
+      if (val === void 0 || val === null) return void 0;
+      if (typeof val === "number") {
+        return isNaN(val) ? void 0 : val;
+      }
+      if (typeof val === "object" && "value" in val) {
+        return extractNum(val.value);
+      }
+      if (typeof val === "string") {
+        const num = parseFloat(val.replace(/[^\d.]/g, ""));
+        return isNaN(num) ? void 0 : num;
+      }
+      return void 0;
     };
     const result = {
       calories: extractNum(nutrition.calories),
@@ -28973,6 +28982,24 @@ var _IngredientIndexService = class _IngredientIndexService {
     return this.isLoaded;
   }
   /**
+   * Handle a recipe being added or updated - extract and index new ingredients
+   */
+  async handleRecipeUpdate(ingredients) {
+    if (!this.isLoaded) return;
+    let added = 0;
+    for (const ingredient of ingredients) {
+      const name = this.extractIngredientName(ingredient);
+      if (name && !this.ingredients.has(normalizeIngredient(name))) {
+        this.addIngredientInternal(name, "recipe");
+        added++;
+      }
+    }
+    if (added > 0) {
+      await this.saveToFile();
+      console.log(`Mise: Added ${added} new ingredients from recipe`);
+    }
+  }
+  /**
    * Get all indexed ingredients
    */
   getAllIngredients() {
@@ -29017,6 +29044,55 @@ var _IngredientIndexService = class _IngredientIndexService {
       }
     }
     return results.sort((a, b) => b.score - a.score || a.ingredient.name.localeCompare(b.ingredient.name)).slice(0, limit).map((r) => r.ingredient);
+  }
+  /**
+   * Find similar ingredients to a given name (for fuzzy match suggestions)
+   * Returns ingredients that might be duplicates or variations
+   * Only matches when there's significant WHOLE WORD overlap
+   */
+  findSimilar(name, threshold = 0.5) {
+    if (!name.trim()) return null;
+    const normalizedQuery = normalizeIngredient(name);
+    if (!normalizedQuery) return null;
+    if (this.ingredients.has(normalizedQuery)) {
+      return null;
+    }
+    const queryWords = new Set(normalizedQuery.split(/\s+/).filter((w) => w.length > 2));
+    if (queryWords.size === 0) return null;
+    let bestMatch = null;
+    for (const ingredient of this.ingredients.values()) {
+      const normalizedName = normalizeIngredient(ingredient.name);
+      const nameWords = new Set(normalizedName.split(/\s+/).filter((w) => w.length > 2));
+      if (nameWords.size === 0) continue;
+      const intersection = [...queryWords].filter((w) => nameWords.has(w)).length;
+      const union = (/* @__PURE__ */ new Set([...queryWords, ...nameWords])).size;
+      const similarity = intersection / union;
+      const queryMain = [...queryWords].sort((a, b) => b.length - a.length)[0];
+      const nameMain = [...nameWords].sort((a, b) => b.length - a.length)[0];
+      const mainWordMatch = queryMain === nameMain;
+      const finalScore = mainWordMatch ? Math.max(similarity, 0.8) : similarity;
+      if (finalScore >= threshold && (!bestMatch || finalScore > bestMatch.score)) {
+        bestMatch = { ingredient, score: finalScore };
+      }
+    }
+    return (bestMatch == null ? void 0 : bestMatch.ingredient) || null;
+  }
+  /**
+   * Calculate similarity between two strings (0-1)
+   * Simple approach: common word overlap
+   */
+  calculateSimilarity(a, b) {
+    const wordsA = new Set(a.split(/\s+/).filter((w) => w.length > 2));
+    const wordsB = new Set(b.split(/\s+/).filter((w) => w.length > 2));
+    if (wordsA.size === 0 || wordsB.size === 0) {
+      const charsA = new Set(a);
+      const charsB = new Set(b);
+      const intersection2 = [...charsA].filter((c) => charsB.has(c)).length;
+      return intersection2 / Math.max(charsA.size, charsB.size);
+    }
+    const intersection = [...wordsA].filter((w) => wordsB.has(w)).length;
+    const union = (/* @__PURE__ */ new Set([...wordsA, ...wordsB])).size;
+    return intersection / union;
   }
   /**
    * Add a new ingredient to the index
@@ -29710,7 +29786,11 @@ var IngredientAliasModal = class extends import_obsidian11.Modal {
       headerRow.style.marginBottom = "8px";
       const nameEl = headerRow.createEl("strong", { text: ingredient.name });
       nameEl.style.fontSize = "1em";
-      const sourceEl = headerRow.createEl("span");
+      const rightSection = headerRow.createDiv();
+      rightSection.style.display = "flex";
+      rightSection.style.alignItems = "center";
+      rightSection.style.gap = "8px";
+      const sourceEl = rightSection.createEl("span");
       sourceEl.style.fontSize = "0.8em";
       sourceEl.style.color = "var(--text-muted)";
       const sourceIcons = [];
@@ -29718,6 +29798,35 @@ var IngredientAliasModal = class extends import_obsidian11.Modal {
       if (ingredient.sources.includes("recipe")) sourceIcons.push("\u{1F4D6}");
       if (ingredient.sources.includes("meal-log")) sourceIcons.push("\u{1F37D}\uFE0F");
       sourceEl.setText(sourceIcons.join(" "));
+      const deleteBtn = rightSection.createEl("button", { text: "\u{1F5D1}\uFE0F" });
+      deleteBtn.style.border = "none";
+      deleteBtn.style.background = "none";
+      deleteBtn.style.cursor = "pointer";
+      deleteBtn.style.padding = "2px 6px";
+      deleteBtn.style.fontSize = "0.9em";
+      deleteBtn.style.opacity = "0.6";
+      deleteBtn.title = "Delete ingredient from index";
+      deleteBtn.onmouseover = () => {
+        deleteBtn.style.opacity = "1";
+      };
+      deleteBtn.onmouseout = () => {
+        deleteBtn.style.opacity = "0.6";
+      };
+      deleteBtn.onclick = async (e) => {
+        e.stopPropagation();
+        if (confirm(`Delete "${ingredient.name}" from the ingredient index?
+
+This will also remove all its aliases.`)) {
+          const success = await this.ingredientIndex.removeIngredient(ingredient.name);
+          if (success) {
+            new import_obsidian11.Notice(`Deleted "${ingredient.name}"`);
+            this.updateFilteredIngredients();
+            this.renderIngredientList(container);
+          } else {
+            new import_obsidian11.Notice("Failed to delete ingredient");
+          }
+        }
+      };
       if (ingredient.aliases.length > 0) {
         const aliasContainer = itemDiv.createDiv();
         aliasContainer.style.display = "flex";
@@ -32219,6 +32328,19 @@ var AddInventoryModal = class extends import_obsidian21.Modal {
       new import_obsidian21.Notice("Please enter a valid quantity");
       return;
     }
+    const similar = this.ingredientIndex.findSimilar(this.itemName);
+    if (similar) {
+      const useSimilar = confirm(
+        `Similar ingredient found: "${similar.name}"
+
+Would you like to use this existing ingredient instead of "${this.itemName}"?
+
+Click OK to use "${similar.name}", or Cancel to add "${this.itemName}" as a new item.`
+      );
+      if (useSimilar) {
+        this.itemName = similar.name;
+      }
+    }
     const item = {
       name: this.itemName,
       quantity: this.quantity,
@@ -32863,6 +32985,12 @@ var MisePlugin = class extends import_obsidian26.Plugin {
       const recipeIngredients = this.indexer.getRecipes().flatMap((r) => r.ingredients);
       await this.ingredientIndex.initialize(inventoryItems, recipeIngredients);
       this.inventoryService.setIngredientIndex(this.ingredientIndex);
+      this.indexer.on("recipe-added", (recipe) => {
+        this.ingredientIndex.handleRecipeUpdate(recipe.ingredients);
+      });
+      this.indexer.on("recipe-updated", (recipe) => {
+        this.ingredientIndex.handleRecipeUpdate(recipe.ingredients);
+      });
       this.statusBar = new MiseStatusBar(this);
     });
     this.registerView(

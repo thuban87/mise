@@ -217,6 +217,19 @@ export class AddInventoryModal extends Modal {
             return;
         }
 
+        // Check for similar ingredients before adding
+        const similar = this.ingredientIndex.findSimilar(this.itemName);
+        if (similar) {
+            const useSimilar = confirm(
+                `Similar ingredient found: "${similar.name}"\n\n` +
+                `Would you like to use this existing ingredient instead of "${this.itemName}"?\n\n` +
+                `Click OK to use "${similar.name}", or Cancel to add "${this.itemName}" as a new item.`
+            );
+            if (useSimilar) {
+                this.itemName = similar.name;
+            }
+        }
+
         // Build the inventory item
         const item: InventoryItem = {
             name: this.itemName,
