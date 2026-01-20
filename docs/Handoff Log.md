@@ -10,8 +10,8 @@ tags:
 **Purpose:** Session-by-session implementation notes. Each development session appends a new entry with details of what was done, what was tested, and what's next.
 
 **Last Updated:** January 19, 2026
-**Current Phase:** Phase 16.8 - Recipe Modal Enhancements ✅
-**Current Branch:** feat/priority-3-recipe-modal-changes
+**Current Phase:** Phase 16.9 - Add Recipe Modal ✅
+**Current Branch:** feat/manual-recipe-modal
 **Version:** 0.1.0
 
 ---
@@ -34,6 +34,51 @@ Each session should include:
 - **Be specific** — Reference file paths, function names, and line numbers
 - **Test results are mandatory** — Every session must document testing
 - **Suggest commits** — Include recommended commit message at session end
+
+---
+
+## Session: January 19, 2026 - Add Recipe Modal (Phase 16.9)
+
+### Phase
+Phase 16.9: Add Recipe Modal
+
+### Session Summary
+Implemented Add Recipe Modal for manually creating recipe files with consistent formatting. Modal includes all frontmatter fields, folder dropdown populated from existing subfolders, ingredient autocomplete from index, and generates markdown with infobox and sections.
+
+### What Was Done
+
+| Component | Files | Features |
+|-----------|-------|----------|
+| AddRecipeModal | `AddRecipeModal.ts` | Full form, folder dropdown, ingredient autocomplete |
+| Commands | `main.ts` | `mise:add-recipe` command |
+| Menu | `MiseCommandMenu.ts` | New Recipe ✏️ button |
+
+### What Was Tested
+- [x] Modal opens with all fields
+- [x] Folder dropdown shows existing recipe subfolders
+- [x] Ingredient autocomplete works
+- [x] File created in correct folder with proper formatting
+
+### Files Created
+- `src/ui/components/AddRecipeModal.ts`
+
+### Files Modified
+- `src/main.ts` — Added AddRecipeModal import and command
+- `src/ui/components/MiseCommandMenu.ts` — Added New Recipe button
+
+### Recommended Commit
+```
+feat(phase-16.9): Add Recipe Modal for manual recipe creation
+
+- Add AddRecipeModal with all frontmatter fields
+- Folder dropdown auto-populated from existing recipe subfolders
+- Ingredient autocomplete from IngredientIndexService
+- Generates markdown with infobox, ingredients, instructions, notes
+- Add mise:add-recipe command and Mise Menu button
+```
+
+### Next Session Prompt
+Phase 17: Polish & Error Handling, or other priorities from Ideas.md.
 
 ---
 

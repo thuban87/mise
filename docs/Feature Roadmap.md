@@ -12,7 +12,7 @@ tags:
 > This is a personal utility project with infinite runway. Features get done when they get done. Do not pressure the user with "we should do this after MVP" language.
 
 **Last Updated:** January 19, 2026
-**Current Phase:** Phase 16.8 - Recipe Modal Enhancements ✅
+**Current Phase:** Phase 16.9 - Add Recipe Modal ✅
 
 ---
 
@@ -756,6 +756,26 @@ interface ShoppingItem {
 - [x] Extra items can be added
 - [x] Instructions load from file when expanded
 - [x] Edited values carry to confirmation
+
+---
+
+### Phase 16.9: Add Recipe Modal
+- **Goal:** Manual recipe creation with consistent formatting and ingredient autocomplete.
+- **Status:** `[x]` Completed (January 19, 2026)
+
+| Task | Status | Notes |
+|------|----------|-------|
+| AddRecipeModal | `[x]` | Full form with all frontmatter fields |
+| Folder dropdown | `[x]` | Auto-populated from existing recipe subfolders |
+| Ingredient autocomplete | `[x]` | Uses IngredientIndexService |
+| File generation | `[x]` | Creates markdown with infobox and sections |
+| Command & menu | `[x]` | `mise:add-recipe` and Mise Menu button |
+
+**Acceptance Criteria:**
+- [x] Modal opens with all fields
+- [x] Folder dropdown shows existing subfolders
+- [x] Ingredient autocomplete works
+- [x] File created with correct formatting
 
 ---
 
