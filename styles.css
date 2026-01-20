@@ -1988,6 +1988,36 @@
 	padding-bottom: 50px;
 }
 
+/* Barcode Section */
+.mise-barcode-section {
+	margin-bottom: 16px;
+}
+
+.mise-barcode-section h4 {
+	margin: 0 0 8px 0;
+	font-size: 0.95em;
+}
+
+.mise-barcode-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.mise-barcode-input {
+	flex: 1;
+	padding: 6px 10px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-primary);
+}
+
+.mise-barcode-section hr {
+	margin: 16px 0;
+	border: none;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
 @media (hover: hover) {
 
 	/* Desktop - remove extra padding */

@@ -10,8 +10,8 @@ tags:
 **Purpose:** Session-by-session implementation notes. Each development session appends a new entry with details of what was done, what was tested, and what's next.
 
 **Last Updated:** January 19, 2026
-**Current Phase:** Phase 16.9 - Add Recipe Modal ✅
-**Current Branch:** feat/manual-recipe-modal
+**Current Phase:** Phase 16.10 - Barcode Lookup ✅
+**Current Branch:** feat/upc-lookup-modal
 **Version:** 0.1.0
 
 ---
@@ -34,6 +34,45 @@ Each session should include:
 - **Be specific** — Reference file paths, function names, and line numbers
 - **Test results are mandatory** — Every session must document testing
 - **Suggest commits** — Include recommended commit message at session end
+
+---
+
+## Session: January 19, 2026 - Barcode Lookup (Phase 16.10)
+
+### Phase
+Phase 16.10: Barcode Lookup
+
+### Session Summary
+Added barcode/UPC lookup to AddInventoryModal using Open Food Facts API. User can paste a barcode, click Lookup, and auto-fill the item name. Initially tried UPC Item DB as fallback but removed due to CORS/format issues.
+
+### What Was Done
+
+| Component | Files | Features |
+|-----------|-------|----------|
+| AddInventoryModal | `AddInventoryModal.ts` | Barcode input, lookup button, Open Food Facts API |
+| Styles | `styles.css` | Barcode section styling |
+
+### What Was Tested
+- [x] Barcode input and lookup works
+- [x] Auto-fills item name on success
+- [x] Graceful "not found" message
+
+### Files Modified
+- `src/ui/components/AddInventoryModal.ts`
+- `styles.css`
+
+### Recommended Commit
+```
+feat(phase-16.10): Barcode lookup for inventory items
+
+- Add barcode input field to AddInventoryModal
+- Integrate Open Food Facts API for product lookup
+- Auto-fill item name from barcode scan or paste
+- Add CSS styling for barcode section
+```
+
+### Next Session Prompt
+Phase 17: Polish & Error Handling, or other priorities.
 
 ---
 

@@ -32412,8 +32412,88 @@ var AddInventoryModal = class extends import_obsidian21.Modal {
       text: "Add a new item to your kitchen inventory.",
       cls: "mise-modal-description"
     });
-    new import_obsidian21.Setting(contentEl).setName("Item Name").setDesc("What are you adding? Start typing for suggestions.").addText((text) => {
-      text.setPlaceholder("e.g., Flour, Milk, Chicken Breast").onChange((value) => {
+    const barcodeSection = contentEl.createDiv("mise-barcode-section");
+    barcodeSection.createEl("h4", { text: "\u{1F50D} Quick Add via Barcode (Optional)" });
+    const barcodeRow = barcodeSection.createDiv("mise-barcode-row");
+    const barcodeInput = barcodeRow.createEl("input", {
+      type: "text",
+      placeholder: "Paste UPC/barcode...",
+      cls: "mise-barcode-input"
+    });
+    barcodeInput.style.flex = "1";
+    const lookupBtn = barcodeRow.createEl("button", {
+      text: "\u{1F50E} Lookup",
+      cls: "mod-cta"
+    });
+    lookupBtn.style.marginLeft = "8px";
+    const statusEl = barcodeSection.createEl("p", { cls: "mise-barcode-status" });
+    statusEl.style.fontSize = "0.85em";
+    statusEl.style.marginTop = "4px";
+    statusEl.style.color = "var(--text-muted)";
+    lookupBtn.onclick = async () => {
+      const barcode = barcodeInput.value.trim();
+      if (!barcode) {
+        statusEl.textContent = "\u26A0\uFE0F Please enter a barcode";
+        return;
+      }
+      statusEl.textContent = "\u23F3 Looking up...";
+      lookupBtn.disabled = true;
+      try {
+        const result = await this.lookupBarcode(barcode);
+        if (result) {
+          this.itemName = result.name;
+          statusEl.textContent = `\u2705 Found: ${result.name}`;
+          this.renderForm(contentEl, barcodeSection);
+        } else {
+          statusEl.textContent = "\u274C Product not found in database";
+        }
+      } catch (e) {
+        statusEl.textContent = `\u274C Lookup failed: ${e}`;
+      }
+      lookupBtn.disabled = false;
+    };
+    barcodeInput.onkeydown = (e) => {
+      if (e.key === "Enter") {
+        lookupBtn.click();
+      }
+    };
+    barcodeSection.createEl("hr");
+    this.renderForm(contentEl, barcodeSection);
+  }
+  /**
+   * Look up product info via Open Food Facts API
+   */
+  async lookupBarcode(barcode) {
+    const url = `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`;
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.status === 1 && data.product) {
+        const product = data.product;
+        const name = product.product_name || product.product_name_en || "";
+        const brand = product.brands || "";
+        if (name) {
+          return {
+            name: brand ? `${brand} ${name}` : name,
+            brand
+          };
+        }
+      }
+      return null;
+    } catch (e) {
+      console.error("Barcode lookup failed:", e);
+      return null;
+    }
+  }
+  renderForm(contentEl, afterElement) {
+    const existingForm = contentEl.querySelector(".mise-inventory-form");
+    if (existingForm) {
+      existingForm.remove();
+    }
+    const formContainer = contentEl.createDiv("mise-inventory-form");
+    afterElement.after(formContainer);
+    new import_obsidian21.Setting(formContainer).setName("Item Name").setDesc("What are you adding? Start typing for suggestions.").addText((text) => {
+      text.setPlaceholder("e.g., Flour, Milk, Chicken Breast").setValue(this.itemName).onChange((value) => {
         this.itemName = value.trim();
       });
       text.inputEl.style.width = "100%";
@@ -32426,7 +32506,7 @@ var AddInventoryModal = class extends import_obsidian21.Modal {
         }
       );
     });
-    const qtyUnitRow = new import_obsidian21.Setting(contentEl).setName("Quantity");
+    const qtyUnitRow = new import_obsidian21.Setting(formContainer).setName("Quantity");
     qtyUnitRow.addText((text) => {
       text.setPlaceholder("1").setValue(String(this.quantity)).onChange((value) => {
         const num = parseFloat(value);
@@ -32448,7 +32528,7 @@ var AddInventoryModal = class extends import_obsidian21.Modal {
         this.unit = value;
       });
     });
-    new import_obsidian21.Setting(contentEl).setName("Category").setDesc("Where is this item stored?").addDropdown((dropdown) => {
+    new import_obsidian21.Setting(formContainer).setName("Category").setDesc("Where is this item stored?").addDropdown((dropdown) => {
       for (const cat of CATEGORIES) {
         dropdown.addOption(cat, cat);
       }
@@ -32458,7 +32538,7 @@ var AddInventoryModal = class extends import_obsidian21.Modal {
         this.location = value;
       });
     });
-    new import_obsidian21.Setting(contentEl).setName("Location").setDesc("Specific storage location").addDropdown((dropdown) => {
+    new import_obsidian21.Setting(formContainer).setName("Location").setDesc("Specific storage location").addDropdown((dropdown) => {
       for (const loc of this.settings.storageLocations) {
         dropdown.addOption(loc, loc);
       }
@@ -32467,20 +32547,20 @@ var AddInventoryModal = class extends import_obsidian21.Modal {
         this.location = value;
       });
     });
-    new import_obsidian21.Setting(contentEl).setName("Purchase Date").addText((text) => {
+    new import_obsidian21.Setting(formContainer).setName("Purchase Date").addText((text) => {
       text.setValue(this.purchaseDate).onChange((value) => {
         this.purchaseDate = value;
       });
       text.inputEl.type = "date";
     });
-    contentEl.createEl("h4", { text: "Expiration (Optional)" });
-    new import_obsidian21.Setting(contentEl).setName("Expires").addText((text) => {
+    formContainer.createEl("h4", { text: "Expiration (Optional)" });
+    new import_obsidian21.Setting(formContainer).setName("Expires").addText((text) => {
       text.setPlaceholder("").setValue(this.expirationDate).onChange((value) => {
         this.expirationDate = value;
       });
       text.inputEl.type = "date";
     });
-    new import_obsidian21.Setting(contentEl).setName("Expiry Type").addDropdown((dropdown) => {
+    new import_obsidian21.Setting(formContainer).setName("Expiry Type").addDropdown((dropdown) => {
       dropdown.addOption("", "-- Select --");
       for (const type of this.settings.expirationTypes) {
         dropdown.addOption(type, type);
@@ -32490,7 +32570,7 @@ var AddInventoryModal = class extends import_obsidian21.Modal {
         this.expirationType = value;
       });
     });
-    const buttonContainer = contentEl.createDiv("mise-modal-nav");
+    const buttonContainer = formContainer.createDiv("mise-modal-nav");
     const cancelBtn = buttonContainer.createEl("button", { text: "Cancel" });
     cancelBtn.onclick = () => this.close();
     const addBtn = buttonContainer.createEl("button", {
