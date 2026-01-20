@@ -10,6 +10,7 @@ import { ShoppingList, ShoppingMode, MiseSettings, Aisle, ShoppingItem, PlannedM
 import { RecipeIndexer } from './RecipeIndexer';
 import { MealPlanService } from './MealPlanService';
 import { GeminiService } from './GeminiService';
+import { ClaudeService } from './ClaudeService';
 import { parseIngredientQuantity, normalizeIngredient, ParsedIngredient } from '../parsers/IngredientParser';
 import { parseIngredient, ParsedQuantity } from '../utils/QuantityParser';
 import { combineQuantities, CombinedQuantity, getUnitFamily } from '../utils/UnitConverter';
@@ -202,11 +203,10 @@ export class ShoppingListService {
 
         // Collect ingredients from all recipes
         const ingredients = await this.collectIngredients(meals);
-        console.log(`ShoppingListService: Collected ${ingredients.length} ingredients`);
 
         // Aggregate and deduplicate
         const aggregated = this.aggregateIngredients(ingredients);
-        console.log(`ShoppingListService: Aggregated to ${aggregated.length} unique items`);
+        console.log(`ShoppingListService: Aggregated ${ingredients.length} ingredients to ${aggregated.length} unique items`);
 
         // Get store profile
         const storeProfile = storeId ? this.settings.storeProfiles.find(p => p.id === storeId) : undefined;
@@ -241,11 +241,10 @@ export class ShoppingListService {
 
         // Collect ingredients from all recipes
         const ingredients = await this.collectIngredients(meals);
-        console.log(`ShoppingListService: Collected ${ingredients.length} ingredients`);
 
         // Aggregate and deduplicate
         const aggregated = this.aggregateIngredients(ingredients);
-        console.log(`ShoppingListService: Aggregated to ${aggregated.length} unique items`);
+        console.log(`ShoppingListService: Aggregated ${ingredients.length} ingredients to ${aggregated.length} unique items`);
 
         // Get store profile
         const storeProfile = storeId ? this.settings.storeProfiles.find(p => p.id === storeId) : undefined;
@@ -311,6 +310,8 @@ export class ShoppingListService {
      */
     private async collectIngredients(meals: PlannedMeal[]): Promise<{ ingredient: string; recipeName: string }[]> {
         const results: { ingredient: string; recipeName: string }[] = [];
+        let foundCount = 0;
+        let notFoundCount = 0;
 
         for (const meal of meals) {
             if (!meal.recipePath) continue;
@@ -331,11 +332,11 @@ export class ShoppingListService {
             }
 
             if (!recipe) {
-                console.log(`ShoppingListService: Recipe not found for "${meal.recipePath}" (title: ${meal.recipeTitle})`);
+                notFoundCount++;
                 continue;
             }
 
-            console.log(`ShoppingListService: Found recipe "${recipe.title}" with ${recipe.ingredients.length} ingredients`);
+            foundCount++;
 
             // Add each ingredient with recipe reference
             for (const ingredient of recipe.ingredients) {
@@ -345,6 +346,9 @@ export class ShoppingListService {
                 });
             }
         }
+
+        // Log summary instead of per-recipe
+        console.log(`ShoppingListService: Processed ${foundCount} recipes (${notFoundCount} not found), collected ${results.length} ingredients`);
 
         return results;
     }
@@ -568,23 +572,50 @@ export class ShoppingListService {
         // Generate content
         let content = this.formatListAsMarkdown(list, displayLabel);
 
-        // Optionally clean up with Gemini AI
-        if (this.settings.enableGeminiCleanup && this.settings.geminiApiKey) {
-            console.log('ShoppingListService: Running Gemini cleanup...');
-            try {
-                const gemini = new GeminiService(this.settings.geminiApiKey);
-                const result = await gemini.cleanupShoppingList(content);
+        // Optionally clean up with AI (Gemini or Claude)
+        if (this.settings.enableGeminiCleanup) {
+            const provider = this.settings.aiProvider;
+            const apiKey = provider === 'claude' ? this.settings.claudeApiKey : this.settings.geminiApiKey;
 
-                if (result.success && result.cleanedList) {
-                    console.log(`ShoppingListService: Gemini cleanup successful (${result.tokensUsed} tokens)`);
-                    content = result.cleanedList;
-                } else {
-                    console.warn('ShoppingListService: Gemini cleanup failed:', result.error);
+            if (!apiKey) {
+                console.warn(`ShoppingListService: ${provider} API key not configured, skipping AI cleanup`);
+            } else {
+                console.log(`ShoppingListService: Running ${provider} AI cleanup...`);
+                try {
+                    // Load inventory for cross-reference if available
+                    let inventoryMarkdown: string | undefined;
+                    const inventoryPath = `${this.settings.inventoryFolder}/Inventory.md`;
+                    const inventoryFile = vault.getAbstractFileByPath(inventoryPath);
+                    if (inventoryFile) {
+                        try {
+                            inventoryMarkdown = await vault.read(inventoryFile as any);
+                            console.log('ShoppingListService: Including inventory for AI cross-reference');
+                        } catch (e) {
+                            console.warn('ShoppingListService: Could not read inventory file');
+                        }
+                    }
+
+                    // Use selected provider
+                    let result: { success: boolean; cleanedList?: string; error?: string; tokensUsed?: number };
+                    if (provider === 'claude') {
+                        const claude = new ClaudeService(apiKey);
+                        result = await claude.cleanupShoppingList(content, inventoryMarkdown);
+                    } else {
+                        const gemini = new GeminiService(apiKey);
+                        result = await gemini.cleanupShoppingList(content, inventoryMarkdown);
+                    }
+
+                    if (result.success && result.cleanedList) {
+                        console.log(`ShoppingListService: ${provider} cleanup successful (${result.tokensUsed} tokens)`);
+                        content = result.cleanedList;
+                    } else {
+                        console.warn(`ShoppingListService: ${provider} cleanup failed:`, result.error);
+                        // Continue with original content
+                    }
+                } catch (error) {
+                    console.error(`ShoppingListService: ${provider} cleanup error:`, error);
                     // Continue with original content
                 }
-            } catch (error) {
-                console.error('ShoppingListService: Gemini cleanup error:', error);
-                // Continue with original content
             }
         }
 

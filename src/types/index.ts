@@ -289,7 +289,13 @@ export interface MiseSettings {
     /** Gemini API key for AI-powered list cleanup (optional) */
     geminiApiKey: string;
 
-    /** Whether to use Gemini for shopping list cleanup */
+    /** Claude API key for AI-powered list cleanup (optional) */
+    claudeApiKey: string;
+
+    /** Which AI provider to use for shopping list cleanup */
+    aiProvider: 'gemini' | 'claude';
+
+    /** Whether to use AI for shopping list cleanup */
     enableGeminiCleanup: boolean;
 
     // Inventory settings (Phase 16)
@@ -411,6 +417,8 @@ export const DEFAULT_SETTINGS: MiseSettings = {
     importImageFolder: 'Resources/Imports/Recipe-Images',
     downloadImagesOnImport: false,
     geminiApiKey: '',
+    claudeApiKey: '',
+    aiProvider: 'gemini',
     enableGeminiCleanup: false,
     // Inventory defaults
     inventoryFolder: 'Life/Household/Kitchen/Inventory',
