@@ -44,8 +44,8 @@ export class RecipeIndexer extends Events {
         const elapsed = (performance.now() - startTime).toFixed(0);
         console.log(`${PLUGIN_NAME}: Indexed ${this.recipes.size} recipes in ${elapsed}ms`);
 
-        // Export to JSON for external tools (Gemini CLI, etc.)
-        await this.exportToJson();
+        // Note: exportToJson is available via command 'mise:export-recipe-index'
+        // but not run automatically on startup to reduce I/O
 
         // Emit ready event
         this.trigger('index-ready', { count: this.recipes.size });

@@ -403,12 +403,24 @@ export class MiseSettingsTab extends PluginSettingTab {
         });
 
         new Setting(containerEl)
-            .setName('Enable Gemini Cleanup')
-            .setDesc('When enabled, shopping lists will be cleaned up by Gemini before saving.')
+            .setName('Enable AI Cleanup')
+            .setDesc('When enabled, shopping lists will be cleaned up by AI before saving.')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.enableGeminiCleanup)
                 .onChange(async (value) => {
                     this.plugin.settings.enableGeminiCleanup = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('AI Provider')
+            .setDesc('Choose which AI service to use for shopping list cleanup.')
+            .addDropdown(dropdown => dropdown
+                .addOption('gemini', 'Google Gemini (Free tier)')
+                .addOption('claude', 'Anthropic Claude (Haiku)')
+                .setValue(this.plugin.settings.aiProvider)
+                .onChange(async (value: 'gemini' | 'claude') => {
+                    this.plugin.settings.aiProvider = value;
                     await this.plugin.saveSettings();
                 }));
 
@@ -420,6 +432,17 @@ export class MiseSettingsTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.geminiApiKey)
                 .onChange(async (value) => {
                     this.plugin.settings.geminiApiKey = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('Claude API Key')
+            .setDesc('Your Anthropic API key. Get one at console.anthropic.com')
+            .addText(text => text
+                .setPlaceholder('sk-ant-...')
+                .setValue(this.plugin.settings.claudeApiKey)
+                .onChange(async (value) => {
+                    this.plugin.settings.claudeApiKey = value;
                     await this.plugin.saveSettings();
                 }));
 
