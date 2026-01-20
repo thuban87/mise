@@ -45,6 +45,7 @@ export class MiseCommandMenu extends Modal {
                     { label: 'Cookbook', icon: '📖', commandId: 'mise:open-cookbook' },
                     { label: 'Sidebar', icon: '📑', commandId: 'mise:open-cookbook-sidebar' },
                     { label: 'Import URL', icon: '📥', commandId: 'mise:import-recipe-from-url' },
+                    { label: 'New Recipe', icon: '✏️', commandId: 'mise:add-recipe' },
                 ]
             },
             {

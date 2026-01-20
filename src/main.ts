@@ -26,6 +26,7 @@ import { MiseStatusBar } from './ui/components/MiseStatusBar';
 import { MiseCommandMenu } from './ui/components/MiseCommandMenu';
 import { ThrowAwayModal } from './ui/components/ThrowAwayModal';
 import { QuickLogModal } from './ui/components/QuickLogModal';
+import { AddRecipeModal } from './ui/components/AddRecipeModal';
 
 export default class MisePlugin extends Plugin {
     settings: MiseSettings;
@@ -226,6 +227,19 @@ export default class MisePlugin extends Plugin {
             name: 'Generate Meal Plan Files',
             callback: async () => {
                 await this.generateMealPlanFiles();
+            }
+        });
+
+        // Add Recipe manually
+        this.addCommand({
+            id: 'add-recipe',
+            name: 'Create New Recipe',
+            callback: () => {
+                new AddRecipeModal(
+                    this.app,
+                    this.settings,
+                    this.ingredientIndex
+                ).open();
             }
         });
 
