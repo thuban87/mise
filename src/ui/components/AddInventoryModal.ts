@@ -67,13 +67,117 @@ export class AddInventoryModal extends Modal {
             cls: 'mise-modal-description'
         });
 
+        // === Barcode Lookup Section ===
+        const barcodeSection = contentEl.createDiv('mise-barcode-section');
+        barcodeSection.createEl('h4', { text: '🔍 Quick Add via Barcode (Optional)' });
+
+        const barcodeRow = barcodeSection.createDiv('mise-barcode-row');
+
+        const barcodeInput = barcodeRow.createEl('input', {
+            type: 'text',
+            placeholder: 'Paste UPC/barcode...',
+            cls: 'mise-barcode-input'
+        });
+        barcodeInput.style.flex = '1';
+
+        const lookupBtn = barcodeRow.createEl('button', {
+            text: '🔎 Lookup',
+            cls: 'mod-cta'
+        });
+        lookupBtn.style.marginLeft = '8px';
+
+        const statusEl = barcodeSection.createEl('p', { cls: 'mise-barcode-status' });
+        statusEl.style.fontSize = '0.85em';
+        statusEl.style.marginTop = '4px';
+        statusEl.style.color = 'var(--text-muted)';
+
+        lookupBtn.onclick = async () => {
+            const barcode = barcodeInput.value.trim();
+            if (!barcode) {
+                statusEl.textContent = '⚠️ Please enter a barcode';
+                return;
+            }
+
+            statusEl.textContent = '⏳ Looking up...';
+            lookupBtn.disabled = true;
+
+            try {
+                const result = await this.lookupBarcode(barcode);
+                if (result) {
+                    this.itemName = result.name;
+                    statusEl.textContent = `✅ Found: ${result.name}`;
+                    // Re-render to update the name field
+                    this.renderForm(contentEl, barcodeSection);
+                } else {
+                    statusEl.textContent = '❌ Product not found in database';
+                }
+            } catch (e) {
+                statusEl.textContent = `❌ Lookup failed: ${e}`;
+            }
+
+            lookupBtn.disabled = false;
+        };
+
+        // Handle Enter key in barcode input
+        barcodeInput.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                lookupBtn.click();
+            }
+        };
+
+        barcodeSection.createEl('hr');
+
+        // Render the rest of the form
+        this.renderForm(contentEl, barcodeSection);
+    }
+
+    /**
+     * Look up product info via Open Food Facts API
+     */
+    private async lookupBarcode(barcode: string): Promise<{ name: string; brand?: string } | null> {
+        const url = `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`;
+
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (data.status === 1 && data.product) {
+                const product = data.product;
+                const name = product.product_name || product.product_name_en || '';
+                const brand = product.brands || '';
+
+                if (name) {
+                    return {
+                        name: brand ? `${brand} ${name}` : name,
+                        brand
+                    };
+                }
+            }
+            return null;
+        } catch (e) {
+            console.error('Barcode lookup failed:', e);
+            return null;
+        }
+    }
+
+    private renderForm(contentEl: HTMLElement, afterElement: HTMLElement) {
+        // Remove existing form content (if re-rendering)
+        const existingForm = contentEl.querySelector('.mise-inventory-form');
+        if (existingForm) {
+            existingForm.remove();
+        }
+
+        const formContainer = contentEl.createDiv('mise-inventory-form');
+        afterElement.after(formContainer);
+
         // Item name input with autocomplete
-        new Setting(contentEl)
+        new Setting(formContainer)
             .setName('Item Name')
             .setDesc('What are you adding? Start typing for suggestions.')
             .addText(text => {
                 text
                     .setPlaceholder('e.g., Flour, Milk, Chicken Breast')
+                    .setValue(this.itemName)
                     .onChange(value => {
                         this.itemName = value.trim();
                     });
@@ -90,7 +194,7 @@ export class AddInventoryModal extends Modal {
             });
 
         // Quantity and Unit row
-        const qtyUnitRow = new Setting(contentEl)
+        const qtyUnitRow = new Setting(formContainer)
             .setName('Quantity');
 
         qtyUnitRow.addText(text => {
@@ -120,7 +224,7 @@ export class AddInventoryModal extends Modal {
         });
 
         // Category dropdown
-        new Setting(contentEl)
+        new Setting(formContainer)
             .setName('Category')
             .setDesc('Where is this item stored?')
             .addDropdown(dropdown => {
@@ -136,7 +240,7 @@ export class AddInventoryModal extends Modal {
             });
 
         // Location dropdown (from settings)
-        new Setting(contentEl)
+        new Setting(formContainer)
             .setName('Location')
             .setDesc('Specific storage location')
             .addDropdown(dropdown => {
@@ -151,7 +255,7 @@ export class AddInventoryModal extends Modal {
             });
 
         // Purchase date
-        new Setting(contentEl)
+        new Setting(formContainer)
             .setName('Purchase Date')
             .addText(text => {
                 text
@@ -163,10 +267,10 @@ export class AddInventoryModal extends Modal {
             });
 
         // Expiration section
-        contentEl.createEl('h4', { text: 'Expiration (Optional)' });
+        formContainer.createEl('h4', { text: 'Expiration (Optional)' });
 
         // Expiration date
-        new Setting(contentEl)
+        new Setting(formContainer)
             .setName('Expires')
             .addText(text => {
                 text
@@ -179,7 +283,7 @@ export class AddInventoryModal extends Modal {
             });
 
         // Expiry type dropdown
-        new Setting(contentEl)
+        new Setting(formContainer)
             .setName('Expiry Type')
             .addDropdown(dropdown => {
                 dropdown.addOption('', '-- Select --');
@@ -193,7 +297,7 @@ export class AddInventoryModal extends Modal {
             });
 
         // Buttons
-        const buttonContainer = contentEl.createDiv('mise-modal-nav');
+        const buttonContainer = formContainer.createDiv('mise-modal-nav');
 
         const cancelBtn = buttonContainer.createEl('button', { text: 'Cancel' });
         cancelBtn.onclick = () => this.close();

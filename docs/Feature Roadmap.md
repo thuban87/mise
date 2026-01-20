@@ -12,7 +12,7 @@ tags:
 > This is a personal utility project with infinite runway. Features get done when they get done. Do not pressure the user with "we should do this after MVP" language.
 
 **Last Updated:** January 19, 2026
-**Current Phase:** Phase 16.9 - Add Recipe Modal ✅
+**Current Phase:** Phase 16.10 - Barcode Lookup ✅
 
 ---
 
@@ -776,6 +776,23 @@ interface ShoppingItem {
 - [x] Folder dropdown shows existing subfolders
 - [x] Ingredient autocomplete works
 - [x] File created with correct formatting
+
+---
+
+### Phase 16.10: Barcode Lookup
+- **Goal:** Quick inventory entry via UPC/barcode lookup.
+- **Status:** `[x]` Completed (January 19, 2026)
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Barcode input field | `[x]` | Added to AddInventoryModal |
+| Open Food Facts API | `[x]` | Free, crowd-sourced product database |
+| Auto-fill item name | `[x]` | Populates from lookup result |
+
+**Acceptance Criteria:**
+- [x] Barcode input with Lookup button
+- [x] Successful lookups auto-fill item name
+- [x] Works with scanner or copy/paste
 
 ---
 
