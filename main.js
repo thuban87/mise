@@ -34270,32 +34270,8 @@ var MisePlugin = class extends import_obsidian29.Plugin {
         new ThrowAwayModal(this).open();
       }
     });
-    this.addRibbonIcon("plus-circle", "Add Inventory Item", () => {
-      new AddInventoryModal(
-        this.app,
-        this.settings,
-        this.inventoryService,
-        this.ingredientIndex,
-        () => {
-        }
-      ).open();
-    });
-    this.addRibbonIcon("utensils", "Log Meal & Deduct", () => {
-      new LogMealModal(
-        this.app,
-        this.settings,
-        this.mealPlanService,
-        this.inventoryService,
-        this.ingredientIndex,
-        this.indexer
-      ).open();
-    });
-    this.addRibbonIcon("clipboard-list", "Pantry Check", () => {
-      new PantryCheckModal(
-        this.app,
-        this.settings,
-        this.inventoryService
-      ).open();
+    this.addRibbonIcon("chef-hat", "Open Mise Menu", () => {
+      new MiseCommandMenu(this).open();
     });
     this.registerEvent(
       this.app.workspace.on("file-menu", (menu, file) => {

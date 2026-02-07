@@ -317,34 +317,9 @@ export default class MisePlugin extends Plugin {
             }
         });
 
-        // Add ribbon icons for mobile toolbar
-        this.addRibbonIcon('plus-circle', 'Add Inventory Item', () => {
-            new AddInventoryModal(
-                this.app,
-                this.settings,
-                this.inventoryService,
-                this.ingredientIndex,
-                () => { }
-            ).open();
-        });
-
-        this.addRibbonIcon('utensils', 'Log Meal & Deduct', () => {
-            new LogMealModal(
-                this.app,
-                this.settings,
-                this.mealPlanService,
-                this.inventoryService,
-                this.ingredientIndex,
-                this.indexer
-            ).open();
-        });
-
-        this.addRibbonIcon('clipboard-list', 'Pantry Check', () => {
-            new PantryCheckModal(
-                this.app,
-                this.settings,
-                this.inventoryService
-            ).open();
+        // Single ribbon icon for the consolidated command menu
+        this.addRibbonIcon('chef-hat', 'Open Mise Menu', () => {
+            new MiseCommandMenu(this).open();
         });
 
         // Register file-menu event for recipe scaling
